@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+    <Resource name="jdbc/portal" 
+    auth="Container" 
+    type="javax.sql.DataSource" 
+    driverClassName="net.sf.log4jdbc.sql.jdbcapi.DriverSpy" 
+    url="jdbc:log4jdbc:sqlserver://1.221.147.165:6161;databaseName=Portal" 
+    username="portal" 
+    password="Echo1004" 
+    maxActive="20" 
+    maxIdle="10" 
+    maxWait="-1"/>
+</Context>

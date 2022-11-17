@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="AtchFileMapper">
+
+    <select id="selectAtchmnfl" parameterType="java.util.Map" resultType="kr.co.rpaplatform.dongwon.file.vo.AtchFileVO">
+        /* AtchFileMapper.selectAtchmnfl */
+        SELECT  FILE_GRP_NO
+              , FILE_NO
+              , ORI_FILE_NM
+              , SAVE_PATH
+              , FILE_SZ
+              , SAVE_FILE_NM
+              , CREAT_USR
+              , CREAT_DT
+          FROM  TB_FILE
+         WHERE  FILE_GRP_NO = #{fileGrpNo}
+           AND  FILE_NO = #{fileNo}
+    </select>
+
+    <select id="selectAtchmnflList" parameterType="java.lang.Integer" resultType="kr.co.rpaplatform.dongwon.file.vo.AtchFileVO">
+        /* AtchFileMapper.selectAtchmnflList */
+        SELECT  FILE_GRP_NO
+              , FILE_NO
+              , ORI_FILE_NM
+              , SAVE_PATH
+              , FILE_SZ
+              , SAVE_FILE_NM
+              , CREAT_USR
+              , CREAT_DT
+          FROM  TB_FILE
+         WHERE  FILE_GRP_NO = #{fileGrpNo}
+      ORDER BY  FILE_NO
+    </select>
+    
+    <select id="selectNextFileGrpNo" resultType="java.lang.Integer">
+        /* AtchFileMapper.selectNextFileGrpNo */
+        SELECT  (ISNULL(MAX(FILE_GRP_NO), 0) + 1) AS fileGrpNo
+          FROM  TB_FILE
+    </select>
+    
+    <select id="selectDeleteFile" parameterType="java.util.Map" resultType="kr.co.rpaplatform.dongwon.file.vo.AtchFileVO">
+        /* AtchFileMapper.selectDeleteFile */
+        SELECT  FILE_GRP_NO
+              , FILE_NO
+              , ORI_FILE_NM
+              , SAVE_PATH
+              , FILE_SZ
+              , SAVE_FILE_NM
+              , CREAT_USR
+              , CREAT_DT
+          FROM  TB_FILE
+         WHERE  FILE_GRP_NO = #{fileGrpNo}
+           <if test='fileNoArray != null'>
+               AND  FILE_NO NOT IN
+               <foreach collection="fileNoArray" item="item" index="index"  open="(" close=")" separator=",">
+                    #{item}
+               </foreach>
+           </if>
+    </select>
+    
+    <delete id="deleteAtchmnfl" parameterType="java.util.Map">
+        /* AtchFileMapper.deleteAtchmnfl */
+        DELETE  
+          FROM  TB_FILE
+         WHERE  FILE_GRP_NO = #{fileGrpNo}
+           <if test='fileNoArray != null'>
+               AND  FILE_NO NOT IN
+               <foreach collection="fileNoArray" item="item" index="index"  open="(" close=")" separator=",">
+                    #{item}
+               </foreach>
+           </if>
+    </delete>
+    
+    <select id="selectNextFileNo" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+        /* AtchFileMapper.selectNextFileNo */
+        SELECT  (ISNULL(MAX(FILE_NO), 0) + 1) AS fileNo
+          FROM  TB_FILE
+         WHERE  FILE_GRP_NO = #{fileGrpNo}
+    </select>
+    
+    <insert id="insertAtchmnfl" parameterType="kr.co.rpaplatform.dongwon.file.vo.AtchFileVO">
+        /* AtchFileMapper.insertAtchmnfl */
+        INSERT
+          INTO  TB_FILE (
+                    FILE_GRP_NO
+                  , FILE_NO
+                  , ORI_FILE_NM
+                  , SAVE_PATH
+                  , FILE_SZ
+                  , SAVE_FILE_NM
+                  , CREAT_USR
+                  , CREAT_DT
+          ) VALUES (
+                    #{fileGrpNo}
+                  , #{fileNo}
+                  , #{oriFileNm}
+                  , #{savePath}
+                  , #{fileSz}
+                  , #{saveFileNm}
+                  , #{creatUsr}
+                  , GETDATE()
+          )
+    </insert>
+    
+    <select id="templateUploadChk" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+/* AtchFileMapper.templateUploadChk */
+SELECT COUNT(FILE_GRP_NO) FROM [dbo].[TB_TASK_TMPLAT]
+WHERE
+    FILE_GRP_NO = #{fileGrpNo}
+    AND USE_AT = 'Y'
+    </select>
+    
+
+    <insert id="updateDtAtchmnfl" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO">
+        UPDATE TB_TASK_TMPLAT 
+        SET
+          UPDT_DT = GETDATE()
+        WHERE FILE_GRP_NO = #{fileGrpNo} AND USE_AT = 'Y'
+    </insert>
+
+    
+</mapper>

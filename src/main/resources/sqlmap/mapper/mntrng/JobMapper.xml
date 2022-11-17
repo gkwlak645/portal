@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="JobMapper">
+
+        <select id="selectJobList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* JobMapper.selectJobList */
+        
+        DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME, @MONTH_END_DAY_COUNT INT, @MONTH_END DATETIME, @NOW_YEAR_DAY_COUNT INT
+        SET @start_date = #{startDe}; 
+        SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+        SET @end_date = #{endDe}; 
+        SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+        SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+        
+        SET @MONTH_END = DATEADD (DAY, -1, DATEADD (MONTH, DATEDIFF (MONTH, 0, GETDATE()) + 1, 0))
+        SET @MONTH_END_DAY_COUNT = DAY(@MONTH_END);
+        SET @NOW_YEAR_DAY_COUNT = DATEDIFF(DD, DATEADD(YEAR, DATEDIFF(YEAR, 0, GETDATE()), 0), DATEADD(YEAR, DATEDIFF(YEAR, -1, GETDATE()), -1)) + 1
+        
+            SELECT   A.Id
+                   , dbo.UFN_GET_CMPNY_CD(A.TenantId) AS cmpnyCd
+                   , CASE 
+                        WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(A.TenantId),'') = ''   THEN 'Default'
+                   ELSE dbo.UFN_GET_CMPNY_NM(A.TenantId) END  AS cmpnyName
+                   , B.ProcessKey AS ProcessName
+                   , C.Name AS RobotName
+                   , C.UserName
+                   , D.Name AS MachineName
+                   , E.Name AS EnvironmentName
+                   , F.CD_NM AS TypeName
+                   , G.CD AS stateCd
+                   , G.CD_NM AS StateName
+                   <!-- , H.CD_NM AS JobPriorityName -->
+                   
+                   
+                   , CASE WHEN DATEDIFF(MI, A.StartTime, @NOW_DATE) >= @NOW_YEAR_DAY_COUNT*1440 THEN CONVERT(VARCHAR, DATEDIFF(YY, A.StartTime, @NOW_DATE)) + '년전'
+                          WHEN DATEDIFF(MI, A.StartTime, @NOW_DATE) >= @MONTH_END_DAY_COUNT*1440 THEN CONVERT(VARCHAR, DATEDIFF(MM, A.StartTime, @NOW_DATE)) + '월전'
+                          --WHEN DATEDIFF(YY, A.StartTime, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, A.StartTime, @NOW_DATE)) + '년전'
+                          --WHEN DATEDIFF(MM, A.StartTime, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, A.StartTime, @NOW_DATE)) + '월전'
+                          WHEN DATEDIFF(MI, A.StartTime, @NOW_DATE) >= 1440 THEN CONVERT(VARCHAR, DATEDIFF(DD, A.StartTime, @NOW_DATE)) + '일전'
+                          WHEN DATEDIFF(MI, A.StartTime, @NOW_DATE) >= 60 THEN CONVERT(VARCHAR, DATEDIFF(HH, A.StartTime, @NOW_DATE)) + '시간전'
+                          WHEN DATEDIFF(MI, A.StartTime, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MI, A.StartTime, @NOW_DATE)) + '분전'
+                          ELSE '1분전'
+                     END AS StartTimeDc
+                     
+                     
+                     
+                     
+                   , CASE WHEN DATEDIFF(MI, A.EndTime, @NOW_DATE) >= @NOW_YEAR_DAY_COUNT*1440 THEN CONVERT(VARCHAR, DATEDIFF(YY, A.EndTime, @NOW_DATE)) + '년전'
+                          WHEN DATEDIFF(MI, A.EndTime, @NOW_DATE) >= @MONTH_END_DAY_COUNT*1440 THEN CONVERT(VARCHAR, DATEDIFF(MM, A.EndTime, @NOW_DATE)) + '월전'
+                          --WHEN DATEDIFF(YY, A.EndTime, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, A.EndTime, @NOW_DATE)) + '년전'
+                          --WHEN DATEDIFF(MM, A.EndTime, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, A.EndTime, @NOW_DATE)) + '월전'
+                          WHEN DATEDIFF(MI, A.EndTime, @NOW_DATE) >= 1440 THEN CONVERT(VARCHAR, DATEDIFF(DD, A.EndTime, @NOW_DATE)) + '일전'
+                          WHEN DATEDIFF(MI, A.EndTime, @NOW_DATE) >= 60 THEN CONVERT(VARCHAR, DATEDIFF(HH, A.EndTime, @NOW_DATE)) + '시간전'
+                          WHEN DATEDIFF(MI, A.EndTime, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MI, A.EndTime, @NOW_DATE)) + '분전'
+                          WHEN ISNULL(A.EndTime , '') = '' THEN ''
+                          ELSE '1분전'
+                     END AS EndTimeDc
+                     
+                     
+                     
+                     
+                   , I.CD_NM AS SourceName
+              FROM   SY_JOBS A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ROBOTS C
+                ON   (
+                             A.RobotId = C.Id
+                        <!-- AND  C.IsDeleted = 0 -->
+                     )
+              JOIN   SY_MACHINES D
+                ON   (
+                             C.MachineId = D.Id
+                        <!-- AND  D.IsDeleted = 0 -->
+                     )
+              JOIN   SY_ENVIRONMENTS E
+                ON   B.EnvironmentId = E.Id
+              JOIN   TB_CMMN_CD F
+                ON   (
+                             C.Type = F.CD
+                         AND F.CLS_CD = '0006'
+                         AND F.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD G
+                ON   (
+                             A.State = G.CD
+                         AND G.CLS_CD = '0015'
+                         AND G.USE_AT = 'Y'
+                     )
+              <!-- JOIN   TB_CMMN_CD H
+                ON   (
+                             A.JobPriority = H.CD
+                         AND H.CLS_CD = '0010'
+                         AND H.USE_AT = 'Y'
+                     ) -->
+              JOIN   TB_CMMN_CD I
+                ON   (
+                             A.Source = I.CD
+                         AND I.CLS_CD = '0016'
+                         AND I.USE_AT = 'Y'
+                     )
+             WHERE   1 = 1
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+              </if>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, A.CreationTime) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, A.CreationTime) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+             </if>
+             <if test='state != null and state != ""'>
+               AND   A.State = #{state}
+             </if>
+             <if test='jobPriority != null and jobPriority != ""'>
+               AND   A.JobPriority = #{jobPriority}
+             </if>
+             <if test='source != null and source != ""'>
+               AND   A.Source = #{source}
+             </if>
+          ORDER BY   A.CreationTime DESC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectJobCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* JobMapper.selectJobCount */
+        
+        DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME, @MONTH_END_DAY_COUNT INT, @MONTH_END DATETIME, @NOW_YEAR_DAY_COUNT INT
+        SET @start_date = #{startDe}; 
+        SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+        SET @end_date = #{endDe}; 
+        SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+        
+        SET @MONTH_END = DATEADD (DAY, -1, DATEADD (MONTH, DATEDIFF (MONTH, 0, GETDATE()) + 1, 0))
+        SET @MONTH_END_DAY_COUNT = DAY(@MONTH_END);
+        SET @NOW_YEAR_DAY_COUNT = DATEDIFF(DD, DATEADD(YEAR, DATEDIFF(YEAR, 0, GETDATE()), 0), DATEADD(YEAR, DATEDIFF(YEAR, -1, GETDATE()), -1)) + 1
+        
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_JOBS A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ROBOTS C
+                ON   (
+                             A.RobotId = C.Id
+                        <!-- AND  C.IsDeleted = 0 -->
+                     )
+              JOIN   SY_MACHINES D
+                ON   (
+                             C.MachineId = D.Id
+                        <!-- AND  D.IsDeleted = 0 -->
+                     )
+              JOIN   SY_ENVIRONMENTS E
+                ON   B.EnvironmentId = E.Id
+              JOIN   TB_CMMN_CD F
+                ON   (
+                             C.Type = F.CD
+                         AND F.CLS_CD = '0006'
+                         AND F.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD G
+                ON   (
+                             A.State = G.CD
+                         AND G.CLS_CD = '0015'
+                         AND G.USE_AT = 'Y'
+                     )
+          <!--     JOIN   TB_CMMN_CD H
+                ON   (
+                             A.JobPriority = H.CD
+                         AND H.CLS_CD = '0010'
+                         AND H.USE_AT = 'Y'
+                     ) -->
+              JOIN   TB_CMMN_CD I
+                ON   (
+                             A.Source = I.CD
+                         AND I.CLS_CD = '0016'
+                         AND I.USE_AT = 'Y'
+                     )
+             WHERE   1 = 1
+             <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+              </if>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, A.CreationTime) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, A.CreationTime) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+             </if>
+             <if test='state != null and state != ""'>
+               AND   A.State = #{state}
+             </if>
+             <if test='jobPriority != null and jobPriority != ""'>
+               AND   A.JobPriority = #{jobPriority}
+             </if>
+             <if test='source != null and source != ""'>
+               AND   A.Source = #{source}
+             </if>
+        </select>
+        
+        <select id="selectJobDetail" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* JobMapper.selectJobDetail */
+            SELECT   A.Id
+                   , B.Name AS ProcessName
+                   , C.Name AS RobotName
+                   , C.UserName
+                   , D.Name AS MachineName
+                   , E.Name AS EnvironmentName
+                   , F.CD_NM AS TypeName
+                   , G.CD_NM AS StateName
+                   , H.CD_NM AS JobPriorityName
+                   , CONVERT(CHAR(19), A.StartTime, 20) AS StartTime
+                   , CONVERT(CHAR(19), A.EndTime, 20) AS EndTime
+                   , I.CD_NM AS SourceName
+                   , A.Info
+              FROM   SY_JOBS A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ROBOTS C
+                ON   (
+                             A.RobotId = C.Id
+                        AND  C.IsDeleted = 0
+                     )
+              JOIN   SY_MACHINES D
+                ON   (
+                             C.MachineId = D.Id
+                        AND  D.IsDeleted = 0
+                     )
+              JOIN   SY_ENVIRONMENTS E
+                ON   B.EnvironmentId = E.Id
+              JOIN   TB_CMMN_CD F
+                ON   (
+                             C.Type = F.CD
+                         AND F.CLS_CD = '0006'
+                         AND F.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD G
+                ON   (
+                             A.State = G.CD
+                         AND G.CLS_CD = '0015'
+                         AND G.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD H
+                ON   (
+                             A.JobPriority = H.CD
+                         AND H.CLS_CD = '0010'
+                         AND H.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD I
+                ON   (
+                             A.Source = I.CD
+                         AND I.CLS_CD = '0016'
+                         AND I.USE_AT = 'Y'
+                     )
+             WHERE   A.Id = #{id}
+        </select>
+
+</mapper>

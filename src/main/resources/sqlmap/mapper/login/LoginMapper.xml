@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="LoginMapper">
+
+    <select id="loginCheck" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO">
+        /* LoginMapper.loginCheck */
+        SELECT  USER_ID
+               ,PASSWORD
+          FROM  TB_USER_BAS
+         WHERE  USER_ID = #{userId}
+           AND  USE_AT = 'Y'
+    </select>  
+     
+   <!--  <select id="selectUser" resultType="kr.co.rpaplatform.dongwon.stdr.vo.UserVO" parameterType="kr.co.rpaplatform.dongwon.stdr.vo.UserVO">
+        /* LoginMapper.selectUser */
+        SELECT USER_ID, PASSWORD, USER_NM
+            FROM TB_USER_BAS
+        <where>
+            USER_ID = #{userId} and PASSWORD = #{password}
+        </where>
+    </select> -->
+    
+    <select id="selectUser" resultType="kr.co.rpaplatform.dongwon.common.vo.CmmnUserVO" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO">
+       /* LoginMapper.selectUser */
+        SELECT    A.USER_ID AS txUserId
+                , A.EMP_NO AS txEmpNo
+                , A.EMP_NM AS txEmpNm
+                , A.PST_CD AS txPstCd
+                , A.PST_NM AS txPstNm
+                , A.DEPT_CD AS txDeptCd
+                , A.DEPT_NM AS txDeptNm
+                , A.CMPNY_CD AS txCmpnyCd
+                , (SELECT A_1.CD_NM FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK) WHERE A_1.CLS_CD = '0024' AND A_1.CD =  A.CMPNY_CD)AS txCmpnyNm
+                , (SELECT A_1.CD FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK) WHERE A_1.CLS_CD = '0034' AND A_1.CD_NM =  A.CMPNY_CD) AS txTenantId
+                , ( SELECT 
+                        CASE    WHEN ISNULL(MIN(A_1.ROLE_CD), '') != '' THEN 'Y'
+                                ELSE 'N'
+                                END 
+                    FROM  TB_USER_ROLE A_1 WITH(NOLOCK) WHERE  A_1.USER_ID = #{userId}) as txRoleUserAt
+          FROM   VW_USER_INFO A WITH(NOLOCK)
+         WHERE   A.USER_ID = #{userId}
+    </select>
+    
+    <select id="selectCountEmail" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="int" >
+        /* LoginMapper.selectEmail */
+        SELECT   COUNT(EMAIL_ADR)
+          FROM   TB_USER_BAS
+        <where>
+            <choose>
+                <when test="emailAdr != null and userId != null">
+                    EMAIL_ADR = #{emailAdr} and USER_ID = #{userId}
+                </when>
+                <otherwise>
+                    EMAIL_ADR = #{emailAdr}
+                </otherwise>
+            </choose>
+        </where>
+    </select>
+    
+    <select id="selectEmailUser" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" >
+        /* LoginMapper.selectEmailUser */
+        SELECT   EMAIL_ADR
+               , USER_NM
+          FROM   TB_USER_BAS
+         WHERE   EMAIL_ADR = #{emailAdr}
+           AND   USER_ID = #{userId}
+    </select>
+    
+    <update id="updatePwd" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO">
+        /* LoginMapper.updatePwd */
+        UPDATE  TB_USER_BAS
+           SET  PASSWORD = #{password}
+               ,UPDUSR_ID = #{txUserId}
+               ,UPDT_DT = GETDATE()
+         WHERE  EMAIL_ADR = #{emailAdr}
+           AND  USER_ID = #{userId}
+    </update>
+    
+    <select id="selectFindId" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" >
+        /* LoginMapper.selectEmail */
+        SELECT   EMAIL_ADR
+               , USER_NM AS EMP_NM
+               , User_ID
+          FROM   TB_USER_BAS
+         WHERE   EMAIL_ADR = #{emailAdr}
+    </select>
+</mapper>

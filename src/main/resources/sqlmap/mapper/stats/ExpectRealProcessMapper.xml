@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="ExpectRealProcessMapper">
+
+    <!-- 예상실제비교  -->
+    <select id="getExpectRealProcessListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /*ExpectRealProcessMapper.getExpectRealProcessListCount*/
+        
+        SET ANSI_WARNINGS OFF
+        SET ARITHIGNORE ON
+        SET ARITHABORT OFF
+        
+        DECLARE @START_DATE  DATETIME ,@END_DATE  DATETIME
+        
+        -- @START_DATE, @END_DATE 날짜 바꿔가면서 조회 yyyyMMdd
+        SET @START_DATE = #{searchStartDe}; -- 날짜 바꿔가면서 조회
+        SET @START_DATE = DATEADD(HH, -9, CONVERT(VARCHAR(10), @START_DATE, 23));
+        SET @END_DATE = #{searchEndDe}; 
+        SET @END_DATE = DATEADD(HH, -9, CONVERT(VARCHAR(10), DATEADD(DAY, 1, @END_DATE), 23));
+                
+        WITH TB_TEMP AS(
+            SELECT 
+            A.CMPNY_CD 'CMPNY_CD' -- 회사 코드
+            , (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = A.CMPNY_CD) 'CMPNY_NM' -- 회사 이름
+            , A.PROCESS_CD -- 프로세스 코드
+            , A.PROCESS_NM -- 프로세스 명
+            , (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0017' AND CD = A.FQ_CD) 'EXPECT_EXECUTION_FREQ' -- (예상)실행주기
+            , A.EXECUT_CNT 'EXPECT_EXECUTION_COUNT' -- (예상)실행횟수
+        
+            , CASE
+             WHEN A.FQ_CD = '1'                              THEN CONVERT(DECIMAL(12,2), DATEDIFF(DAY, A.BELONGING_DE, @END_DATE) * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 매일
+              WHEN A.FQ_CD = '2'                             THEN CONVERT(DECIMAL(12,2), DATEDIFF(DAY, A.BELONGING_DE, @END_DATE) / 7.0 * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 매주
+              WHEN A.FQ_CD = '3'                             THEN CONVERT(DECIMAL(12,2), DATEDIFF(DAY, A.BELONGING_DE, @END_DATE) / 30.0 * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 매월
+              WHEN A.FQ_CD = '0' OR A.FQ_CD = '4'     THEN CONVERT(DECIMAL(12,2), DATEDIFF(DAY, A.BELONGING_DE, @END_DATE) / 365.0 * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 수시, 매년
+              END AS EXPECT_SUCCESS_COUNT -- (예상)성공횟수
+        
+            , A.BELONGING_DE 'BELONGING_DATE' -- 개발 귀속일
+        
+            , PROCESS_STTUS -- 프로세스 상태코드
+            
+            , (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0037' AND CD = A.PROCESS_STTUS)  'PROCESS_STATUS' -- 프로세스 상태
+            
+            , A.REDCN_TM 'EXEPECT_SAVING_TIME' -- 예상절감시간(년간)
+        
+            , CASE 
+              WHEN A.FQ_CD = '1'                             THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / (A.EXECUT_CNT * 365.0)) -- 매일
+              WHEN A.FQ_CD = '2'                             THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / (A.EXECUT_CNT  / 7.0 * 365.0)) -- 매주
+              WHEN A.FQ_CD = '3'                             THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / (A.EXECUT_CNT * 12.0)) -- 매월
+              WHEN A.FQ_CD = '0' OR A.FQ_CD = '4'     THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / CONVERT(DECIMAL, A.EXECUT_CNT)) -- 수시, 매년
+              END AS ONE_REDCN_TM -- (예상)절감시간(건당)
+             
+             , A.EXECUT_SE -- 개발봇 또는 운영봇
+             , A.FQ_CD -- 실행주기
+           
+             FROM [DBO].[TB_TASK_DEVLOP_PROCESS] A
+             
+             WHERE  1=1
+                        --AND ISNULL(A.REDCN_TM, 0) > 0 -- 예상절감시간(년간)
+                        --AND ISNULL(A.EXECUT_CNT, 0) > 0   -- 실행주기 횟수
+                        AND A.CMPNY_CD != 'S'
+        )
+        
+        SELECT
+        
+        COUNT(DISTINCT(TB_TEMP.[PROCESS_CD]))
+        
+        FROM TB_TEMP
+        LEFT JOIN [DBO].[TB_TASK_DEVLOP_PROCESS_MAPPER] B ON TB_TEMP.PROCESS_CD = B.PROCESS_CD
+        LEFT JOIN [DBO].[SY_JOBS] C                       ON B.RELEASES_ID = C.RELEASEID
+        
+        <where>
+          1 = 1
+          --AND C.STARTTIME <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) 
+          --AND C.STARTTIME <![CDATA[<]]> CONVERT(DATETIME, @END_DATE)
+          --AND C.ENDTIME IS NOT NULL
+          --AND C.ROBOTID IS NOT NULL
+            
+          <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+            AND TB_TEMP.CMPNY_CD = #{searchCmpnyCd}
+          </if> 
+          
+          <if test='searchRobotId != null and searchRobotId != "" and searchRobotId != "전체"'>
+            AND C.ROBOTID = #{searchRobotId}
+          </if> 
+                   
+          <if test='searchProcessCd != null and searchProcessCd != ""'>
+            AND TB_TEMP.PROCESS_CD = #{searchProcessCd}
+          </if> 
+          
+          <if test='searchProcessNm != null and searchProcessNm != ""'>
+            AND TB_TEMP.PROCESS_NM LIKE CONCAT('%', #{searchProcessNm} ,'%')
+          </if> 
+         
+          <if test='searchProcessSttus != null and searchProcessSttus != ""'>
+            AND TB_TEMP.PROCESS_STTUS = #{searchProcessSttus}
+          </if> 
+          
+          <if test='searchExeFreq != null and searchExeFreq != "" and searchExeFreq != "전체"'>
+            AND TB_TEMP.FQ_CD = #{searchExeFreq}
+          </if> 
+          
+          <if test='searchDevOperBot != null and searchDevOperBot != ""'>
+            AND TB_TEMP.EXECUT_SE = #{searchDevOperBot}
+          </if>   
+        </where>
+       
+    </select>
+
+
+
+    <!-- 예상실제비교  -->
+    <select id="getExpectRealProcessList" parameterType="java.util.Map" resultType="camelMap">
+	    /*ExpectRealProcessMapper.getExpectRealProcessList*/
+	    
+	    SET ANSI_WARNINGS OFF
+		SET ARITHIGNORE ON
+		SET ARITHABORT OFF
+		
+		DECLARE @START_DATE  DATETIME ,@END_DATE  DATETIME
+		
+		-- @START_DATE, @END_DATE 날짜 바꿔가면서 조회 yyyyMMdd
+		SET @START_DATE = #{searchStartDe}; -- 날짜 바꿔가면서 조회
+		SET @START_DATE = DATEADD(HH, -9, CONVERT(VARCHAR(10), @START_DATE, 23));
+		SET @END_DATE = #{searchEndDe}; 
+		SET @END_DATE = DATEADD(HH, -9, CONVERT(VARCHAR(10), DATEADD(DAY, 1, @END_DATE), 23));
+				
+		WITH TB_TEMP AS(
+		    SELECT 
+		    A.CMPNY_CD 'CMPNY_CD' -- 회사 코드
+		    , (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = A.CMPNY_CD) 'CMPNY_NM' -- 회사 이름
+		    , A.PROCESS_CD -- 프로세스 코드
+		    , A.PROCESS_NM -- 프로세스 명
+		    , (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0017' AND CD = A.FQ_CD) 'EXPECT_EXECUTION_FREQ' -- (예상)실행주기
+		    , A.EXECUT_CNT 'EXPECT_EXECUTION_COUNT' -- (예상)실행횟수
+		
+		    , CASE
+		     WHEN @END_DATE <![CDATA[<]]>  CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) THEN 0
+		     WHEN A.FQ_CD = '1'                              THEN CONVERT(DECIMAL(12,2), 
+		     DATEDIFF(DAY, CASE WHEN CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) <![CDATA[<=]]> @START_DATE THEN @START_DATE
+		     ELSE CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) END, @END_DATE) * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 매일
+		
+		      WHEN A.FQ_CD = '2'                             THEN CONVERT(DECIMAL(12,2), 
+		      DATEDIFF(DAY, CASE WHEN CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) <![CDATA[<=]]> @START_DATE THEN @START_DATE
+		      ELSE CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) END, @END_DATE) / 7.0 * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 매주
+		
+		      WHEN A.FQ_CD = '3'                             THEN CONVERT(DECIMAL(12,2), DATEDIFF(DAY, 
+		      CASE WHEN CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) <![CDATA[<=]]> @START_DATE THEN @START_DATE
+		      ELSE CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) END, @END_DATE) / 30.0 * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 매월
+		
+		      WHEN A.FQ_CD = '0' OR A.FQ_CD = '4'     THEN CONVERT(DECIMAL(12,2), DATEDIFF(DAY, 
+		      CASE WHEN CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) <![CDATA[<=]]> @START_DATE THEN @START_DATE
+		      ELSE CONVERT(VARCHAR(23), CONCAT(A.BELONGING_DE, ' 15:00:00.000'), 25) END, @END_DATE) / 365.0 * CONVERT(DECIMAL, A.EXECUT_CNT)) -- 수시, 매년
+		
+		      END AS EXPECT_SUCCESS_COUNT -- (예상)성공횟수
+		
+		    , A.BELONGING_DE 'BELONGING_DATE' -- 개발 귀속일
+		
+		    , PROCESS_STTUS -- 프로세스 상태코드
+		    
+		    , (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0037' AND CD = A.PROCESS_STTUS)  'PROCESS_STATUS' -- 프로세스 상태
+		    
+		    , A.REDCN_TM 'EXEPECT_SAVING_TIME' -- 예상절감시간(년간)
+		
+		    , CASE 
+		      WHEN A.FQ_CD = '1'                             THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / (A.EXECUT_CNT * 365.0)) -- 매일
+		      WHEN A.FQ_CD = '2'                             THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / (A.EXECUT_CNT  / 7.0 * 365.0)) -- 매주
+		      WHEN A.FQ_CD = '3'                             THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / (A.EXECUT_CNT * 12.0)) -- 매월
+		      WHEN A.FQ_CD = '0' OR A.FQ_CD = '4'     THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL, A.REDCN_TM) / CONVERT(DECIMAL, A.EXECUT_CNT)) -- 수시, 매년
+		      END AS ONE_REDCN_TM -- (예상)절감시간(건당)
+             , A.EXECUT_SE -- 개발봇 또는 운영봇
+             , A.FQ_CD -- 실행주기
+             		   
+		     FROM [DBO].[TB_TASK_DEVLOP_PROCESS] A
+		     
+		     WHERE  1=1
+		                --AND ISNULL(A.REDCN_TM, 0) > 0 -- 예상절감시간(년간)
+		                --AND ISNULL(A.EXECUT_CNT, 0) > 0   -- 실행주기 횟수
+		                AND A.CMPNY_CD != 'S'
+		)
+		
+		SELECT
+		
+		TB_TEMP.CMPNY_NM, -- 회사
+		TB_TEMP.PROCESS_CD, -- 프로세스 코드
+		TB_TEMP.PROCESS_NM, -- 프로세스 명
+		TB_TEMP.[PROCESS_STATUS], -- 프로세스 상태
+		TB_TEMP.[BELONGING_DATE], -- 개발 귀속일
+		CONCAT(TB_TEMP.[EXPECT_EXECUTION_FREQ], ' ', TB_TEMP.[EXPECT_EXECUTION_COUNT], '회') 'EXPECT_FREQ', -- (예상)실행주기
+		TB_TEMP.ONE_REDCN_TM, -- (예상)절감시간(건당)
+		TB_TEMP.EXPECT_SUCCESS_COUNT, -- (예상)성공횟수
+		CONVERT(DECIMAL(12,2), TB_TEMP.EXPECT_SUCCESS_COUNT * TB_TEMP.ONE_REDCN_TM) 'EXPECT_REDCN_TM', -- (예상)절감시간
+		COUNT(CASE WHEN C.[STATE] = 5 AND C.STARTTIME <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) 
+		    AND C.STARTTIME  <![CDATA[<]]>  CONVERT(DATETIME, @END_DATE) THEN 1 END) 'REAL_SUCCESS_COUNT', -- (실제)성공횟수
+		
+		CASE 
+		WHEN COUNT(CASE WHEN C.[STATE] = 5 AND C.STARTTIME <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) AND C.STARTTIME  <![CDATA[<]]>  CONVERT(DATETIME, @END_DATE) THEN 1 END) <![CDATA[>]]> TB_TEMP.EXPECT_SUCCESS_COUNT 
+		THEN CONVERT(DECIMAL(12,2), CONVERT(DECIMAL(12, 2), TB_TEMP.EXPECT_SUCCESS_COUNT) * CONVERT(DECIMAL(12, 2), TB_TEMP.ONE_REDCN_TM))
+		ELSE CONVERT(DECIMAL(12,2), CONVERT(DECIMAL(12, 2), COUNT(CASE WHEN C.[STATE] = 5 AND C.STARTTIME <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) 
+		    AND C.STARTTIME  <![CDATA[<]]>  CONVERT(DATETIME, @END_DATE) THEN 1 END)) * CONVERT(DECIMAL(12, 2), TB_TEMP.ONE_REDCN_TM))
+		END 'REAL_REDCN_TM', --(실제)절감시간
+		
+		CONVERT(DECIMAL(12,2), (CONVERT(DECIMAL(12, 2), COUNT(CASE WHEN C.[STATE] = 5 AND C.STARTTIME <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) 
+		    AND C.STARTTIME  <![CDATA[<]]>  CONVERT(DATETIME, @END_DATE) THEN 1 END)) / CONVERT(DECIMAL(12, 2), TB_TEMP.EXPECT_SUCCESS_COUNT)) * 100) 'SUCCESS_RATE', -- 실행성공률
+		
+		(SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0049' AND CD = TB_TEMP.EXECUT_SE)  'BOT'
+		
+		FROM TB_TEMP
+		LEFT JOIN [DBO].[TB_TASK_DEVLOP_PROCESS_MAPPER] B ON TB_TEMP.PROCESS_CD = B.PROCESS_CD
+		LEFT JOIN [DBO].[SY_JOBS] C                       ON B.RELEASES_ID = C.RELEASEID
+		
+		<where>
+          1 = 1
+          --AND C.STARTTIME <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) 
+          --AND C.STARTTIME <![CDATA[<]]> CONVERT(DATETIME, @END_DATE)
+          --AND C.ENDTIME IS NOT NULL
+          --AND C.ROBOTID IS NOT NULL
+            
+          <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+            AND TB_TEMP.CMPNY_CD = #{searchCmpnyCd}
+          </if> 
+          
+          <if test='searchRobotId != null and searchRobotId != "" and searchRobotId != "전체"'>
+            AND C.ROBOTID = #{searchRobotId}
+          </if> 
+                   
+          <if test='searchProcessCd != null and searchProcessCd != ""'>
+            AND TB_TEMP.PROCESS_CD = #{searchProcessCd}
+          </if> 
+          
+          <if test='searchProcessNm != null and searchProcessNm != ""'>
+            AND TB_TEMP.PROCESS_NM LIKE CONCAT('%', #{searchProcessNm} ,'%')
+          </if> 
+         
+          <if test='searchProcessSttus != null and searchProcessSttus != ""'>
+            AND TB_TEMP.PROCESS_STTUS = #{searchProcessSttus}
+          </if> 
+          
+          <if test='searchExeFreq != null and searchExeFreq != "" and searchExeFreq != "전체"'>
+            AND TB_TEMP.FQ_CD = #{searchExeFreq}
+          </if> 
+          
+          <if test='searchDevOperBot != null and searchDevOperBot != ""'>
+            AND TB_TEMP.EXECUT_SE = #{searchDevOperBot}
+          </if>   
+        </where>
+		
+		GROUP BY
+            TB_TEMP.[CMPNY_CD],
+            TB_TEMP.[CMPNY_NM],
+            TB_TEMP.[PROCESS_CD], 
+            TB_TEMP.[PROCESS_NM],
+            TB_TEMP.[PROCESS_STATUS],
+            TB_TEMP.[BELONGING_DATE],
+            TB_TEMP.[EXPECT_EXECUTION_FREQ],
+            TB_TEMP.[EXPECT_EXECUTION_COUNT],
+            TB_TEMP.[ONE_REDCN_TM],
+            TB_TEMP.EXPECT_SUCCESS_COUNT,       
+            TB_TEMP.EXECUT_SE
+		
+		ORDER BY 
+		    TB_TEMP.[PROCESS_CD]
+		    
+	  <if test='excelDownload != "Y"'> 
+           OFFSET #{paginationInfo.firstRecordIndex} ROWS
+           FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+      </if>  
+    </select>
+
+
+    <!-- 현재 로봇과 로봇 현황 List -->
+    <select id="selectBotListForExpectRealRobot" parameterType="java.util.Map" resultType="camelMap">
+        /*ExpectRealProcessMapper.selectBotListForExpectRealRobot*/
+        SELECT
+              (SELECT b.CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] b WHERE b.[TENANT_ID] = A.[TENANTID]) 'CMPNY_CD'
+              , B.[NAME]
+              , A.[STATE]
+              , A.[ROBOTID] 'ROBOT_ID'
+              , CASE 
+                    WHEN A.[STATE] = 0  AND A.[ISUNRESPONSIVE] = 0 THEN 0 -- Available
+                    WHEN A.[STATE] = 1  AND A.[ISUNRESPONSIVE] = 0 THEN 1 -- Busy
+                    WHEN A.[STATE] = 2  AND A.[ISUNRESPONSIVE] = 0 THEN 2 -- Disconnected
+                    WHEN A.[STATE] != 2 AND A.[ISUNRESPONSIVE] = 1 THEN 3 -- Unresponsive
+                END 'ROBOT_STATE'
+        FROM [RPA_POTAL]. [DBO].[SY_SESSIONS] A
+        INNER JOIN [RPA_POTAL].[DBO].[SY_ROBOTS] B
+        ON A.ROBOTID = B.ID
+
+        <where>
+          A.ISDELETED = 0 AND B.ISDELETED = 0
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnyCd})
+          </if>                    
+        </where>
+        
+        ORDER BY CMPNY_CD, NAME
+    </select>
+ 
+</mapper>

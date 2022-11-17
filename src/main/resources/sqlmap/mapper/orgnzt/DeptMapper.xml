@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="DeptMapper">
+
+    <select id="selectDeptList" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.selectDeptList */
+        SELECT  DEPT_CD
+               ,DEPT_NM
+               ,UP_DEPT_CD
+               ,DEPT_ORDR
+               ,USE_AT  
+          FROM  VW_DEPT
+      ORDER BY  UP_DEPT_CD ASC, DEPT_ORDR ASC
+    </select>  
+                
+    <select id="selectDeptDetail" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.selectDeptDetail */
+        SELECT  DEPT_CD
+               ,DEPT_NM
+               ,UP_DEPT_CD
+               ,DEPT_ORDR
+               ,USE_AT 
+          FROM  VW_DEPT
+         WHERE  DEPT_CD = #{deptCd}
+    </select>
+                  
+    <select id="selectDeptMaxOrdr" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO" resultType="Integer">
+        /* DeptMapper.selectDeptMaxOrdr */
+        SELECT ISNULL(MAX(DEPT_ORDR),0)+1
+          FROM VW_DEPT
+         WHERE UP_DEPT_CD = #{deptCd}
+    </select>  
+    
+    <insert id="insertDept" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.insertDept */
+        INSERT
+          INTO TB_DEPT(DEPT_CD, DEPT_NM, UP_DEPT_CD, DEPT_ORDR, USE_AT, REGISTER_ID, REG_DT, UPDUSR_ID, UPDT_DT)
+        VALUES (#{deptCd}, #{deptNm}, #{upDeptCd}, #{deptOrdr}, #{useAt}, #{txUserId}, GETDATE(), #{txUserId}, GETDATE())
+    </insert> 
+                 
+    <delete id="deleteDept" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.deleteDept */
+        DELETE
+          FROM TB_DEPT
+         WHERE DEPT_CD = #{deptCd}
+    </delete>              
+    <update id="updateDept" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.updateDept */
+        UPDATE   TB_DEPT
+           SET   DEPT_NM = #{deptNm}
+               , USE_AT = #{useAt}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   DEPT_CD = #{deptCd}
+    </update>
+    
+    <update id="updateUseAtDept" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.updateUseAtDept */
+        UPDATE   TB_DEPT
+           SET   USE_AT = #{useAt}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   DEPT_CD = #{deptCd}
+    </update>
+    
+    <update id="updateOrdrDept" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.updateOrdrDept */
+        UPDATE   TB_DEPT
+           SET   DEPT_ORDR = #{deptOrdr}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   DEPT_CD = #{deptCd}
+    </update>
+    
+    <select id="selectChildDeptCd" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.DeptVO">
+        /* DeptMapper.selectChildDeptCd */
+        SELECT DEPT_CD
+          FROM TB_DEPT
+         WHERE UP_DEPT_CD = #{deptCd}
+    </select>
+</mapper>

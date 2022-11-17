@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="LicenseMapper">
+
+
+        
+        <select id="getLicenseInfo" parameterType="kr.co.rpaplatform.dongwon.resrce.vo.LicenseVO" resultType="kr.co.rpaplatform.dongwon.resrce.vo.LicenseVO">
+        /* LicenseMapper.getLicenseInfo */
+        
+                
+                SELECT VALUE 
+                  FROM SY_SETTINGS
+                 WHERE NAME ='ACTIVATIONID' 
+                   AND LASTMODIFICATIONTIME IS NOT NULL 
+                   AND TenantId IS NULL
+                   AND Value IS NOT NULL
+        
+        </select>
+        
+        
+
+</mapper>

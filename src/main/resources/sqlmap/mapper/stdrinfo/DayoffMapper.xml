@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="DayoffMapper">
+        
+        
+    <select id="getoffDayList" parameterType="java.util.Map" resultType="java.util.Map">
+    /* DayoffMapper.getoffDayList */
+		SELECT [Id]
+		      , dbo.UFN_GET_CMPNY_CD(TenantId) AS cmpnyCd
+              , CASE 
+                        WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(TenantId),'') = ''   THEN 'Default'
+                   ELSE dbo.UFN_GET_CMPNY_NM(TenantId) END  AS cmpnyName
+		      ,[Name]
+		      ,[TenantId]
+		      ,[QuartzCalendarName]
+		      ,[IsDeleted]
+		      ,[DeleterUserId]
+		      ,[DeletionTime]
+		      ,[LastModificationTime]
+		      ,[LastModifierUserId]
+		      ,[CreationTime]
+		      ,[CreatorUserId]
+        FROM SY_CALENDARS
+        WHERE IsDeleted = 0
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+            AND TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+          </if>
+          <if test='year != null and year != ""'>
+            AND CreationTime LIKE '%' + #{year} + '%'
+          </if>
+          
+    </select>
+        
+    <select id="getTenantInfo" parameterType="java.util.Map" resultType="java.util.Map">
+    /* DayoffMapper.getTenantInfo */
+        SELECT *
+		FROM SY_CALENDARS
+		WHERE IsDeleted = 0
+		  <if test='cmpnyCd != null and cmpnyCd != ""'>
+            AND TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+          </if>
+    </select>
+    
+ 
+     <select id="chkOverlapDayOffName" parameterType="java.util.Map" resultType="java.lang.Integer">
+     /* DayoffMapper.selectDayOffCount */
+		SELECT COUNT(Name)
+		FROM SY_CALENDARS A
+         WHERE A.IsDeleted = 0 
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+            AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+          </if>
+          <if test='Name != null and Name != ""'>
+            AND   A.Name = #{Name}
+          </if>
+     </select>
+     
+     
+     
+    <insert id="insertDayOff" parameterType="java.util.Map">
+    /*DayoffMapper.insertDayOff*/
+	INSERT INTO [dbo].[TB_CALENDARS]
+	           (
+	            [Id]
+		      ,[Name]
+		      ,[TenantId]
+		      ,[CMPNY_CD]
+		      ,[ExcludedDate]
+		      ,[REGISTER_ID]
+		      ,[REG_DT]
+	           )
+	     VALUES
+	           (
+	            #{Id}
+	           ,#{Name}
+	           ,dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+	           ,#{cmpnyCd}
+	           ,CONVERT(CHAR(19), convert(datetime,#{excludeDate}), 20)
+	           ,#{txUserId}
+	           ,GETDATE()
+	          )
+    </insert>
+    
+    
+    
+   <insert id="deleteDayOff" parameterType="java.util.Map">
+    /*DayoffMapper.deleteDayOff*/
+    DELETE FROM [dbo].[TB_CALENDARS]
+    WHERE [Id] = #{Id}
+    </insert>
+
+</mapper>

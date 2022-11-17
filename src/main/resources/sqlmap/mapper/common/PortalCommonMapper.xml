@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="PortalCommonMapper">
+    <select id="getTenantId" parameterType="String" resultType="String">
+    /*PortalCommonMapper.getTenantId*/
+        SELECT
+            (SELECT A_1.CD FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK) WHERE A_1.CLS_CD = '0034' AND A_1.CD_NM =  #{cmpnyCd}) 
+        
+    </select>
+</mapper>

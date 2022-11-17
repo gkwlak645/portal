@@ -1,0 +1,55 @@
+@charset "UTF-8";
+
+/* main_visual */
+#container .main_visual_wrap .bx-wrapper {position: relative;}    
+#container .main_visual_wrap .bx-wrapper .bx-controls .bx-controls-direction a{position: absolute; top: 50%; margin-top: -16px; outline: 0; width: 48px; height: 49px; text-indent: -9999px; z-index: 9999;}    
+#container .main_visual_wrap .bx-wrapper .bx-controls .bx-controls-direction .bx-prev{background:url(/resources/image/main/bx-prev.png); left: 350px;}
+#container .main_visual_wrap .bx-wrapper .bx-controls .bx-controls-direction .bx-next{background:url(/resources/image/main/bx-next.png); right: 350px;}              
+#container .main_visual{height: 582px;}  
+/* main_visual */                                     
+
+/* main_content */        
+#container .main_content{height: 732px; margin-bottom: 60px;}               
+/* main_content */
+                                  
+/* main_content_top 공지사항, FAQ */                                    
+#container .main_content .main_content_top{height: 63px; background: #eeeded ;}                 
+#container .main_content .main_content_top dl{position: relative; padding: 19px 50px 18px 94px;}                   
+#container .main_content .main_content_top .main_content_top_left  dl dt{font-weight: bold; color: #073574; font-size: 19px; position: absolute; top: 16px;  left: 0;}    
+#container .main_content .main_content_top .main_content_top_right  dl dt{font-weight: bold; color: #073574; font-size: 19px; position: absolute; top: 16px;  left: 27px;}    
+#container .main_content .main_content_top dd a{display: block; overflow: hidden; white-space: nowrap;}                   
+#container .main_content .main_content_top dd span{color: #7a7a7a; position: absolute; top: 23px; right: 8px;}        
+#container .main_content .main_content_top dd .btn_more{position: absolute;  top: 20px;  right: 0;}
+#container .main_content .main_content_top a{text-align: left;}                                        
+#container .main_content .main_content_top .main_content_top_left{width: 47%; float: left;}
+#container .main_content .main_content_top .main_content_top_left dl dd .bx-wrapper .bx-viewport{ line-height: 21px !important;}                                 
+#container .main_content .main_content_top .main_content_top_right{width: 47%; float: right;}                     
+#container .main_content .main_content_top .main_content_top_right .bx-wrapper .bx-viewport{line-height: 21px !important;}    
+/* main_content_top 공지사항, FAQ*/   
+
+/* main_content_bottom 캠프소개 */                  
+#container .main_content .main_content_bottom{background:url(/resources/image/main/content_bottom_back.jpg)}            
+#container .main_content .main_content_bottom .w1200{padding: 65px 0px; height: 100%;}
+#container .main_content .main_content_bottom h3{ font-size: 26px; color: #073574; font-weight: bold; text-align: center;}
+#container .main_content .main_content_bottom h3:after{position: relative; content: ""; display: block; width: 44px; height: 2px; background: #4778b8; top: 20px; left: 577px;}                               
+#container .main_content .main_content_bottom h4{font-size: 16px; color: #5e5e5e; font-weight: normal; text-align: center; margin-top: 45px;}
+#container .main_content .main_content_bottom .school_zone {padding: 45px 30px 0px; width: 1140px; height: 439px}
+#container .main_content .main_content_bottom .school_zone .school_box{width: 234px; height: 398px; float: left; padding: 19px 15px; border: 1px solid #dfdfdf; margin-right: 25px; background: #fff; box-shadow: 2px 3px 5px #dfdfdf;}
+#container .main_content .main_content_bottom .school_zone .school_box img{width: 234px;}
+#container .main_content .main_content_bottom .school_zone .school_box .school_box_hover{display:none; width: 266px; height: 438px; position: relative; top: -416px; left: -16px; background: rgba(55, 108, 178, 0.93);}
+#container .main_content .main_content_bottom .school_zone .school_box.box3 .school_box_hover{display: none; width: 266px; height: 438px; position: relative; top: -419px; left: -16px; background: rgba(55, 108, 178, 0.93);}
+#container .main_content .main_content_bottom .school_zone .school_box.box4 .school_box_hover{display: none; width: 266px; height: 438px; position: relative; top: -394px; left: -16px; background: rgba(55, 108, 178, 0.93);}
+#container .main_content .main_content_bottom .school_zone .school_box .school_box_hover img{margin: 110px 83px 68px; width: 100px;}
+#container .main_content .main_content_bottom .school_zone .school_box .school_box_hover .btn_detail{width: 158px; height: 41px; border: 1px solid #f1f1f1; line-height: 41px;  text-align: center;  color: #fff; margin : 0 auto;}
+#container .main_content .main_content_bottom .school_zone .school_box:hover .school_box_hover{display: block;}                                 
+#container .main_content .main_content_bottom .school_zone .school_box:before{position: relative; content: ""; display: block; width: 264px; height: 2px; background: #4778b8; top: -19px; left: -15px;}
+#container .main_content .main_content_bottom .school_zone .school_box.box4{margin-right: 0px;}
+#container .main_content .main_content_bottom .school_zone .school_box .school_content{width: 234px;padding-top: 28px;}           
+#container .main_content .main_content_bottom .school_zone .school_box .school_content p{font-size: 17px; color: #073574; text-align: center; letter-spacing: -0.5px; word-break: keep-all;}                         
+#container .main_content .main_content_bottom .school_zone .school_box .school_content ul{margin-top: 30px;}
+#container .main_content .main_content_bottom .school_zone .school_box .school_content ul li{margin-bottom: 10px; font-size: 15px; color: #252525;}      
+/* main_content_bottom 캠프소개 */              
+
+/* ul */
+.ul04 li {background:url(/resources/image/sub/ul04.jpg) 0px 10px no-repeat; padding: 0 0 2px 10px; letter-spacing: -0.5px; }                                           
+/* ul */   

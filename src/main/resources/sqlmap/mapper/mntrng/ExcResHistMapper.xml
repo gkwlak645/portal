@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="ExcResHistMapper">
+
+	<select id="selectExcResList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* ExcResHistMapper.selectExcResList */
+        
+	DECLARE 
+	    @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+	SET @start_date = #{startDe}; 
+	SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+	SET @end_date = #{endDe}; 
+	SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+	SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+        
+	SELECT JOBS_ID AS Id
+		, (SELECT CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 24 AND CD = CMPNY_CD) AS CmpnyName
+		, PROCESS_CD AS ProcessCd
+		, PROCESS_NM AS ProcessName
+		, BOT_NM AS RobotName
+		, ENVRN_NM AS EnvironmentName
+		, (SELECT TOP 1 CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 15 AND CD = STTUS) AS StateName
+		, CONVERT(CHAR(19), START_DT, 21) AS StartTime
+		, CONVERT(CHAR(19), END_DT, 21) AS EndTime
+		, CASE
+			WHEN SOURC = 0 THEN '수동'
+			WHEN SOURC = 1 THEN '시간 트리거'
+			WHEN SOURC = 2 THEN '에이전트'
+			WHEN SOURC = 3 THEN '큐 트리거'
+		END AS Source
+		, CASE
+			WHEN TRGET_AT = 0 THEN 'N'
+			WHEN TRGET_AT = 1 THEN 'Y'
+		END AS TargetAt
+		, ORIGINAL_AT AS OriginalAt
+ 	FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+    WHERE   1 = 1
+	<!-- <if test='cmpnyCd != null and cmpnyCd != ""'>
+	  AND   CMPNY_CD = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+	</if> -->
+	<if test='startDe != null and startDe != ""'>
+	  AND  (CONVERT(DATETIME, START_DT) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+	</if>
+	<if test='endDe != null and endDe != ""'>
+	  AND   CONVERT(DATETIME, END_DT) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+	</if>
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  CMPNY_CD = #{cmpnyCd}
+	</if>
+	<if test='searchProcessCd != null and searchProcessCd != ""'>
+		AND PROCESS_CD = #{searchProcessCd}
+	</if>
+	<if test='searchProcessNm != null and searchProcessNm != ""'>
+		AND PROCESS_NM = #{searchProcessNm}
+	</if>
+ 	ORDER BY	END_DT DESC
+		OFFSET #{paginationInfo.firstRecordIndex} ROWS
+		FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+	</select>
+        
+	<select id="selectExcResCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+	/* ExcResHistMapper.selectExcResCount */
+	      
+	DECLARE 
+	    @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+	SET @start_date = #{startDe}; 
+	SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+	SET @end_date = #{endDe}; 
+	SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+	SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+	       
+	SELECT COUNT(JOBS_ID) AS cnt
+		FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+	   WHERE   1 = 1
+	<!-- <if test='cmpnyCd != null and cmpnyCd != ""'>
+	  AND   CMPNY_CD = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+	</if> -->
+	<if test='startDe != null and startDe != ""'>
+	  AND  (CONVERT(DATETIME, START_DT) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+	</if>
+	<if test='endDe != null and endDe != ""'>
+	  AND   CONVERT(DATETIME, END_DT) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+	</if>
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  CMPNY_CD = #{cmpnyCd}
+	</if>
+	<if test='searchProcessCd != null and searchProcessCd != ""'>
+		AND PROCESS_CD = #{searchProcessCd}
+	</if>
+	<if test='searchProcessNm != null and searchProcessNm != ""'>
+		AND PROCESS_NM = #{searchProcessNm}
+	</if>
+	</select>
+	
+	<select id="selectReExcInfo" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* ExcResHistMapper.getReExcInfo */
+	      
+	SELECT A.Id
+	, C.PROCESS_CD AS ProcessCd
+	, ISNULL(A.InputArguments,'{}') AS InputArguments
+	, D.Id AS BotNo
+	, C.CMPNY_CD AS CmpnyCd
+	, E.Id AS ReleaseId
+	, E.[KEY] AS ReleaseKey
+	, D.Type AS BotType
+	, E.Name AS ReleaseNm
+	, E.ProcessKey
+	FROM SY_JOBS A WITH(NOLOCK)
+		INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B WITH(NOLOCK) ON A.ReleaseId =  B.RELEASES_ID
+		INNER JOIN TB_TASK_DEVLOP_PROCESS C WITH (NOLOCK) ON B.PROCESS_CD = C.PROCESS_CD
+		INNER JOIN SY_ROBOTS D WITH(NOLOCK) ON A.RobotId = D.Id
+		INNER JOIN SY_RELEASES E WITH(NOLOCK) ON A.ReleaseId = E.Id
+	WHERE A.ID = #{id}
+	</select>
+	
+    <insert id="insertTaskAttendedReserve" parameterType="java.util.Map">
+	/*ExcResHistMapper.insertTaskAttendedReserve */
+	INSERT INTO TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE
+		(
+		  CMPNY_CD
+		, PROCESS_CD
+		, ROBOT_ID
+		, INPUT_ARGUMENTS
+		, PROCESS_NAME
+		, PROCESS_KEY
+		, STTUS
+		, CREAT_DT
+		, RESV_NO
+		, RETRY_TRGET_ID
+		, RETRY_APPLY_AT
+		)
+		VALUES
+		(
+		  #{cmpnyCd}
+		, #{processCd}
+		, CONVERT(int, #{botNo})
+		, ISNULL(#{inputArguments},'{}')
+		, #{releasesName}
+		, #{processKey}
+		, 'WAIT'
+		, GETDATE()
+		, #{resvNo}
+		, #{targetId}
+		, 0
+		)
+    </insert>
+    
+    <insert id="insertTaskSendHistory" parameterType="java.util.Map">
+	/*ExcResHistMapper.insertTaskSendHistory */
+	INSERT INTO dbo.TB_SEND_JOBS_HIST
+	      (
+	        CMPNY_CD
+	      , PROCESS_CD
+	      , BOT_NO
+	      , BOT_TYPE
+	      , INPUTARGUMENTS
+	      , RELEASES_ID
+	      , RELEASES_KEY
+	      , RELEASES_NAME
+	      , PROCESS_KEY
+	      , RESPONSE
+	      , REG_DT
+	      )
+	VALUES
+	      (
+	        #{cmpnyCd}
+	      , #{processCd}
+	      , CONVERT(INT, #{botNo})
+	      , #{botType}
+	      , ISNULL(#{inputArguments},'{}')
+	      , CONVERT(INT, #{releasesId})
+	      , #{releasesKey}
+	      , #{releasesName}
+	      , #{processKey}
+	      , #{response}
+	      , GETDATE()
+	      )
+    </insert>
+    
+    <insert id="insertReExcInfo" parameterType="java.util.Map">
+	/*ExcResHistMapper.insertReExcInfo */
+	INSERT INTO TB_TASK_DEVLOP_PROCESS_OPER_RETRY
+	(
+		RETRY_TRGET_ID
+		, JOB_ID
+		, REGISTER_ID
+		, REG_DT
+		, APPLY_AT
+	)
+	VALUES
+		(
+		#{targetId}
+		, #{jobId}
+		, #{txUserId}
+		, GETDATE()
+		, 0
+		)
+    </insert>
+
+    <update id="updateOriginalAt" parameterType="java.util.Map">
+        /* ExcResHistMapper.updateOriginalAt */
+        UPDATE TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+           SET ORIGINAL_AT = 0
+         WHERE JOBS_ID = #{jobId}
+    </update>
+    
+    	<select id="selectResHistList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* ExcResHistMapper.selectResHistList */        
+	SELECT JOBS_ID AS Id
+		, CMPNY_CD AS CmpnyCd
+		, CMPNY_NM AS CmpnyNm
+		, PROCESS_CD AS ProcessCd
+		, PROCESS_NM AS processNm
+		, BOT_ID AS BotId
+		, BOT_NM AS BotNm
+		, ENVRN_ID AS EnvrnId
+		, ENVRN_NM AS EnvrnNm
+		, (SELECT TOP 1 CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 15 AND CD = STTUS) AS Sttus
+		, CASE
+			WHEN SOURC = 0 THEN '수동'
+			WHEN SOURC = 1 THEN '시간 트리거'
+			WHEN SOURC = 2 THEN '에이전트'
+			WHEN SOURC = 3 THEN '큐 트리거'
+		END AS Sourc
+		, TRGET_AT AS TrgetAt
+		, RETRY_TRGET_ID AS RetryTrgetId
+		, ORIGINAL_AT AS OriginalAt
+		, CONVERT(CHAR(19), START_DT, 21) AS StartDt
+		, CONVERT(CHAR(19), END_DT, 21) AS EndDt
+		, EXECUT_TM AS ExecutTm
+	FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+	WHERE JOBS_ID = #{jobId} OR RETRY_TRGET_ID = #{jobId}
+ 	ORDER BY JOBS_ID DESC
+	</select>
+        
+	<select id="selectResHistCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+	/* ExcResHistMapper.selectResHistCount */
+	SELECT COUNT(JOBS_ID) AS CNT
+	FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+	WHERE (JOBS_ID = #{jobId} OR RETRY_TRGET_ID = #{jobId})
+		AND (SELECT TOP 1 ORIGINAL_AT FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST WHERE JOBS_ID = #{jobId}) = 1
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  CMPNY_CD = #{cmpnyCd}
+	</if>
+	</select>
+	
+	<select id="selectTrgetAt" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* ExcResHistMapper.selectTrgetAt */
+	SELECT TOP 1 TRGET_AT AS TrgetAt
+	FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+	WHERE JOBS_ID = #{id}
+	</select>
+	
+	<select id="selectURJobExcAt" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* ExcResHistMapper.selectURJobExcAt */
+	 SELECT TOP 1 ISNULL(APPLY_AT , 1) AS ApplyAt FROM TB_TASK_DEVLOP_PROCESS_OPER_RETRY
+ 	WHERE RETRY_TRGET_ID = #{id}
+ 	ORDER BY SN DESC
+	</select>
+	
+	<select id="selectARJobExcAt" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* ExcResHistMapper.selectARJobExcAt */
+	SELECT TOP 1 ISNULL(RETRY_APPLY_AT,'1') AS RetryApplyAt FROM TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE
+ 	WHERE RETRY_TRGET_ID = #{id}
+ 	AND RETRY_APPLY_AT = 0
+ 	ORDER BY SN DESC
+	</select>
+	
+</mapper>

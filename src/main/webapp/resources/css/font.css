@@ -1,0 +1,66 @@
+
+/* noto-sans-kr-100 - latin_korean */
+
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 300;
+  src: url(/resources/font/NotoSansKR-Light.woff2) format('woff2'),
+       url(/resources/font/NotoSansKR-Light.woff) format('woff'),
+       url(/resources/font/NotoSansKR-Light.otf) format('opentype');
+}
+@font-face {
+   font-family: 'Noto Sans KR';
+   font-style: normal;
+   font-weight: 400;
+   src: url(/resources/font/NotoSansKR-Regular.woff2) format('woff2'),
+        url(/resources/font/NotoSansKR-Regular.woff) format('woff'),
+        url(/resources/font/NotoSansKR-Regular.otf) format('opentype');
+ }
+@font-face {
+   font-family: 'Noto Sans KR';
+   font-style: normal;
+   font-weight: 500;
+   src: url(/resources/font/NotoSansKR-Medium.woff2) format('woff2'),
+        url(/resources/font/NotoSansKR-Medium.woff) format('woff'),
+        url(/resources/font/NotoSansKR-Medium.otf) format('opentype');
+ }
+ @font-face {
+   font-family: 'Noto Sans KR';
+   font-style: normal;
+   font-weight: 700;
+   src: url(/resources/font/NotoSansKR-Bold.woff2) format('woff2'),
+        url(/resources/font/NotoSansKR-Bold.woff) format('woff'),
+        url(/resources/font/NotoSansKR-Bold.otf) format('opentype');
+ }
+ 
+@font-face {
+    font-family: 'Titillium';
+    src: url(/resources/font/titillium-semibold-webfont.eot);
+    src: url(/resources/font/titillium-semibold-webfont.eot?#iefix) format('embedded-opentype'),
+         url(/resources/font/titillium-semibold-webfont.woff) format('woff'),
+         url(/resources/font/titillium-semibold-webfont.ttf) format('truetype');
+    font-style: normal;
+    font-weight: 700;
+}
+ 
+@font-face {
+    font-family: 'Titillium';
+    src: url(/resources/font/titillium-regular-webfont.eot);
+    src: url(/resources/font/titillium-regular-webfont.eot?#iefix) format('embedded-opentype'),
+         url(/resources/font/titillium-regular-webfont.woff) format('woff'),
+         url(/resources/font/titillium-regular-webfont.ttf) format('truetype');
+    font-style: normal;
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: 'Titillium';
+    src: url(/resources/font/titillium-light-webfont.eot);
+    src: url(/resources/font/titillium-light-webfont.eot?#iefix) format('embedded-opentype'),
+         url(/resources/font/titillium-light-webfont.woff) format('woff'),
+         url(/resources/font/titillium-light-webfont.ttf) format('truetype');
+    font-style: normal;
+    font-weight: 300;
+}
+ 

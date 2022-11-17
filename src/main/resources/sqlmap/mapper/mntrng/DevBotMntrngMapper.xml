@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="DevBotMntrngMapper">
+
+	<select id="selectDevBotMntrngList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* DevBotMntrngMapper.selectDevBotMntrngList */
+	
+	DECLARE 
+	    @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME ,@DIFF_DATE INT
+	SET @start_date = #{startDe}; 
+	SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+	SET @end_date = #{endDe}; 
+	SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+	SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+	SET @DIFF_DATE = DATEDIFF(day, @start_date, @end_date);
+	
+	SET ANSI_WARNINGS OFF;
+	SET ARITHIGNORE ON;
+	SET ARITHABORT OFF;
+
+	SELECT A.CMPNY_NM AS CmpnyNm
+		, A.PROCESS_CD AS ProcessCd
+		, A.PROCESS_NM AS ProcessNm
+		, (CASE 
+			WHEN B.FQ_CD = 0 THEN CAST(@DIFF_DATE * B.EXECUT_CNT AS FLOAT)
+			WHEN B.FQ_CD = 1 THEN CAST(@DIFF_DATE * B.EXECUT_CNT AS FLOAT)
+			WHEN B.FQ_CD = 2 THEN CAST(@DIFF_DATE / 7 * B.EXECUT_CNT AS FLOAT)
+			WHEN B.FQ_CD = 3 THEN CAST(@DIFF_DATE / 30 * B.EXECUT_CNT AS FLOAT)
+			WHEN B.FQ_CD = 4 THEN CAST(@DIFF_DATE / 365 * B.EXECUT_CNT AS FLOAT)
+			END) AS ExpectExcCnt
+		, COUNT(A.PROCESS_CD) AS RealExcCnt
+		, COUNT( CASE WHEN A.STTUS = 5 THEN 1 END) AS SuccesCnt 
+		, COUNT( CASE WHEN A.STTUS = 4 THEN 1 END) AS FailCnt
+		, (SELECT CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 37 AND CD = B.PROCESS_STTUS) AS ProcessSttus
+<!-- 		, CAST(CAST(COUNT(CASE WHEN A.STTUS = 5 THEN 1 END) AS FLOAT) / CAST(CASE 
+							WHEN B.FQ_CD = 0 THEN CAST(@DIFF_DATE * B.EXECUT_CNT AS FLOAT)
+							WHEN B.FQ_CD = 1 THEN CAST(@DIFF_DATE * B.EXECUT_CNT AS FLOAT)
+							WHEN B.FQ_CD = 2 THEN CAST(@DIFF_DATE / 7 * B.EXECUT_CNT AS FLOAT)
+							WHEN B.FQ_CD = 3 THEN CAST(@DIFF_DATE / 30 * B.EXECUT_CNT AS FLOAT)
+							WHEN B.FQ_CD = 4 THEN CAST(@DIFF_DATE / 365 * B.EXECUT_CNT AS FLOAT)
+							END AS FLOAT)*100 AS DECIMAL) AS SuccesRate -->
+		, CAST(CAST(COUNT(CASE WHEN A.STTUS = 5 THEN 1 END) AS FLOAT) / CAST(COUNT(A.PROCESS_CD) AS FLOAT) * 100 AS DECIMAL) AS SuccesRate
+	FROM (
+	SELECT CMPNY_NM
+		, CMPNY_CD
+		, PROCESS_CD
+		, PROCESS_NM
+		, STTUS
+		, TRGET_AT
+		, ORIGINAL_AT
+		, START_DT
+		, END_DT
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	WHERE ORIGINAL_AT = 1
+	AND TRGET_AT = 1
+
+	UNION ALL
+
+	SELECT CMPNY_NM
+		, CMPNY_CD
+		, PROCESS_CD
+		, PROCESS_NM
+		, 5
+		, TRGET_AT
+		, ORIGINAL_AT
+		, START_DT
+		, END_DT
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	WHERE ORIGINAL_AT = 1
+	AND TRGET_AT = 0
+	) A
+	INNER JOIN TB_TASK_DEVLOP_PROCESS B
+	ON A.PROCESS_CD = B.PROCESS_CD
+	WHERE 1=1
+	AND B.FQ_CD IN (0, 1, 2, 3, 4)
+	AND B.EXECUT_CNT IS NOT NULL
+	<if test='startDe != null and startDe != ""'>
+	  AND  (CONVERT(DATETIME, A.START_DT) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+	</if>
+	<if test='endDe != null and endDe != ""'>
+	  AND   CONVERT(DATETIME, A.END_DT) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+	</if>
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  A.CMPNY_CD = #{cmpnyCd}
+	</if>
+	<if test='searchProcessCd != null and searchProcessCd != ""'>
+		AND A.PROCESS_CD = #{searchProcessCd}
+	</if>
+	<if test='searchProcessNm != null and searchProcessNm != ""'>
+		AND A.PROCESS_NM = #{searchProcessNm}
+	</if>
+	GROUP BY A.PROCESS_CD , A.PROCESS_NM , A.CMPNY_NM , B.PROCESS_STTUS , B.FQ_CD , B.EXECUT_CNT , B.REG_DT
+	ORDER BY B.REG_DT DESC
+	</select>
+	
+		<select id="selectDevBotMntrngListBackup" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* DevBotMntrngMapper.selectDevBotMntrngListBackup */
+	
+	SET ANSI_WARNINGS OFF
+	SET ARITHIGNORE ON
+	SET ARITHABORT OFF
+
+	SELECT A.CMPNY_NM AS CmpnyNm
+		, A.PROCESS_CD AS ProcessCd
+		, A.PROCESS_NM AS ProcessNm
+		, COUNT(A.PROCESS_CD) AS ExpectExcCnt
+		, COUNT(A.PROCESS_CD) AS RealExcCnt
+		, COUNT( CASE WHEN A.STTUS = 5 THEN 1 END) AS SuccesCnt 
+		, COUNT( CASE WHEN A.STTUS = 4 THEN 1 END) AS FailCnt
+		, (SELECT CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 37 AND CD = B.PROCESS_STTUS) AS ProcessSttus
+		, CAST(CAST(COUNT( CASE WHEN A.STTUS = 5 THEN 1 END) AS FLOAT)/CAST(COUNT(A.PROCESS_CD) AS FLOAT)*100 AS DECIMAL) AS SuccesRate
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST A
+	INNER JOIN TB_TASK_DEVLOP_PROCESS B
+		ON A.PROCESS_CD = B.PROCESS_CD
+	WHERE A.ORIGINAL_AT = 1
+	GROUP BY A.PROCESS_CD , A.PROCESS_NM , A.CMPNY_NM , B.PROCESS_STTUS
+	</select>
+        
+	<select id="selectDevBotMntrngCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+	/* DevBotMntrngMapper.selectDevBotMntrngCount */
+	      
+	DECLARE 
+	    @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME ,@DIFF_DATE INT
+	SET @start_date = #{startDe}; 
+	SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+	SET @end_date = #{endDe}; 
+	SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+	SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+	SET @DIFF_DATE = DATEDIFF(day, @start_date, @end_date);
+	
+	SET ANSI_WARNINGS OFF;
+	SET ARITHIGNORE ON;
+	SET ARITHABORT OFF;
+
+	SELECT COUNT(C.cntNm) AS cnt
+	FROM(
+		SELECT COUNT(A.CMPNY_NM) AS cntNm
+		FROM (
+		SELECT CMPNY_NM
+			, CMPNY_CD
+			, PROCESS_CD
+			, PROCESS_NM
+			, STTUS
+			, TRGET_AT
+			, ORIGINAL_AT
+			, START_DT
+			, END_DT
+		FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+		WHERE ORIGINAL_AT = 1
+		AND TRGET_AT = 1
+	
+		UNION ALL
+	
+		SELECT CMPNY_NM
+			, CMPNY_CD
+			, PROCESS_CD
+			, PROCESS_NM
+			, 5
+			, TRGET_AT
+			, ORIGINAL_AT
+			, START_DT
+			, END_DT
+		FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+		WHERE ORIGINAL_AT = 1
+		AND TRGET_AT = 0
+		) A
+		INNER JOIN TB_TASK_DEVLOP_PROCESS B
+		ON A.PROCESS_CD = B.PROCESS_CD
+		WHERE 1=1
+		AND B.FQ_CD IN (0, 1, 2, 3, 4)
+		AND B.EXECUT_CNT IS NOT NULL
+		<if test='startDe != null and startDe != ""'>
+		  AND  (CONVERT(DATETIME, A.START_DT) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+		</if>
+		<if test='endDe != null and endDe != ""'>
+		  AND   CONVERT(DATETIME, A.END_DT) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+		</if>
+		<if test='cmpnyCd != null and cmpnyCd != ""'>
+			AND  A.CMPNY_CD = #{cmpnyCd}
+		</if>
+		<if test='searchProcessCd != null and searchProcessCd != ""'>
+			AND A.PROCESS_CD = #{searchProcessCd}
+		</if>
+		<if test='searchProcessNm != null and searchProcessNm != ""'>
+			AND A.PROCESS_NM = #{searchProcessNm}
+		</if>
+		GROUP BY A.PROCESS_CD , A.PROCESS_NM , A.CMPNY_NM , B.PROCESS_STTUS , B.FQ_CD , B.EXECUT_CNT) C
+	</select>
+	
+</mapper>

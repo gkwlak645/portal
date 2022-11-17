@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="PoUserHistMngMapper">
+
+	<select id="getPoUserHistMngList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* PoUserHistMngMapper.getPoUserHistMngList */
+	
+	SELECT JOBS_ID AS JobsId
+		, CMPNY_NM AS CmpnyNm
+		, PROCESS_CD AS ProcessCd
+		, PROCESS_NM AS ProcessNm
+		, (SELECT TOP 1 CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 15 AND CD = STTUS) AS Sttus
+		, TRGET_AT AS TrgetAt
+		, RETRY_TRGET_ID AS RetryTrgetId
+		, ORIGINAL_AT AS OriginalAt
+		, CONVERT(CHAR(19), START_DT, 21) AS StartDt
+		, CONVERT(CHAR(19), END_DT, 21) AS EndDt
+		, [BOT_NM] AS botNm
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	WHERE 1 = 1 	
+	<!-- <if test='cmpnyCd != null and cmpnyCd != ""'>
+	  AND   CMPNY_CD = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+	</if> -->
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  CMPNY_CD = #{cmpnyCd}
+	</if>
+	<if test='searchProcessState != null and searchProcessState != ""'>
+		AND STTUS = #{searchProcessState}
+	</if>
+	<if test='searchProcessCd != null and searchProcessCd != ""'>
+		AND PROCESS_CD = #{searchProcessCd}
+	</if>
+	<if test='searchProcessNm != null and searchProcessNm != ""'>
+		AND PROCESS_NM = #{searchProcessNm}
+	</if>
+ 	ORDER BY JOBS_ID DESC
+		OFFSET #{paginationInfo.firstRecordIndex} ROWS
+		FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+	</select>
+        
+	<select id="getPoUserHistMngCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+	/* PoUserHistMngMapper.getPoUserHistMngCount */
+	      
+	SELECT COUNT(JOBS_ID)
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	WHERE 1 = 1 	
+	<!-- <if test='cmpnyCd != null and cmpnyCd != ""'>
+	  AND   CMPNY_CD = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+	</if> -->
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  CMPNY_CD = #{cmpnyCd}
+	</if>
+	<if test='searchProcessState != null and searchProcessState != ""'>
+		AND STTUS = #{searchProcessState}
+	</if>
+	<if test='searchProcessCd != null and searchProcessCd != ""'>
+		AND PROCESS_CD = #{searchProcessCd}
+	</if>
+	<if test='searchProcessNm != null and searchProcessNm != ""'>
+		AND PROCESS_NM = #{searchProcessNm}
+	</if>
+	</select>
+	
+	<select id="getDetailMappData" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* PoUserHistMngMapper.getDetailMappData */
+	SELECT TOP 1 JOBS_ID AS JobsId
+		, PROCESS_CD AS ProcessCd
+		, PROCESS_NM AS ProcessNm
+		, CONVERT(CHAR(19), START_DT, 21) AS StartDt
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	WHERE START_DT &lt; (SELECT TOP 1 START_DT FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST WHERE JOBS_ID = #{jobsId})
+	AND STTUS != 5
+	AND TRGET_AT = 1
+	ORDER BY START_DT DESC
+	</select>
+	
+	<insert id="insertRetryInfo" parameterType="java.util.Map">
+	/* PoUserHistMngMapper.insertRetryInfo */
+		
+	INSERT INTO TB_TASK_DEVLOP_PROCESS_DEV_RETRY
+		( RETRY_TRGET_ID	,	JOB_ID	,	APPLY_AT	,	REGISTER_ID	,	REG_DT)
+		VALUES(	#{targetId}	,	#{jobsId}	,	1	,	#{txUserId}	,	GETDATE())
+	</insert>
+	
+	<update id="updateTargetInfo" parameterType="java.util.Map">
+	/* PoUserHistMngMapper.updateTargetInfo */
+	UPDATE TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	SET TRGET_AT = 0
+	WHERE JOBS_ID = #{targetId}
+	</update>
+    
+	<update id="updateOriginalInfo" parameterType="java.util.Map">
+	/* PoUserHistMngMapper.updateOriginalInfo */
+	UPDATE TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	SET TRGET_AT = 0 , RETRY_TRGET_ID = #{targetId} , ORIGINAL_AT = 0
+	WHERE JOBS_ID = #{jobsId}
+	</update>
+	
+	<delete id="deleteRetryInfo" parameterType="java.util.Map">
+	/* PoUserHistMngMapper.deleteRetryInfo */
+	DELETE TB_TASK_DEVLOP_PROCESS_DEV_RETRY
+	WHERE JOB_ID = #{jobsId}
+	</delete>
+	
+	<update id="updateJobInfo" parameterType="java.util.Map">
+	/* PoUserHistMngMapper.updateJobInfo */
+	UPDATE TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	SET TRGET_AT = 1 , RETRY_TRGET_ID = 0 , ORIGINAL_AT = 1
+	WHERE JOBS_ID = #{jobsId}
+	</update>
+	
+	<update id="updateTargetJobInfo" parameterType="java.util.Map">
+	/* PoUserHistMngMapper.updateTargetJobInfo */
+	UPDATE TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	SET TRGET_AT = 1
+	WHERE JOBS_ID = (SELECT RETRY_TRGET_ID
+					FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+					WHERE JOBS_ID = #{jobsId})
+	</update>
+	
+	<select id="getPoUserHistDetailList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* PoUserHistMngMapper.getPoUserHistDetailList */        
+	SELECT JOBS_ID AS Id
+		, CMPNY_CD AS CmpnyCd
+		, CMPNY_NM AS CmpnyNm
+		, PROCESS_CD AS ProcessCd
+		, PROCESS_NM AS processNm
+		, BOT_ID AS BotId
+		, BOT_NM AS BotNm
+		, ENVRN_ID AS EnvrnId
+		, ENVRN_NM AS EnvrnNm
+		, (SELECT TOP 1 CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 15 AND CD = STTUS) AS Sttus
+		, CASE
+			WHEN SOURC = 0 THEN '수동'
+			WHEN SOURC = 1 THEN '시간 트리거'
+			WHEN SOURC = 2 THEN '에이전트'
+			WHEN SOURC = 3 THEN '큐 트리거'
+		END AS Sourc
+		, TRGET_AT AS TrgetAt
+		, RETRY_TRGET_ID AS RetryTrgetId
+		, ORIGINAL_AT AS OriginalAt
+		, CONVERT(CHAR(19), START_DT, 21) AS StartDt
+		, CONVERT(CHAR(19), END_DT, 21) AS EndDt
+		, EXECUT_TM AS ExecutTm
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	WHERE (JOBS_ID = #{jobsId} OR RETRY_TRGET_ID = #{jobsId})
+	AND (SELECT TOP 1 ORIGINAL_AT FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST WHERE JOBS_ID = #{jobsId}) = 1
+ 	ORDER BY JOBS_ID DESC
+	</select>
+	
+</mapper>

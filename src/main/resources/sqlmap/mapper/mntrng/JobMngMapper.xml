@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="JobMngMapper">
+	
+	<select id="getJobMngCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /*JobMngMapper.getJobMngCount*/
+    DECLARE @START_DATE  DATETIME ,@END_DATE  DATETIME
+    
+    SET @START_DATE = #{searchStartDe}; 
+    SET @START_DATE = CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEPART ( YYYY , @START_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @START_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @START_DATE )));
+    SET @END_DATE = #{searchEndDe}; 
+    SET @END_DATE = CONVERT(DATETIME,CONVERT(VARCHAR(10), DATEPART ( YYYY , @END_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @END_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @END_DATE )) + ' 23:59:59.999');
+    
+	SELECT COUNT([JOB_ID]) FROM [rpa_potal].[dbo].[TB_JOB_MNG]
+	
+	  <where>  
+          1 = 1   
+          <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+             AND [CMPNY_CD] = #{searchCmpnyCd}
+          </if>         
+          <if test='searchResn != null and searchResn != ""'>
+             AND [RESN] = #{searchResn}
+          </if> 
+          <if test='searchSuccessAt != null and searchSuccessAt != ""'>
+             AND [SUCCESS_AT] = #{searchSuccessAt}
+          </if>    
+          <if test='searchProcessCd != null and searchProcessCd != ""'>
+             AND [PROCESS_CD] LIKE CONCAT('%', #{searchProcessCd}, '%')            
+          </if> 
+          <if test='searchProcessNm != null and searchProcessNm != ""'>
+             AND [PROCESS_NM] LIKE CONCAT('%', #{searchProcessNm}, '%')
+          </if>    
+          <if test='searchRobotId != null and searchRobotId != "" and searchRobotId != "전체" '>
+             AND [ROBOT_ID] = #{searchRobotId}
+          </if>     
+          <if test='searchStartDe != null and searchStartDe != "" and searchEndDe != null and searchEndDe != ""'>
+               AND  
+               (
+                   (CONVERT(DATETIME, [START_TIME_ADD]) <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) AND CONVERT(DATETIME, [START_TIME_ADD]) <![CDATA[<]]> CONVERT(DATETIME, @END_DATE))
+                   
+                   --OR 
+                     
+                   --(CONVERT(DATETIME, [END_TIME_ADD]) <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) AND CONVERT(DATETIME, [END_TIME_ADD]) <![CDATA[<]]> CONVERT(DATETIME, @END_DATE))     
+               )
+          </if>      
+      </where> 
+    </select>
+
+    <select id="selectJobMngList" parameterType="java.util.Map" resultType="camelMap">
+    /*JobMngMapper.selectJobMngList*/
+    DECLARE @START_DATE  DATETIME ,@END_DATE  DATETIME
+    
+    SET @START_DATE = #{searchStartDe}; 
+    SET @START_DATE = CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEPART ( YYYY , @START_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @START_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @START_DATE )));
+    SET @END_DATE = #{searchEndDe}; 
+    SET @END_DATE = CONVERT(DATETIME,CONVERT(VARCHAR(10), DATEPART ( YYYY , @END_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @END_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @END_DATE )) + ' 23:59:59.999');
+
+    SELECT 
+           [JOB_ID]
+          ,[BATCH_DATE]
+          ,[RELEASE_ID]
+          ,[PROCESS_CD]
+          ,[PROCESS_NM]
+          
+          ,(SELECT TEMP.[TENANT_ID] FROM [rpa_potal].[dbo].[TB_API_TKN] TEMP WHERE TEMP.[CMPNY_CD] = A.[CMPNY_CD]) 'TENANT_ID'
+          --,[TENANT_ID]
+          
+          ,[CMPNY_CD]
+          , (SELECT CD_NM FROM [rpa_potal].[dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = A.[CMPNY_CD]) 'CMPNY_NM'
+          --,[CMPNY_NM]
+          ,CONVERT(CHAR(19), [START_TIME_ADD], 21) 'START_TIME_ADD'
+          ,CONVERT(CHAR(19), [END_TIME_ADD], 21) 'END_TIME_ADD'
+          ,CONVERT(CHAR(19), [START_TIME], 21) 'START_TIME'
+          ,CONVERT(CHAR(19), [END_TIME], 21) 'END_TIME'
+          ,[ROBOT_ID]
+          
+          --,[ROBOT_NM]
+          , (SELECT [NAME] FROM SY_ROBOTS WHERE [ID] = A.[ROBOT_ID]) 'ROBOT_NM'
+          
+          ,[SOURCE]
+          ,[JOB_STATE]
+          
+          --,[JOB_STATE_NM]
+          ,(SELECT [CD_NM] FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE [CD] = A.[JOB_STATE] AND [CLS_CD] = '0011') 'JOB_STATE_NM'
+          
+          ,[SUCCESS_AT]
+          ,[RESN]
+          ,(SELECT CD_NM FROM [rpa_potal].[dbo].[TB_CMMN_CD] WHERE CLS_CD = '0060' AND CD = [RESN]) 'RESN_NM'
+          ,[UPDT_DT]
+          ,[UPDUSR_ID]
+      FROM [rpa_potal].[dbo].[TB_JOB_MNG] A
+      
+      <where>  
+          1 = 1   
+          <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+             AND [CMPNY_CD] = #{searchCmpnyCd}
+          </if>         
+          <if test='searchResn != null and searchResn != ""'>
+             AND [RESN] = #{searchResn}
+          </if> 
+          <if test='searchSuccessAt != null and searchSuccessAt != ""'>
+             AND [SUCCESS_AT] = #{searchSuccessAt}
+          </if>    
+          <if test='searchProcessCd != null and searchProcessCd != ""'>
+             AND [PROCESS_CD] LIKE CONCAT('%', #{searchProcessCd}, '%')            
+          </if> 
+          <if test='searchProcessNm != null and searchProcessNm != ""'>
+             AND [PROCESS_NM] LIKE CONCAT('%', #{searchProcessNm}, '%')
+          </if>       
+          <if test='searchRobotId != null and searchRobotId != "" and searchRobotId != "전체" '>
+             AND [ROBOT_ID] = #{searchRobotId}
+          </if>    
+          <if test='searchStartDe != null and searchStartDe != "" and searchEndDe != null and searchEndDe != ""'>
+               AND  
+               (
+	               (CONVERT(DATETIME, [START_TIME_ADD]) <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) AND CONVERT(DATETIME, [START_TIME_ADD]) <![CDATA[<]]> CONVERT(DATETIME, @END_DATE))
+	               
+	               --OR 
+	                 
+	               --(CONVERT(DATETIME, [END_TIME_ADD]) <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) AND CONVERT(DATETIME, [END_TIME_ADD]) <![CDATA[<]]> CONVERT(DATETIME, @END_DATE))     
+               )
+          </if>    
+      </where> 
+      
+      ORDER BY JOB_ID DESC
+      <if test='excelDownload != "Y"'> 
+           OFFSET #{paginationInfo.firstRecordIndex} ROWS
+           FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+      </if>    
+    </select>
+
+    <!-- 현재 로봇과 로봇 현황 List -->
+    <select id="selectBotListForJobMng" parameterType="java.util.Map" resultType="camelMap">
+        /*JobMngMapper.selectBotListForJobMng*/
+        SELECT
+              (SELECT b.CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] b WHERE b.[TENANT_ID] = A.[TENANTID]) 'CMPNY_CD'
+              , B.[NAME]
+              , A.[STATE]
+              , A.[ROBOTID] 'ROBOT_ID'
+              , CASE 
+                    WHEN A.[STATE] = 0  AND A.[ISUNRESPONSIVE] = 0 THEN 0 -- Available
+                    WHEN A.[STATE] = 1  AND A.[ISUNRESPONSIVE] = 0 THEN 1 -- Busy
+                    WHEN A.[STATE] = 2  AND A.[ISUNRESPONSIVE] = 0 THEN 2 -- Disconnected
+                    WHEN A.[STATE] != 2 AND A.[ISUNRESPONSIVE] = 1 THEN 3 -- Unresponsive
+                END 'ROBOT_STATE'
+        FROM [RPA_POTAL]. [DBO].[SY_SESSIONS] A
+        INNER JOIN [RPA_POTAL].[DBO].[SY_ROBOTS] B
+        ON A.ROBOTID = B.ID
+
+        <where>
+          A.ISDELETED = 0 AND B.ISDELETED = 0
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnyCd})
+          </if>                    
+        </where>
+        
+        ORDER BY CMPNY_CD, NAME
+    </select>
+    
+    <!-- JOB이력관리 사유 등록 및 수정 -->
+    <update id="updateJobMngResn" parameterType="java.util.Map">
+        /*JobMngMapper.updateJobMngResn*/
+          UPDATE [RPA_POTAL].[DBO].[TB_JOB_MNG] 
+          SET 
+           [RESN]       = #{resn} 
+          ,[SUCCESS_AT] = #{successAt}
+          ,[UPDT_DT]    = CONVERT(CHAR(23), GETDATE(), 21)
+          ,[UPDUSR_ID]  = #{updateId}   
+          WHERE 
+          [JOB_ID]         = #{jobId} 
+          AND [CMPNY_CD]   = #{cmpnyCd} 
+          AND [PROCESS_CD] = #{processCd}    
+    </update>
+
+</mapper>

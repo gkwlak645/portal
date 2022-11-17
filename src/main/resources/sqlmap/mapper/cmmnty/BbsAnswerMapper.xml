@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="BbsAnswerMapper">
+
+    <select id="selectTotalBoardCount" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO" resultType="int">
+        /*BbsAnswerMapper.selectTotalBoardCount*/
+        SELECT COUNT(*)
+          FROM TB_BOARD
+         WHERE BOARD_SJ like '%'+#{boardSj}+'%'
+           AND BOARD_CN like '%'+#{boardCn}+'%'
+           AND BOARD_NO = #{boardNo}
+    </select>
+    
+    <select id="selectBoardList" statementType="CALLABLE" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO" resultType="map">
+        /*BbsAnswerMapper.selectBoardList*/
+        SELECT   A.BOARD_SN AS boardSn                              /*게시글번호*/
+               , A.BOARD_SJ AS boardSj                              /*게시글제목*/
+               , A.BOARD_CN AS boardCn                              /*게시글내용*/
+               , A.REGISTER_ID  AS registerId                       /*글쓴이*/
+               , CONVERT(VARCHAR,A.REG_DT,120) AS regDt             /*등록일*/
+               , A.FILE_GRP_NO  AS fileGrpNo                        /*파일그룹번호*/
+               , A.NUM_OF_HIT  AS numOfHit                          /*조회수*/
+               , B.totalAnswer                                      /*답글총 갯수*/
+               , C.checkImg                                         /*이미지파일 여부*/
+          FROM   TB_BOARD A
+     LEFT JOIN   (SELECT   BOARD_NO                                 /*게시판코드*/
+                         , BOARD_SN                                 /*게시글번호*/
+                         , COUNT(ANSWER_SN) AS totalAnswer          /*답글총 갯수*/
+                    FROM   TB_BOARD_ANSWER  
+                GROUP BY   BOARD_NO,BOARD_SN) B
+            ON   A.BOARD_NO = B.BOARD_NO
+           AND   A.BOARD_SN = B.BOARD_SN
+     LEFT JOIN   (SELECT   BOARD_NO
+                         , BOARD_SN
+                         , COUNT(*) AS checkImg
+                    FROM   TB_BOARD
+                   WHERE   BOARD_CN LIKE <![CDATA['%<img src="data:image%']]>
+                GROUP BY   BOARD_NO,BOARD_SN) C
+            ON   A.BOARD_NO = C.BOARD_NO
+           AND   A.BOARD_SN = C.BOARD_SN
+         WHERE   A.BOARD_SJ like '%'+#{boardSj}+'%'
+           AND   <![CDATA[dbo.fn_removeHtml(A.BOARD_CN, '0')]]> like '%'+#{boardCn}+'%'
+           AND   A.BOARD_NO = #{boardNo}
+      ORDER BY   A.BOARD_SN DESC
+        OFFSET   #{pageInfo.firstRecordIndex} ROWS
+    FETCH NEXT   #{pageInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+    <update id="updateNumOfHitUp" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO">
+        /*BbsAnswerMapper.updateNumOfHitUp*/
+        UPDATE TB_BOARD
+           SET NUM_OF_HIT = #{numOfHit}+1
+         WHERE BOARD_SN = #{boardSn}
+           AND BOARD_NO = #{boardNo}
+    </update>
+    
+    <select id="selectBoardDetail" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO">
+        /*BbsAnswerMapper.selectBoardDetail*/
+        SELECT   BOARD_SN                               /*게시글번호*/
+               , BOARD_SJ                               /*게시글 제목*/
+               , BOARD_CN                               /*게시글 내용*/
+               , REGISTER_ID                            /*글쓴이*/
+               , CONVERT(VARCHAR,REG_DT,120) AS REG_DT  /*등록일*/
+               , NUM_OF_HIT                             /*조회수*/
+               , FILE_GRP_NO                            /*파일그룹번호*/
+          FROM   TB_BOARD
+         WHERE   BOARD_SN = #{boardSn}
+           AND   BOARD_NO = #{boardNo}
+    </select>
+    
+    <insert id="insertAnswer" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsAnswerVO">
+        /*BbsAnswerMapper.insertAnswer*/
+        INSERT
+          INTO TB_BOARD_ANSWER(
+                                          BOARD_NO
+                                        , BOARD_SN
+                                        , ANSWER_SN
+                                        , ANSWER_CN
+                                        , UP_ANSWER_SN
+                                        , REGISTER_ID
+                                        , REG_DT
+                                      )
+        VALUES(
+                  #{boardNo}
+                , #{boardSn}
+                , #{answerSn}
+                , #{answerCn}
+                , #{upAnswerSn}
+                , #{txUserId}
+                , GETDATE()
+              )
+    </insert>
+    
+    <select id="selectAnswerNextSn" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsAnswerVO" resultType="int">
+        /*BbsAnswerMapper.selectAnswerNextSn*/
+        SELECT ISNULL(MAX(ANSWER_SN),0)+1
+          FROM TB_BOARD_ANSWER
+         WHERE BOARD_SN = #{boardSn}
+           AND BOARD_NO = #{boardNo}
+    </select>
+    
+    <select id="selectBoardAnswerList" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsAnswerVO" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsAnswerVO">
+        /*BbsAnswerMapper.selectBoardAnswerList*/
+        SELECT   BOARD_SN
+               , ANSWER_SN
+               , ANSWER_CN
+               , UP_ANSWER_SN
+               , REGISTER_ID
+               , CONVERT(VARCHAR,REG_DT,120) AS REG_DT
+          FROM   TB_BOARD_ANSWER
+         WHERE   BOARD_SN = #{boardSn}
+           AND   BOARD_NO = #{boardNo}
+      ORDER BY   UP_ANSWER_SN ASC, ANSWER_SN ASC
+    </select>
+    
+    <delete id="deleteAnswer" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsAnswerVO">
+        /*BbsAnswerMapper.deleteAnswer*/
+        DELETE
+          FROM TB_BOARD_ANSWER
+         WHERE UP_ANSWER_SN = #{upAnswerSn}
+           AND BOARD_NO = #{boardNo}
+    </delete>
+    
+    <delete id="deleteReply" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsAnswerVO">
+        /*BbsAnswerMapper.deleteReply*/
+        DELETE
+          FROM TB_BOARD_ANSWER
+         WHERE ANSWER_SN = #{answerSn}
+           AND BOARD_NO = #{boardNo}
+    </delete>
+    
+    <delete id="deleteBoard" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO">
+        /*BbsAnswerMapper.deleteBoard*/
+        DELETE
+          FROM TB_BOARD
+         WHERE BOARD_SN = #{boardSn}
+           AND BOARD_NO = #{boardNo}
+    </delete>
+    
+    <delete id="deleteBoardAnswer" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsAnswerVO">
+        /*BbsAnswerMapper.deleteBoardAnswer*/
+        DELETE
+          FROM TB_BOARD_ANSWER
+         WHERE BOARD_SN = #{boardSn}
+           AND BOARD_NO = #{boardNo}
+    </delete>
+    
+    <select id="selectUpdateBoardDetail" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO">
+        /*BbsAnswerMapper.selectUpdateBoardDetail*/
+        SELECT   BOARD_SN
+               , BOARD_SJ
+               , BOARD_CN
+               , FILE_GRP_NO
+               , REGISTER_ID
+          FROM   TB_BOARD
+         WHERE   BOARD_SN = #{boardSn}
+           AND   BOARD_NO = #{boardNo}
+    </select>
+    
+    <update id="updateBoard" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO">
+        /*BbsAnswerMapper.updateBoard*/
+        UPDATE   TB_BOARD
+           SET   BOARD_SJ = #{boardSj}
+               , BOARD_CN = #{boardCn}
+               , FILE_GRP_NO = #{fileGrpNo}
+         WHERE   BOARD_NO = #{boardNo}
+           AND   BOARD_SN = #{boardSn}
+    </update>
+<!--     <update id="updateBoard" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO">
+        /*BbsAnswerMapper.updateBoard*/
+        UPDATE   TB_BOARD
+           SET   BOARD_SJ = #{boardSj}
+               , BOARD_CN = #{boardCn}
+         WHERE   BOARD_NO = #{boardNo}
+           AND   BOARD_SN = #{boardSn}
+    </update> -->
+
+    <select id="selectSnCnt" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO" resultType="int">
+        /*BbsAnswerMapper.selectSnCnt*/
+        SELECT ISNULL(MAX(BOARD_SN),0)+1
+          FROM TB_BOARD
+         WHERE BOARD_NO = #{boardNo}
+    </select>
+
+    <insert id="insertBoard" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO">
+        /*BbsAnswerMapper.insertBoard*/
+        INSERT
+          INTO TB_BOARD(
+                            BOARD_NO
+                          , BOARD_SN
+                          , BOARD_SJ
+                          , BOARD_CN
+                          , REGISTER_ID
+                          , REG_DT
+                          , NUM_OF_HIT
+                          , FILE_GRP_NO
+                       )
+        VALUES (
+                    #{boardNo}
+                  , #{boardSn}
+                  , #{boardSj}
+                  , #{boardCn}
+                  , #{txUserId}
+                  , GETDATE()
+                  , 0
+                  , #{fileGrpNo}
+               )
+    </insert>
+    
+</mapper>

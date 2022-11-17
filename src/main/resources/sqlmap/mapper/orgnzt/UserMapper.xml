@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="UserMapper">
+
+<!-- parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" -->
+     <select id="selectUserList" parameterType="java.util.Map" resultType="camelMap">
+        /* UserMapper.selectUserList */
+          SELECT   USER_ID            /*사용자 아이디*/
+                 , EMP_NO             /*사원 번호*/
+                 , TENANT_ID          /*테넌트 아이디*/
+                 , CMPNY_NM           /*회사 명*/
+                 , EMP_NM             /*사원 이름*/ 
+                 , PST_CD             /*직급 코드*/
+                 , PST_NM             /*직급 이름*/
+                 , DEPT_CD            /*부서 코드*/
+                 , DEPT_NM            /*부서 이름*/
+                 , TELNO              /*전화 번호*/
+                 , EMAIL_ADR          /*이메일 주소*/
+                 , USER_CLS           /*사용자 분류*/
+                 , USE_AT             /*사용 여부*/
+           FROM   VW_USER_INFO
+           WHERE   1 = 1
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND   CMPNY_CD = #{cmpnyCd}
+              </if>
+             <if test='userId != null and userId != ""'>
+               AND   USER_ID like '%'+#{userId}+'%'
+             </if>
+             <if test='empNm != null and empNm != ""'>
+               AND   EMP_NM like '%'+#{empNm}+'%'
+             </if>
+        ORDER BY   EMP_NO ASC
+                   OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                   FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+    <!-- parameterType = kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO resultType="int" -->
+    <select id="selectTotalCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* UserMapper.selectTotalCount */
+          SELECT   COUNT(*) AS cnt
+            FROM   VW_USER_INFO
+           WHERE   1 = 1
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND   CMPNY_CD = #{cmpnyCd}
+              </if>
+             <if test='userId != null and userId != ""'>
+               AND   USER_ID like '%'+#{userId}+'%'
+             </if>
+             <if test='empNm != null and empNm != ""'>
+               AND   EMP_NM like '%'+#{empNm}+'%'
+             </if>
+    </select>
+    
+    
+     <!-- User등록 -->
+    <insert id="insertUser" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" >
+        /* UserMapper.inserUser */
+         INSERT INTO TB_USER_BAS
+              (
+	                 USER_ID      /*사용자 아이디*/
+	               , USER_NM      /*사원 이름*/ 
+	               , EMP_NO       /*사원 번호*/
+	               , USE_AT       /*사용 여부*/
+	               , PASSWORD     /*비밀번호*/
+	               , REGISTER_ID
+	               , REG_DT
+	               , UPDUSR_ID
+	               , UPDT_DT
+              )
+         VALUES
+               (
+	                 #{userId}
+	               , #{empNm}
+	               , #{empNo}
+	               , #{useAt}
+	               , #{password}
+	               , #{txUserId}
+	               , GETDATE()
+	               , #{txUserId}
+	               , GETDATE()
+              )
+    </insert>
+    
+    <update id="updateUser" parameterType="java.util.Map">
+        UPDATE TB_USER_BAS SET
+              UPDUSR_ID = #{txUserId}
+            , UPDT_DT = GETDATE()
+            <if test="useAt != null"> 
+            ,USE_AT = #{useAt}
+            </if>
+        <where>
+            AND
+                USER_ID = #{userId}
+        </where>
+    </update>
+    
+    <update id="updateUserDetail" parameterType="java.util.Map">
+        UPDATE TB_USER_DETAIL SET
+            <if test="userCls != null"> 
+            USER_CLS = #{userCls}
+            </if>
+        <where>
+            AND
+                EMP_NO = #{empNo}
+        </where>
+    </update>
+    
+    <!-- User등록 카테고리 -->
+    <select id="selectCode" resultType="camelMap" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* UserMapper.selectCode */
+        SELECT    CD           
+                 ,CD_NM        /*직급 이름*/
+                 ,CLS_CD       /*직급 코드*/
+          FROM    TB_CMMN_CD
+         WHERE    CLS_CD = '0001'
+    </select>
+    
+    <select id="selectDetailUserValue" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO">
+        /* UserMapper.selectDetailUserValue */
+          SELECT   USER_ID            /*유저 아이디*/  
+                 , CMPNY_CD           /*회사코드*/  
+                 , CMPNY_NM           /*회사명*/  
+                 , EMP_NO             /*사원 번호*/
+                 , EMP_NM             /*사원 이름*/ 
+                 , PST_CD             /*직급 코드*/
+                 , PST_NM             /*직급 이름*/
+                 , DEPT_CD            /*부서 코드*/
+                 , DEPT_NM            /*부서 이름*/
+                 , TELNO              /*전화 번호*/
+                 , EMAIL_ADR          /*이메일 주소*/
+                 , MBTLNUM            /*휴대폰번호*/
+                 , USER_CLS           /*사용자 분류*/
+                 , USE_AT             /*사용여부*/
+                 , CASE 
+                        WHEN (SELECT COUNT(CD) FROM [dbo].[TB_CMMN_CD] AS A_1   WHERE A_1.CD = A.CMPNY_CD AND A_1.CLS_CD = '0024') > 0 THEN 
+                            'Y'
+                        ELSE
+                            'N'
+                        END as EDIT_AT 
+            FROM   VW_USER_INFO A
+           WHERE   USER_ID = #{userId}
+        
+    </select>    
+    
+    <delete id="deleteUser" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO">
+    /* UserMapper.deleteUser */
+        DELETE 
+          FROM    TB_USER_BAS
+         WHERE    USER_ID = #{userId}
+    </delete>
+    
+    <select id="selectEmpTotalCount" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="int">
+        /* UserMapper.selectEmpTotalCount */
+          SELECT   COUNT(*)
+            FROM   VW_USER_INFO
+           WHERE   EMP_NO like '%'+#{empNo}+'%'
+             AND   EMP_NM like '%'+#{empNm}+'%'
+    </select>
+    
+    <select id="selectUserRoleMngList" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO">
+        SELECT 
+                   USER_ID            /*사용자 아이디*/
+                 , EMP_NO             /*사원 번호*/
+                 , EMP_NM             /*사원 이름*/ 
+                 , PST_NM             /*직급 이름*/
+                 , DEPT_NM            /*부서 이름*/
+          FROM     VW_USER_INFO
+         WHERE
+                   USER_ID like '%'+#{userId}+'%'
+           AND
+                   EMP_NM like '%'+#{empNm}+'%'
+    
+    </select>
+       
+    <select id="selectEmp" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO">
+        /* UserMapper.selectEmp */
+          SELECT   EMP_NO, EMP_NM, PST_NM, TELNO, EMAIL_ADR, PST_CD
+            FROM   VW_USER_INFO
+           WHERE   EMP_NO like '%'+#{empNo}+'%'
+             AND   EMP_NM like '%'+#{empNm}+'%'
+        ORDER BY   EMP_NO ASC
+                   OFFSET #{pageInfo.firstRecordIndex} ROWS
+                   FETCH NEXT #{pageInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+    <select id="selectUserIdCheck" parameterType="kr.co.rpaplatform.dongwon.orgnzt.vo.UserVO" resultType="int">
+        /* UserMapper.selectUserIdCheck */
+          SELECT   COUNT(*)
+            FROM   VW_USER_INFO
+           WHERE   USER_ID = #{userId}
+    </select>
+    
+</mapper>

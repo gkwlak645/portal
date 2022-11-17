@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TaskTmplatMngMapper">
+    
+    <select id="selectTotalTaskTmplatMngListCount" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO" resultType="int">
+/*TaskTmplatMngMapper.selectTotalTaskTmplatMngListCount*/
+      SELECT COUNT(TMPLAT_CD)
+      FROM TB_TASK_TMPLAT A
+      INNER JOIN TB_FILE B ON(A.FILE_GRP_NO = B.FILE_GRP_NO)
+      INNER JOIN TB_TASK_DEVLOP_PROCESS C ON(A.PROCESS_CD = C.PROCESS_CD)
+<where>      
+      AND USE_AT = 'Y'      
+          <if test = ' tmplatCd != "" and tmplatCd != null '>
+              AND A.TMPLAT_CD LIKE '%' + #{tmplatCd} + '%'
+          </if>
+          <if test = ' startDt != "all" '>
+                <choose>
+              <when test=' startDt != null and startDt != "" '>
+                  AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+              </when>
+              <when test=' startDt == "" '>
+                  <![CDATA[ AND A.REG_DT > GETDATE()-90 ]]>
+              </when>
+          </choose>
+          <if test = ' cmpnyCd != "" and cmpnyCd != null '>
+             AND A.CMPNY_CD  = #{cmpnyCd}
+          </if>
+          </if>
+          <if test = ' tmplatNm != "" and tmplatNm != null '>
+              AND A.TMPLAT_NM LIKE '%' + #{tmplatNm} + '%'
+          </if>
+          <choose>
+              <when test=' processCd != null and processCd != "" '>
+                  AND A.PROCESS_CD = #{processCd}
+              </when>
+          </choose>
+</where>
+    </select>    
+    
+    <select id="selectTaskTmplatMngList" statementType="CALLABLE" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO" resultType="map">
+/*TaskTmplatMngMapper.selectTaskTmplatMngList*/
+      SELECT
+          SN as sn 
+          , A.TMPLAT_CD AS tmplatCd
+          , A.TMPLAT_NM AS tmplatNm
+          , A.PROCESS_CD AS processCd                      
+          , C.PROCESS_NM AS processNm
+          , B.ORI_FILE_NM AS oriFileNm
+          , A.DWLD_URL AS dwldUrl
+          , A.REGISTER_ID AS registerId
+          , A.REG_DT AS regDt
+          , A.UPDUSR_ID AS updusrId
+          , A.UPDT_DT AS updtDt
+          , A.FILE_GRP_NO AS fileGrpNo
+      FROM TB_TASK_TMPLAT A
+      INNER JOIN TB_FILE B ON(A.FILE_GRP_NO = B.FILE_GRP_NO)
+      INNER JOIN TB_TASK_DEVLOP_PROCESS C ON(A.PROCESS_CD = C.PROCESS_CD)
+<where>      
+            AND USE_AT = 'Y'
+          <if test = ' tmplatCd != "" and tmplatCd != null '>
+              AND A.TMPLAT_CD LIKE '%' + #{tmplatCd} + '%'
+          </if>
+          <if test = ' startDt != "all" '>
+                <choose>
+              <when test=' startDt != null and startDt != "" '>
+                  AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+              </when>
+              <when test=' startDt == "" '>
+                  <![CDATA[ AND A.REG_DT > GETDATE()-90 ]]>
+              </when>
+          </choose>
+          <if test = ' cmpnyCd != "" and cmpnyCd != null '>
+             AND A.CMPNY_CD  = #{cmpnyCd}
+          </if>
+          </if>
+          <if test = ' tmplatNm != "" and tmplatNm != null '>
+              AND A.TMPLAT_NM LIKE '%' + #{tmplatNm} + '%'
+          </if>
+          <choose>
+              <when test=' processCd != null and processCd != "" '>
+                  AND A.PROCESS_CD = #{processCd}
+              </when>
+          </choose>
+</where>
+      ORDER BY A.REG_DT DESC
+      OFFSET #{pageInfo.firstRecordIndex} ROWS
+      FETCH NEXT #{pageInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+    <select id="getMaxFileGrpNo" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO">
+	    SELECT MAX(FILE_GRP_NO) + 1 AS fileGrpNo
+	    FROM TB_FILE
+    </select>
+    
+    <select id="insertCheck" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO">
+SELECT COUNT(*) AS TMPLAT_CD
+FROM TB_TASK_TMPLAT
+WHERE 
+    TMPLAT_CD = #{tmplatCd}
+    AND CMPNY_CD = #{cmpnyCd}
+    AND USE_AT = 'Y'    
+    </select>
+    
+    <insert id="insertTaskTmplatMng" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO">
+        INSERT INTO
+         TB_TASK_TMPLAT (
+                      TMPLAT_CD
+					, TMPLAT_NM
+					, CMPNY_CD
+					, PROCESS_CD
+					, FILE_GRP_NO
+					, REGISTER_ID
+					, REG_DT
+					, USE_AT
+        )
+        VALUES (
+                      #{tmplatCd}
+                    , #{tmplatNm}
+                    , #{cmpnyCd}
+                    , #{processCd}
+                    , #{fileGrpNo}
+                    , #{registerId}
+                    , GETDATE()
+                    , 'Y'
+               )
+    </insert>
+    
+    <select id="getTaskTmplatDetail" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO">    
+      SELECT
+          A.SN as sn 
+          , A.TMPLAT_CD AS tmplatCd
+          , A.TMPLAT_NM AS tmplatNm
+          , A.PROCESS_CD AS processCd                      
+          , C.PROCESS_NM AS processNm
+          , B.ORI_FILE_NM AS oriFileNm
+          , A.FILE_GRP_NO AS fileGrpNo
+          , A.DWLD_URL AS dwldUrl
+          , A.REGISTER_ID AS registerId
+          , CONVERT(CHAR(10), A.REG_DT, 23) AS regDt
+          , A.UPDUSR_ID AS updusrId
+          , CONVERT(CHAR(10), A.UPDT_DT, 23) AS updtDt
+      FROM TB_TASK_TMPLAT A
+      INNER JOIN TB_FILE B ON(A.FILE_GRP_NO = B.FILE_GRP_NO)
+      INNER JOIN TB_TASK_DEVLOP_PROCESS C ON(A.PROCESS_CD = C.PROCESS_CD)
+            AND A.SN = #{sn}
+    </select>
+    
+    <insert id="updateTaskTmplatMng" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO">
+        UPDATE TB_TASK_TMPLAT 
+        SET
+          TMPLAT_NM = #{tmplatNm}
+          , FILE_GRP_NO = #{fileGrpNo}
+          , UPDUSR_ID = #{registerId}
+          , UPDT_DT = GETDATE()
+        WHERE SN = #{sn}
+    </insert>
+    
+    <delete id="deleteTaskTmplatMng" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.TaskTmplatMngVO">
+        UPDATE TB_TASK_TMPLAT 
+        SET
+          USE_AT = 'N'
+          , UPDUSR_ID = #{registerId}
+          , UPDT_DT = GETDATE()
+        WHERE SN = #{sn}
+    </delete>
+    
+</mapper>

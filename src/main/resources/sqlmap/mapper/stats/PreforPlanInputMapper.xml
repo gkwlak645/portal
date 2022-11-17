@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="PreforPlanInputMapper">
+
+
+     <select id="selectTknList" resultType="camelMap">
+       /* PreforPlanInputMapper.selectApiTknList */
+           SELECT   A.CMPNY_CD , B.CD_NM AS CMPNY_NM
+            FROM   TB_API_TKN A WITH(NOLOCK) 
+            LEFT OUTER JOIN   TB_CMMN_CD B
+             ON   (
+                   A.CMPNY_CD = B.CD
+                   AND B.CLS_CD = '0024'
+                   AND B.USE_AT = 'Y'
+               )
+            WHERE CMPNY_CD IS NOT NULL AND CMPNY_CD != '' AND B.CD_NM IS NOT NULL
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+              AND A.CMPNY_CD = #{cmpnyCd}
+          </if>
+       </select>
+       
+      <select id="selectTknPreforPlanInList" resultType="camelMap">
+      /* PreforPlanInputMapper.selectTknPreforPlanInList */
+          SELECT   A.CMPNY_CD , B.CD_NM AS CMPNY_NM
+           FROM   TB_API_TKN A WITH(NOLOCK) 
+           LEFT OUTER JOIN   TB_CMMN_CD B
+            ON   (
+                  A.CMPNY_CD = B.CD
+                  AND B.CLS_CD = '0024'
+                  AND B.USE_AT = 'Y'
+              )
+           WHERE CMPNY_CD IS NOT NULL AND CMPNY_CD != '' AND B.CD_NM IS NOT NULL
+           AND A.CMPNY_CD IN (
+               SELECT CMPNY_CD 
+               FROM TB_PERFOR_PLAN
+               GROUP BY CMPNY_CD 
+           )
+      </select>
+
+    <select id="selectPreforPlanList" parameterType="java.util.Map" resultType="camelMap">
+    /* PreforPlanInputMapper.selectPreforPlan */
+		SELECT A.YYYYMM
+		      ,SUBSTRING(A.YYYYMM,1,4) AS YYYY
+		      ,SUBSTRING(A.YYYYMM,5,6) AS MM
+		      ,A.CMPNY_CD
+		      ,B.CD_NM  AS CMPNY_NM
+		      ,A.TC_PLAN
+		      ,A.TC_PI
+		      ,A.TIME_PLAN
+		      ,A.TIME_PI
+		      ,A.REGISTER_ID
+		      ,A.REG_DT
+		      ,A.UPDUSR_ID
+		      ,A.UPDT_DT
+		  FROM [dbo].[TB_PERFOR_PLAN] A
+		  LEFT OUTER JOIN   TB_CMMN_CD B
+          ON   (
+                A.CMPNY_CD = B.CD
+                AND B.CLS_CD = '0024'
+                AND B.USE_AT = 'Y'
+            )
+		  WHERE 1 = 1
+          <if test='yyyy != null and yyyy != ""'>
+              AND SUBSTRING(YYYYMM,1,4) = #{yyyy}
+          </if>
+          <!-- <if test='mm != null and mm != ""'>
+              AND SUBSTRING(YYYYMM,5,6) = #{mm}
+          </if> -->
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+              AND CMPNY_CD = #{cmpnyCd}
+          </if>
+          ORDER BY CMPNY_CD ,YYYYMM
+    </select>
+
+
+    <insert id="updatePreforPlan" parameterType="java.util.Map">
+	/*PreforPlanInputMapper.updatePerforPlanInput*/
+	MERGE INTO [dbo].[TB_PERFOR_PLAN] A
+	   USING
+	       (
+	           SELECT
+	                   #{yyyymm}       as yyyymm
+	               ,   #{cmpnyCd}      as cmpnyCd
+	       ) B ON A.YYYYMM = B.yyyymm and A.CMPNY_CD = B.cmpnyCd
+	WHEN MATCHED THEN
+	    UPDATE SET
+	        [UPDUSR_ID]  =   #{txUserId} 
+	      , [UPDT_DT]    =   GETDATE()
+	      , [TC_PLAN]    =   ISNULL(#{tcPlan},0)
+	      , [TC_PI]      =   ISNULL(#{tcPi},0)
+	      , [TIME_PLAN]  =   ISNULL(#{timePlan},0)
+	      , [TIME_PI]    =   ISNULL(#{timePi},0)
+	WHEN NOT MATCHED THEN
+	    INSERT([YYYYMM]
+		      ,[CMPNY_CD]
+		      ,[TC_PLAN]
+		      ,[TC_PI]
+		      ,[TIME_PLAN]
+		      ,[TIME_PI]
+		      ,[REGISTER_ID]
+	          ,[REG_DT]
+		      )
+	    VALUES(
+		        #{yyyymm}
+		      , #{cmpnyCd}
+		      , ISNULL(#{tcPlan},0)
+		      , ISNULL(#{tcPi},0)
+		      , ISNULL(#{timePlan},0)
+		      , ISNULL(#{timePi},0)
+		      , #{txUserId} 
+		      , GETDATE()
+	        );
+    </insert>
+
+
+
+
+        
+</mapper>

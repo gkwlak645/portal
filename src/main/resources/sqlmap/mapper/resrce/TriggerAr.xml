@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TriggerAr">
+	<select id="getTriggerArListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TriggerAr.getTriggerArListCount*/
+SELECT 
+	COUNT(SCHDULE_NO)
+FROM 
+	[dbo].[TB_TASK_DEVLOP_PROCESS_SCHDULE] A
+WHERE
+	A.CMPNY_CD = #{cmpnyCd}
+	AND A.DELETE_AT = 0
+		<if test='searchProcessCd != null and searchProcessCd != ""'>
+	AND A.PROCESS_CD like '%${searchProcessCd}%'
+		</if>
+	</select>
+	
+	<select id="selectTriggerArList" parameterType="java.util.Map" resultType="camelMap">
+/*TriggerAr.selectTriggerArList*/
+SELECT 
+	A.CMPNY_CD, C.CD_NM AS CMPNY_NM, A.PROCESS_CD, B.PROCESS_NM, A.BOT_NO, D.Name AS ROBOT_NM
+	,  A.SCHDULE_NO	,  A.START_DE	,  A.END_DE
+	,  A.SCHDULE_TEXT, A.DISABLE_AT	 
+FROM 
+	[dbo].[TB_TASK_DEVLOP_PROCESS_SCHDULE] A
+	INNER JOIN DBO.TB_TASK_DEVLOP_PROCESS B ON A.PROCESS_CD = B.PROCESS_CD
+	INNER JOIN DBO.TB_CMMN_CD C ON A.CMPNY_CD = C.CD
+	INNER JOIN DBO.SY_ROBOTS D ON A.BOT_NO = D.ID
+WHERE
+	A.CMPNY_CD = #{cmpnyCd}
+	AND DELETE_AT = 0
+	AND C.CLS_CD = '0024' AND C.USE_AT = 'Y'
+	AND B.PROCESS_STTUS = 'O1'
+		<if test='searchProcessCd != null and searchProcessCd != ""'>
+	AND A.PROCESS_CD like '%${searchProcessCd}%'
+		</if>
+ORDER BY SCHDULE_NO DESC
+	OFFSET #{paginationInfo.firstRecordIndex} ROWS
+    FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY	
+	</select>
+
+                     
+<!-- 프로세스 검색-->
+	<select id="triggerArInstantSearchReleases" parameterType="java.util.Map" resultType="camelMap">
+/* TriggerAr.triggerArInstantSearchReleases */
+SELECT
+	TOP 200
+	PROCESS_CD
+	, PROCESS_NM
+FROM dbo.TB_TASK_DEVLOP_PROCESS
+WHERE
+	(PROCESS_CD like '%${searchKwrd}%' OR PROCESS_NM = '%${searchKwrd}%')
+	AND CMPNY_CD = #{cmpnyCd}
+	AND PROCESS_STTUS = 'O1'
+	</select>
+
+<!-- ATTENDED 로봇 검색-->
+	<select id="triggerArInstantSearchRobot" parameterType="java.util.Map" resultType="camelMap">
+/* TriggerAr.triggerArInstantSearchRobot */
+SELECT   A.CMPNY_CD
+               , A.PROCESS_CD
+               , A.RELEASES_ID 
+               , (select 
+	CASE 
+		WHEN state = 0 AND IsUnresponsive = 0 THEN
+		0
+		WHEN state = 1 AND IsUnresponsive = 0 THEN
+		1
+		WHEN state = 2 AND IsUnresponsive = 0 THEN
+		2
+		WHEN state != 2 AND IsUnresponsive = 1 THEN
+		3
+		END AS STATE
+from SY_Sessions A_1 WHERE A_1.id = C.RobotId) STATE
+               , C.RobotId AS BOT_NO
+               , ISNULL(D.Type,0) AS BOT_TYPE
+               , A.RELEASES_KEY
+               , A.INPUTARGUMENTS
+               , A.RELEASES_NAME
+               , A.PROCESS_KEY
+               , D.Name AS BOT_NM
+          FROM   TB_TASK_DEVLOP_PROCESS_MAPPER A
+               , SY_RELEASES B
+               , SY_ROBOTSXENVIRONMENTS C
+                 LEFT OUTER JOIN SY_ROBOTS D ON C.RobotId = D.Id
+         WHERE A.RELEASES_ID = B.ID
+			AND A.USE_AT = 'Y'
+			AND B.ENVIRONMENTID = C.ENVIRONMENTID
+<if test='processCd != null and processCd != ""'>
+			AND A.PROCESS_CD = #{processCd}
+</if>
+
+			AND D.IsDeleted = 0
+			<!-- 시연용 -->	
+			<!-- AND D.Type IN (1, 3) -->		
+			<!-- 시연후 복구 -->	
+ 			AND D.Type = 1
+ 			
+<!-- D.Type(1): attended, D.Type(3): Studio -->			
+         GROUP BY A.CMPNY_CD, A.PROCESS_CD, A.RELEASES_ID, C.RobotId, ISNULL(D.Type,0), A.RELEASES_KEY, A.INPUTARGUMENTS, A.RELEASES_NAME, A.PROCESS_KEY, D.Name
+         ORDER BY D.Name, C.RobotId	
+	</select>
+	
+	
+	
+	
+	<!-- Trigger AR 스케줄 수정 팝업창 데이터 표시를 위해 조회한다. 트리거 -->
+	<select id="triggerArSelectInfoForUpdate" parameterType="java.util.Map" resultType="camelMap">
+                /* TriggerAr.triggerArSelectInfoForUpdate */
+				SELECT
+				      [PROCESS_CD]
+				      ,[SCHDULE_NO]
+				      ,CONVERT(CHAR(19), DATEADD(HH, 9, [START_DE]), 21) START_DE
+				      ,CONVERT(CHAR(19), DATEADD(HH, 9, [END_DE]), 21) END_DE
+				      ,[SCHDULE_TYPE1]
+				      ,[SCHDULE_TYPE2]
+				      ,[EVERY_MINUTE]
+				      ,[EVERY_HOUR]
+				      ,[EVERY_HOUR_MINUTE]
+				      ,[EVERY_WEEK_MON_AT]
+				      ,[EVERY_WEEK_TUE_AT]
+				      ,[EVERY_WEEK_WED_AT]
+				      ,[EVERY_WEEK_THU_AT]
+				      ,[EVERY_WEEK_FRI_AT]
+				      ,[EVERY_WEEK_SAT_AT]
+				      ,[EVERY_WEEK_SUN_AT]
+				      ,[EVERY_MONTH_WEEK_ORDER]
+				      ,[EVERY_MONTH_DOW]
+				      ,[EXECUT_DAY]
+				      ,[EXECUT_HOUR]
+				      ,[EXECUT_MINUTE]
+				      ,[SCHDULE_CRONTAB]
+				      ,[SCHDULE_TEXT]
+				      ,[REGISTER_ID]
+				      ,[REG_DT]
+				      ,[UPDUSR_ID]
+				      ,[UPDT_DT]
+				      ,[CMPNY_CD]
+				      ,[BOT_TYPE]
+				      ,[INPUT_ARGUMENTS]
+				      ,[RELEASES_ID]
+				      ,[RELEASES_KEY]
+				      ,[RELEASES_NAME]
+				      ,[PROCESS_KEY]
+				      ,[BOT_NO]
+				      ,[DELETE_AT]
+				 FROM TB_TASK_DEVLOP_PROCESS_SCHDULE
+				 <where>
+				    <if test='processCd != null and processCd != ""'>
+				       AND [PROCESS_CD] = #{processCd}  
+				    </if>
+				    <if test='schduleNo != null and schduleNo != ""'>
+                       AND [SCHDULE_NO] = #{schduleNo}  
+				    </if>
+				    <if test='botNo != null and botNo != ""'>
+                       AND [BOT_NO] = #{botNo}  
+				    </if>
+                 </where>
+    </select>
+
+	
+	
+	<insert id="insertInstantStart" parameterType="java.util.Map">
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE]
+           ([CMPNY_CD]
+           ,[PROCESS_CD]
+           ,[ROBOT_ID]
+           ,[INPUT_ARGUMENTS]
+           ,[PROCESS_NAME]
+           ,[PROCESS_KEY]
+           ,[STTUS]
+           ,[CREAT_DT])
+VALUES(
+	#{cmpnyCd}
+	, #{processCd}
+	, #{botNo}
+	, #{inputarguments}
+	, #{releasesName}
+	, #{processKey}
+	, 'WAIT'
+	, GETDATE()
+)
+	</insert>
+	
+	<insert id="insertResveStart" parameterType="java.util.Map">
+/*TriggerAr.insertResveStart */
+        INSERT INTO TB_TEMP_RESRVE_BOT
+                   (
+                     DATE_YMD
+                   , DATE_YMSHM
+                   , BOT_NO
+                   , TIME_NO
+                   , PROCESS_CD
+                   , REGISTER_ID
+                   , REG_DT
+                   , REG_GBN
+                   , SEND_YN
+                   , CMPNY_CD
+                   , BOT_TYPE
+                   , INPUTARGUMENTS
+                   , RELEASES_ID
+                   , RELEASES_KEY
+                   , RELEASES_NAME
+                   , PROCESS_KEY
+                   )
+             VALUES
+                   (
+                     #{dateYmd}
+                   , CONVERT(DATETIME, #{dateYmshm})
+                   , CONVERT(INT,#{botNo})
+                   , (		SELECT A_1.TIME_NO FROM [dbo].[TB_TEMP_RESRVE] A_1
+							WHERE
+								A_1.TIME_SET = #{timeSet}
+								AND A_1.MINUT_SET = #{minutSet}
+						)
+                   , #{processCd}
+                   , #{txUserId}
+                   , GETDATE()
+                   , 'B'
+                   , 'N'
+                   , #{cmpnyCd}
+                   , #{botType}
+                   , '{}'
+                   , #{releasesId}
+                   , #{releasesKey}
+                   , #{releasesName}
+                   , #{processKey}
+                   )
+	</insert>
+	
+	<!-- 예약실행 입력시간 , DB시간 차이 비교 -->
+	<select id="getCompareTime" parameterType="java.util.Map" resultType="String">
+	/* TriggerAr.getCompareTime */
+	SELECT 
+		CASE WHEN convert(DATETIME, #{resveTime}) <![CDATA[<=]]> GETDATE() THEN 'Y' ELSE 'N' END
+	</select>
+	
+	
+	
+	
+	
+	
+	
+	
+	<select id="triggerArSelectProcessForUpdate" parameterType="java.util.Map" resultType="camelMap">
+		/* TriggerAr.triggerArSelectProcessForUpdate */
+		SELECT
+		    PROCESS_CD, PROCESS_NM
+		FROM dbo.TB_TASK_DEVLOP_PROCESS
+		WHERE PROCESS_CD like '%${processCd}%' AND PROCESS_STTUS = 'O1'
+    </select>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <!-- Not Disable → Disable TB_TEMP_RESRVE_BOT 수정 -->
+	<update id="convertTodisableSchdule" parameterType="java.util.Map">
+	    /* TriggerAr.convertTodisableSchdule */
+	    UPDATE [dbo].[TB_TEMP_RESRVE_BOT]
+	    SET [DISABLE_AT] = 1, [UPDUSR_ID] = #{userId}, [UPDT_DT] = CONVERT(CHAR(23), GETDATE(), 21)
+	    <where>
+	       <if test='processCd != null and processCd != ""'>
+	    AND [PROCESS_CD] = #{processCd}  
+	       </if>
+	       <if test='schduleNo != null and schduleNo != ""'>
+	           AND [SCHDULE_NO] = #{schduleNo}  
+	       </if>
+	       <if test='botNo != null and botNo != ""'>
+	           AND [BOT_NO] = #{botNo}  
+	       </if>
+	    </where>
+	</update>
+	
+	<!-- Not Disable → Disable TB_TASK_DEVLOP_PROCESS_SCHDULE 수정 -->
+	<update id="convertTodisableInfo" parameterType="java.util.Map">
+	    /* TriggerAr.convertTodisableInfo */
+	    UPDATE [dbo].[TB_TASK_DEVLOP_PROCESS_SCHDULE]
+	    SET [DISABLE_AT] = 1, [UPDUSR_ID] = #{userId}, [UPDT_DT] = CONVERT(CHAR(23), GETDATE(), 21)
+	    <where>
+	       <if test='processCd != null and processCd != ""'>
+	           AND [PROCESS_CD] = #{processCd}  
+	       </if>
+	       <if test='schduleNo != null and schduleNo != ""'>
+	           AND [SCHDULE_NO] = #{schduleNo}  
+	       </if>
+	       <if test='botNo != null and botNo != ""'>
+	           AND [BOT_NO] = #{botNo}  
+	       </if>
+	    </where>
+	</update>
+	        
+	
+	<!-- Disable → Not Disable TB_TEMP_RESRVE_BOT 수정 -->
+	<update id="convertToNotdisableSchdule" parameterType="java.util.Map">
+	    /* TriggerAr.convertToNotdisableSchdule */
+	    UPDATE [dbo].[TB_TEMP_RESRVE_BOT]
+	    SET [DISABLE_AT] = 0, [UPDUSR_ID] = #{userId}, [UPDT_DT] = CONVERT(CHAR(23), GETDATE(), 21)
+	    <where>
+	       <if test='processCd != null and processCd != ""'>
+	           AND [PROCESS_CD] = #{processCd}  
+	       </if>
+	       <if test='schduleNo != null and schduleNo != ""'>
+	           AND [SCHDULE_NO] = #{schduleNo}  
+	       </if>
+	       <if test='botNo != null and botNo != ""'>
+	           AND [BOT_NO] = #{botNo}  
+	       </if>
+	    </where>
+	</update>
+	
+	
+	<!-- Disable → Not Disable TB_TASK_DEVLOP_PROCESS_SCHDULE 수정 -->
+	<update id="convertToNotdisableInfo" parameterType="java.util.Map">
+	    /* TriggerAr.convertToNotdisableInfo */
+	    UPDATE [dbo].[TB_TASK_DEVLOP_PROCESS_SCHDULE]
+	    SET [DISABLE_AT] = 0, [UPDUSR_ID] = #{userId}, [UPDT_DT] = CONVERT(CHAR(23), GETDATE(), 21)
+	    <where>
+	       <if test='processCd != null and processCd != ""'>
+	    AND [PROCESS_CD] = #{processCd}  
+	       </if>
+	       <if test='schduleNo != null and schduleNo != ""'>
+	           AND [SCHDULE_NO] = #{schduleNo}  
+	       </if>
+	       <if test='botNo != null and botNo != ""'>
+	           AND [BOT_NO] = #{botNo}  
+	       </if>
+	    </where>
+	</update>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</mapper>

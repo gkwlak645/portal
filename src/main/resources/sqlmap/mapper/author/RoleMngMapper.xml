@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="RoleMngMapper">
+    <select id="selectRoleMngList" resultType="kr.co.rpaplatform.dongwon.author.vo.RoleMngVO">
+    /* RoleMapper.selectRoleMngList */
+        SELECT ROLE_CD
+              ,ROLE_NM
+              ,ROLE_DC
+              ,USE_AT
+        FROM   TB_ROLE
+        WHERE 1 = 1
+         <if test="useAt != null and useAt != ''">
+             AND USE_AT  = #{useAt}
+         </if>
+    </select>
+    
+     <select id="selectCountRoleMngList" parameterType="kr.co.rpaplatform.dongwon.author.vo.RoleMngVO" resultType="int">
+    /* RoleMapper.selectCountRoleMngList */
+        SELECT  COUNT(ROLE_CD)
+          FROM  TB_ROLE
+         WHERE  ROLE_CD = #{roleCd}
+    </select>
+    
+    <insert id="insertRoleMng" parameterType="kr.co.rpaplatform.dongwon.author.vo.RoleMngVO">
+        /* RoleMapper.insertRoleMng */
+        INSERT INTO TB_ROLE
+             (
+                    ROLE_CD
+                   ,ROLE_NM
+		           ,ROLE_DC
+		           ,USE_AT
+		           ,REGISTER_ID
+		           ,REG_DT
+		           ,UPDUSR_ID
+		           ,UPDT_DT
+             )
+        VALUES
+             (
+                    #{roleCd}
+		           ,#{roleNm}
+		           ,#{roleDc}
+		           ,#{useAt}
+		           ,#{txUserId}
+		           ,GETDATE()
+		           ,#{txUserId}
+		           ,GETDATE()
+             )
+    </insert>
+    
+    <update id="updateRoleMng" parameterType="kr.co.rpaplatform.dongwon.author.vo.RoleMngVO">
+        /* RoleMapper.updateRoleMng */
+        UPDATE  TB_ROLE
+           SET  ROLE_NM = #{roleNm}
+		       ,ROLE_DC = #{roleDc}
+		       ,USE_AT = #{useAt}
+		       ,UPDUSR_ID = #{txUserId}
+		       ,UPDT_DT = GETDATE()
+	     WHERE  ROLE_CD = #{roleCd}
+    </update>
+    
+    <delete id="deleteRoleMng" parameterType="kr.co.rpaplatform.dongwon.author.vo.RoleMngVO">
+     /* RoleMapper.deleteRoleMng */
+      DELETE FROM
+             TB_ROLE
+       WHERE ROLE_CD = #{roleCd}
+    </delete>
+       
+</mapper>

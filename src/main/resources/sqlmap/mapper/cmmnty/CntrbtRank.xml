@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="CntrbtRank">
+
+    <select id="selectCntrbtRankList" parameterType="java.util.Map" resultType="camelMap">
+	/*CntrbtRank.selectCntrbtRankList*/
+	DECLARE 
+	    @std_date  DATETIME ,@NOW_DATE  DATETIME 
+	SET @NOW_DATE   = #{cntrbtYear};
+	SET @std_date   = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+	SET @std_date   = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date )) + ' 23:59:59')
+	      
+	
+	SELECT  RANK() OVER (ORDER BY ISNULL( ROUND(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,2) ,0) DESC) AS cntrbtRank
+            , ISNULL( ROUND(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,2) ,0) AS cntrbtScore 
+	        , B.SUM_REDCN_TM
+	        , B.USER_ID
+	        , C.CMPNY_CD
+	        , C.CMPNY_NM
+	        , C.DEPT_CD
+	        , C.DEPT_NM
+	        , C.EMP_NM AS userNm
+	FROM 
+	(
+	    SELECT 
+	            CASE WHEN ISNULL(SUM(ISNULL(B.CONTRIBUTE,0)),0) = 0 THEN 0
+	            ELSE  SUM(ISNULL(B.CONTRIBUTE,0)) END AS SUM_CONTRIBUTE
+	            ,B.USER_ID
+	    FROM TB_TASK_DEVLOP_PROCESS A 
+	    INNER JOIN TB_TASK_DEVLOP_PROCESS_CONTRIBUTE B
+	    ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+	    WHERE  EXISTS (
+                SELECT USER_ID
+		        FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+		        WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO AND B.USER_ID = C.USER_ID
+            )   AND PROCESS_STTUS IN ('D4','O1')  
+	            AND CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+	    GROUP BY B.USER_ID
+	
+	)A
+	RIGHT OUTER JOIN(
+	    SELECT 
+	        CASE WHEN ISNULL(SUM(ISNULL(C.REDCN_TM,0)),0) = 0 THEN 0
+	        ELSE  SUM(ISNULL(C.REDCN_TM,0)) END AS SUM_REDCN_TM
+	        ,C.USER_ID
+	    FROM TB_TASK_DEVLOP_PROCESS A 
+	    INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+	    ON A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+	    WHERE EXISTS(
+                SELECT * 
+                FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+                WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+            )   AND PROCESS_STTUS IN ('D4','O1')  
+	            AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+	    GROUP BY C.USER_ID
+	) B
+	ON A.USER_ID = B.USER_ID
+	INNER JOIN VW_USER_INFO C
+	ON B.USER_ID = C.USER_ID
+	ORDER BY ISNULL(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,0) DESC
+	OFFSET       #{paginationInfo.firstRecordIndex} ROWS
+    FETCH NEXT   #{paginationInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+
+    <select id="selectCntrbtRankListCount" parameterType="java.util.Map" resultType="int">
+/*CntrbtRank.selectCntrbtRankListCount*/
+    DECLARE 
+        @std_date  DATETIME ,@NOW_DATE  DATETIME 
+    SET @NOW_DATE   = #{cntrbtYear};
+    SET @std_date   = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+    SET @std_date   = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date )) + ' 23:59:59')
+          
+    
+    SELECT  COUNT(B.USER_ID)
+    FROM 
+    (
+        SELECT 
+                CASE WHEN ISNULL(SUM(ISNULL(B.CONTRIBUTE,0)),0) = 0 THEN 0
+                ELSE  SUM(ISNULL(B.CONTRIBUTE,0)) END AS SUM_CONTRIBUTE
+                ,B.USER_ID
+        FROM TB_TASK_DEVLOP_PROCESS A 
+        INNER JOIN TB_TASK_DEVLOP_PROCESS_CONTRIBUTE B
+        ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+        WHERE EXISTS (
+                SELECT USER_ID 
+                FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+                WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO AND B.USER_ID = C.USER_ID
+            )   AND PROCESS_STTUS IN ('D4','O1')  
+                AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+        GROUP BY B.USER_ID
+    
+    )A
+    RIGHT OUTER JOIN(
+        SELECT 
+            CASE WHEN ISNULL(SUM(ISNULL(C.REDCN_TM,0)),0) = 0 THEN 0
+            ELSE  SUM(ISNULL(C.REDCN_TM,0)) END AS SUM_REDCN_TM
+            ,C.USER_ID
+        FROM TB_TASK_DEVLOP_PROCESS A 
+        INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+        ON A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+        WHERE EXISTS(
+                SELECT * 
+                FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+                WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+            )   AND PROCESS_STTUS IN ('D4','O1')  
+                AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+        GROUP BY C.USER_ID
+    ) B
+    ON A.USER_ID = B.USER_ID
+    INNER JOIN VW_USER_INFO C
+    ON B.USER_ID = C.USER_ID
+    </select>
+
+
+
+    <select id="getCntrbtRankDetailPopGetData" parameterType="java.util.Map" resultType="camelMap">
+    /*CntrbtRank.getCntrbtRankDetailPopGetData*/
+    
+		DECLARE 
+		    @std_date  DATETIME ,@NOW_DATE  DATETIME 
+		SET @NOW_DATE   = #{cntrbtYear};
+		SET @std_date   = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+		SET @std_date   = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date )) + ' 23:59:59')
+		
+		SELECT *
+        FROM (
+             
+			SELECT  RANK() OVER (ORDER BY ISNULL( ROUND(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,2) ,0) DESC) AS cntrbtRank
+                    , ISNULL( ROUND(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,2) ,0) AS cntrbtScore 
+			        , B.SUM_REDCN_TM
+			        , B.USER_ID
+			        , C.CMPNY_CD
+			        , C.CMPNY_NM
+			        , C.DEPT_CD
+			        , C.DEPT_NM
+			        , C.EMP_NM AS userNm
+			FROM 
+			(
+			    SELECT 
+			            CASE WHEN ISNULL(SUM(ISNULL(B.CONTRIBUTE,0)),0) = 0 THEN 0
+			            ELSE  SUM(ISNULL(B.CONTRIBUTE,0)) END AS SUM_CONTRIBUTE
+			            ,B.USER_ID
+			    FROM TB_TASK_DEVLOP_PROCESS A 
+			    INNER JOIN TB_TASK_DEVLOP_PROCESS_CONTRIBUTE B
+			    ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+			    WHERE EXISTS (
+                        SELECT USER_ID
+		                FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+		                WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO AND B.USER_ID = C.USER_ID
+		            )   AND PROCESS_STTUS IN ('D4','O1')  
+			            AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+			    GROUP BY B.USER_ID
+			
+			)A
+			RIGHT OUTER JOIN(
+			    SELECT 
+			        CASE WHEN ISNULL(SUM(ISNULL(C.REDCN_TM,0)),0) = 0 THEN 0
+			        ELSE  SUM(ISNULL(C.REDCN_TM,0)) END AS SUM_REDCN_TM
+			        ,C.USER_ID
+			    FROM TB_TASK_DEVLOP_PROCESS A 
+			    INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+			    ON A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+			    WHERE EXISTS(
+                        SELECT * 
+                        FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+                        WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+                    )   AND PROCESS_STTUS IN ('D4','O1')  
+			            AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+			    GROUP BY C.USER_ID
+			) B
+			ON A.USER_ID = B.USER_ID
+			INNER JOIN VW_USER_INFO C
+			ON B.USER_ID = C.USER_ID
+	    
+	    ) C
+	    
+	    WHERE C.USER_ID = #{userId}
+        
+        </select>    
+    
+    <select id="getCntrbtRankDetailPopGetData2" parameterType="java.util.Map" resultType="camelMap">
+	/*CntrbtRank."getCntrbtRankDetailPopGetData2"*/
+	
+		DECLARE 
+		    @std_date  DATETIME ,@NOW_DATE  DATETIME 
+		SET @NOW_DATE   = #{cntrbtYear};
+		SET @std_date   = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+		SET @std_date   = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date )) + ' 23:59:59')
+		
+		SELECT    ISNULL(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,0) AS cntrbtscore 
+		        , C.TASK_CD
+		        , B.DEVLOP_SN
+		        , B.PROCESS_NO
+		        , B.PROCESS_CD
+		        , B.PROCESS_NM
+		        , B.SUM_REDCN_TM
+		        , B.USER_ID
+		FROM 
+		(
+		    SELECT 
+		             A.DEVLOP_SN
+		            ,A.PROCESS_NO
+		            ,A.PROCESS_CD
+		            ,A.PROCESS_NM
+		            ,CASE WHEN ISNULL(SUM(ISNULL(B.CONTRIBUTE,0)),0) = 0 THEN 0
+		             ELSE  SUM(ISNULL(B.CONTRIBUTE,0)) END AS SUM_CONTRIBUTE
+		            ,B.USER_ID
+		    FROM TB_TASK_DEVLOP_PROCESS A 
+		    INNER JOIN TB_TASK_DEVLOP_PROCESS_CONTRIBUTE B
+		    ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+		    WHERE EXISTS (
+                        SELECT USER_ID
+                        FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+                        WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO AND B.USER_ID = C.USER_ID
+                    )   
+                AND PROCESS_STTUS IN ('D4','O1')    
+		        AND B.USER_ID = #{userId}
+		        AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+		    GROUP BY A.DEVLOP_SN, A.PROCESS_NO, A.PROCESS_CD, A.PROCESS_NM, B.USER_ID
+		
+		)A
+		RIGHT OUTER JOIN(
+		    SELECT
+		         A.DEVLOP_SN
+		        ,A.PROCESS_NO
+		        ,A.PROCESS_CD
+		        ,A.PROCESS_NM
+		        ,CASE WHEN ISNULL(SUM(ISNULL(C.REDCN_TM,0)),0) = 0 THEN 0
+		         ELSE  SUM(ISNULL(C.REDCN_TM,0)) END AS SUM_REDCN_TM
+		        ,C.USER_ID
+		    FROM TB_TASK_DEVLOP_PROCESS A 
+		    INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+		    ON A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+		    WHERE EXISTS(
+                        SELECT * 
+                        FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+                        WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+                    )   
+                AND PROCESS_STTUS IN ('D4','O1')    
+		        AND  C.USER_ID = #{userId}
+		        AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+		    GROUP BY A.DEVLOP_SN, A.PROCESS_NO, A.PROCESS_CD, A.PROCESS_NM, C.USER_ID
+		) B
+		ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO AND A.PROCESS_CD = B.PROCESS_CD AND A.USER_ID = B.USER_ID
+		INNER JOIN TB_TASK_DEVLOP C ON B.DEVLOP_SN = C.DEVLOP_SN
+		ORDER BY C.TASK_CD
+		
+	    </select>
+    
+    
+
+
+
+
+<!-- 
+
+    <select id="selectCntrbtRankListCount2" parameterType="java.util.Map" resultType="int">
+/*CntrbtRank.selectCntrbtRankListCount*/
+SELECT COUNT(CNTRBT_YY)
+FROM [dbo].[TB_CNTRBT_RANK] A
+WHERE 
+    A.CNTRBT_YY = #{searchYear}
+    </select>
+    
+    <select id="selectCntrbtRankList2" parameterType="java.util.Map" resultType="camelMap">
+/*CntrbtRank.selectCntrbtRankList*/
+SELECT     [CNTRBT_YY],      [CMPNY_CD] , B.CD_NM AS CMPNY_NM, [USER_ID], C.EMP_NM AS USER_NM      ,A.[DEPT_CD],
+    A.[DEPT_NM]      ,[CNTRBT_RANK]      ,[REDCN_TM]      ,[CNTRBT_SCORE]      ,[IMPRVM_IDEX]
+FROM [dbo].[TB_CNTRBT_RANK] A
+INNER JOIN [dbo].[TB_CMMN_CD] B ON (A.CMPNY_CD = B.CD AND CLS_CD = '0024')
+INNER JOIN [dbo].[TB_USER_DETAIL] C ON (A.USER_ID = C.EMP_NO)
+WHERE 
+    A.CNTRBT_YY = #{searchYear} 
+ORDER BY CNTRBT_SCORE DESC
+        OFFSET   #{paginationInfo.firstRecordIndex} ROWS
+    FETCH NEXT   #{paginationInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+
+
+    <resultMap id="cntrbtRankListDetail2" type="camelMap">
+        <result property="CNTRBT_YY" column="CNTRBT_YY"/>
+        <collection property="CNTRBT_INFO_LIST" column="{cntrbtYy=CNTRBT_YY, userID = USER_ID}" javaType="java.util.ArrayList" ofType="java.util.Map" select="cntrbtRankDetailInfoList2"/>
+    </resultMap>
+    
+    
+    <select id="getCntrbtRankDetailPopGetData2" parameterType="java.util.Map" resultMap="cntrbtRankListDetail">
+/*CntrbtRank.getCntrbtRankDetailPopGetData*/
+
+SELECT     [CNTRBT_YY],      [CMPNY_CD] , B.CD_NM AS CMPNY_NM, [USER_ID], C.EMP_NM AS USER_NM      ,A.[DEPT_CD],
+    A.[DEPT_NM]      ,[CNTRBT_RANK]      ,[REDCN_TM]      ,[CNTRBT_SCORE]      ,[IMPRVM_IDEX]
+FROM [dbo].[TB_CNTRBT_RANK] A
+INNER JOIN [dbo].[TB_CMMN_CD] B ON (A.CMPNY_CD = B.CD AND CLS_CD = '0024')
+INNER JOIN [dbo].[TB_USER_DETAIL] C ON (A.USER_ID = C.EMP_NO)
+WHERE 
+    A.CNTRBT_YY = #{cntrbtYy} 
+    AND USER_ID = #{userId}
+    </select>
+    
+    
+    <select id="cntrbtRankDetailInfoList2" parameterType="java.util.Map" resultType="camelMap">
+/*CntrbtRank.cntrbtRankDetailInfoList*/
+SELECT   
+    [CNTRBT_YY]      ,[TASK_CD]      ,[PROCESS_CD]      ,[PROCESS_NM]      ,[REDCN_TM]
+    ,[CNTRBT_SCORE]      ,[USER_ID]
+FROM [dbo].[TB_CNTRBT_RANK_DETATIL_INFO] A
+WHERE 
+    A.CNTRBT_YY = #{cntrbtYy} 
+    AND USER_ID = #{userID}
+    </select>
+     -->
+    
+    
+</mapper>

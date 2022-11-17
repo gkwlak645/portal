@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="SchdulMapper">
+
+        <select id="selectSchdulList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* SchdulMapper.selectSchdulList */
+            SELECT   A.Id
+                   , A.Name
+                   , B.Name AS ProcessName
+                   , C.Name AS EnvironmentName
+                   , A.Enabled
+                   , A.QueueDefinitionId
+                   , CASE WHEN ISNULL(A.QueueDefinitionId, '') = '' THEN '시간'
+                          ELSE '큐'
+                     END AS TypeName
+                   , A.StartProcessCronDetails
+                   , E.Name AS QueueName
+                   , CASE WHEN ISNULL(A.JobPriority, '') = '' THEN '상속됨'
+                          ELSE D.CD_NM
+                     END AS JobPriorityName
+              FROM   SY_PROCESSSCHEDULES A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ENVIRONMENTS C
+                ON   B.EnvironmentId = C.Id
+         LEFT JOIN   TB_CMMN_CD D
+                ON   (
+                              A.JobPriority = D.CD
+                         AND  D.CLS_CD = '0010'
+                         AND  D.USE_AT = 'Y'
+                     )
+         LEFT JOIN   SY_QUEUEDEFINITIONS E
+                ON   A.ReleaseId = E.ReleaseId
+             WHERE   A.IsDeleted = 0
+             <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+             </if>
+          ORDER BY   B.Name ASC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectSchdulCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* SchdulMapper.selectSchdulCount */
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_PROCESSSCHEDULES A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ENVIRONMENTS C
+                ON   B.EnvironmentId = C.Id
+         LEFT JOIN   TB_CMMN_CD D
+                ON   (
+                              A.JobPriority = D.CD
+                         AND  D.CLS_CD = '0010'
+                         AND  D.USE_AT = 'Y'
+                     )
+         LEFT JOIN   SY_QUEUEDEFINITIONS E
+                ON   A.ReleaseId = E.ReleaseId
+             WHERE   A.IsDeleted = 0
+             <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+             </if>
+        </select>
+        
+</mapper>

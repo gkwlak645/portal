@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+    xmlns:mybatis-spring="http://mybatis.org/schema/mybatis-spring"
+    xmlns:jee="http://www.springframework.org/schema/jee"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+        http://mybatis.org/schema/mybatis-spring http://mybatis.org/schema/mybatis-spring.xsd
+        http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee.xsd">
+
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="${jdbc.mssql.driverClassName}" />
+        <property name="url" value="${jdbc.mssql.url}" />
+        <property name="username" value="${jdbc.mssql.username}" />
+        <property name="password" value="${jdbc.mssql.password}" />
+    </bean>
+    
+    <bean id="groupwareDs" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="${jdbc.groupware.driverClassName}" />
+        <property name="url" value="${jdbc.groupware.url}" />
+        <property name="username" value="${jdbc.groupware.username}" />
+        <property name="password" value="${jdbc.groupware.password}" />
+    </bean>
+    
+	<bean id="sqlSessionFactory" class="kr.co.rpaplatform.common.factory.RefreshableSqlSessionFactoryBean">
+	  <property name="dataSource" ref="dataSource" />
+	  <property name="configLocation" value="classpath:/sqlmap/mybatis-config.xml" />
+	  <property name="mapperLocations" value="classpath:/sqlmap/mapper/**/*.xml" />
+	  <property name="interval" value="1000" />
+	</bean>
+	
+    <bean id="groupwareSessionFactory" class="kr.co.rpaplatform.common.factory.RefreshableSqlSessionFactoryBean">
+      <property name="dataSource" ref="groupwareDs" />
+      <property name="configLocation" value="classpath:/sqlmap/groupware-mybatis-config.xml" />
+      <property name="mapperLocations" value="classpath:/sqlmap/groupware-mapper/**/*.xml" />
+      <property name="interval" value="1000" />
+    </bean>
+	
+	<bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+	   <constructor-arg ref="sqlSessionFactory" />
+	</bean>
+	
+    <bean id="groupwareSession" class="org.mybatis.spring.SqlSessionTemplate">
+       <constructor-arg ref="groupwareSessionFactory" />
+    </bean>
+        
+</beans>

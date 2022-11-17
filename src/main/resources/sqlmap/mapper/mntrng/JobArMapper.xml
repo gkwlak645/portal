@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="JobArMapper">
+
+        <select id="selectJobArList" parameterType="java.util.Map" resultType="camelMap">
+        /* JobMapper.selectJobArList */
+        
+        DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+        SET @start_date = #{startDe}; 
+        SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+        SET @end_date = #{endDe}; 
+        SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+        SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+        
+		SELECT 
+		       A.[SN]
+		      ,A.[CMPNY_CD]
+		      ,C.CD_NM AS CMPNY_NM
+		      ,A.[PROCESS_CD]
+		      ,(SELECT NAME FROM SY_ROBOTS WHERE ID = A.[ROBOT_ID]) ROBOT_NAME
+		      ,A.[ROBOT_ID]
+		      ,A.[INPUT_ARGUMENTS]
+		      ,(SELECT A_1.PROCESS_NM 
+						FROM TB_TASK_DEVLOP_PROCESS A_1
+						WHERE A_1.PROCESS_STTUS = 'O1' AND A_1.PROCESS_CD = A.PROCESS_CD) AS VIEW_PROCESS_NAME
+		      ,A.[PROCESS_NAME]
+		      ,A.[PROCESS_KEY]
+		      ,A.[STTUS]
+		      ,B.CD_NM AS STTUS_NAME
+		      ,CONVERT(CHAR(19),A.[CREAT_DT] ,20) AS CREAT_DT
+		      ,CONVERT(CHAR(19),A.[START_DT] ,20) AS START_DT 
+		      ,CONVERT(CHAR(19),A.[END_DT] ,20) AS END_DT 
+		      ,A.[EXCEPTION_MSSAGE]
+		      ,A.[UPDUSR_ID]
+		      ,A.[UPDT_DT]
+		          
+		  FROM [dbo].[TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE] A
+		  JOIN   TB_CMMN_CD B
+		    ON   (
+		                    A.STTUS = B.CD
+		                AND B.CLS_CD = '0053'
+		                AND B.USE_AT = 'Y'
+		            )
+		    JOIN   TB_CMMN_CD C
+		    ON   (
+		                    A.CMPNY_CD = C.CD
+		                AND C.CLS_CD = '0024'
+		                AND C.USE_AT = 'Y'
+		            )
+             WHERE   1 = 1
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND   A.[CMPNY_CD] = #{cmpnyCd}
+              </if>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, A.[CREAT_DT]) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, A.[CREAT_DT]) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+             </if>
+             <if test='state != null and state != ""'>
+               AND   A.[STTUS] = #{state}
+             </if>
+             <if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+                AND (SELECT NAME FROM SY_ROBOTS WHERE ID = A.[ROBOT_ID]) = #{searchRobotName}
+            </if> 
+          ORDER BY   A.[CREAT_DT] DESC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectJobArListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* JobArMapper.selectJobArListCount */
+        
+        DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+        SET @start_date = #{startDe}; 
+        SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+        SET @end_date = #{endDe}; 
+        SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+        SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+        
+          SELECT COUNT(A.[PROCESS_CD])
+          FROM [dbo].[TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE] A
+          JOIN   TB_CMMN_CD B
+            ON   (
+                            A.STTUS = B.CD
+                        AND B.CLS_CD = '0053'
+                        AND B.USE_AT = 'Y'
+                    )
+            JOIN   TB_CMMN_CD C
+            ON   (
+                            A.CMPNY_CD = C.CD
+                        AND C.CLS_CD = '0024'
+                        AND C.USE_AT = 'Y'
+                    )
+             WHERE   1 = 1
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND   A.[CMPNY_CD] = #{cmpnyCd}
+              </if>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, A.[CREAT_DT]) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, A.[CREAT_DT]) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+             </if>
+             <if test='state != null and state != ""'>
+               AND   A.[STTUS] = #{state}
+             </if>
+             <if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+                AND (SELECT NAME FROM SY_ROBOTS WHERE ID = A.[ROBOT_ID]) = #{searchRobotName}
+            </if> 
+        </select>
+        
+        
+        <select id="selectJobArSttus" parameterType="java.util.Map" resultType="java.lang.String">
+            SELECT STTUS
+			FROM TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE
+			WHERE SN = #{sn}
+        </select>
+        
+        
+       <update id="stopJobAr" parameterType="java.util.Map">
+		UPDATE  TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE
+		SET UPDUSR_ID = #{txUserId} , UPDT_DT = GETDATE()
+		  <if test='sttus != null and sttus != "" and sttus == "WAIT"'>
+		      , STTUS = 'STOPPED'
+		  </if>
+		  <if test='sttus != null and sttus != "" and sttus == "START"'>
+		      , STTUS = 'STOP'
+		  </if>
+		WHERE
+		    SN = #{sn}  
+		</update>
+        
+
+<!-- 현재 로봇과 로봇 현황 List -->
+    <select id="selectBotListARmntrng" parameterType="java.util.Map" resultType="camelMap">
+        /*JobArMapper.selectBotListARmntrng*/
+        SELECT
+              (SELECT b.CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] b WHERE b.[TENANT_ID] = A.[TENANTID]) 'CMPNY_CD'
+              , B.[NAME]
+              , A.[STATE]
+              , A.[ROBOTID] 'ROBOT_ID'
+              , CASE 
+                    WHEN A.[STATE] = 0  AND A.[ISUNRESPONSIVE] = 0 THEN 0 -- Available
+                    WHEN A.[STATE] = 1  AND A.[ISUNRESPONSIVE] = 0 THEN 1 -- Busy
+                    WHEN A.[STATE] = 2  AND A.[ISUNRESPONSIVE] = 0 THEN 2 -- Disconnected
+                    WHEN A.[STATE] != 2 AND A.[ISUNRESPONSIVE] = 1 THEN 3 -- Unresponsive
+                END 'ROBOT_STATE'
+        FROM [RPA_POTAL]. [DBO].[SY_SESSIONS] A
+        INNER JOIN [RPA_POTAL].[DBO].[SY_ROBOTS] B
+        ON A.ROBOTID = B.ID
+
+        <where>
+          A.ISDELETED = 0 AND B.ISDELETED = 0 AND B.Type = 1
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnyCd})
+          </if>                    
+        </where>
+        
+        ORDER BY CMPNY_CD, NAME
+    </select>
+
+
+
+
+
+
+
+	<update id="convertToStopped" parameterType="java.util.Map">
+	    /*JobArMapper.convertToStopped*/
+	    UPDATE [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE]
+		SET [STTUS] = 'STOPPED', END_DT = CONVERT(CHAR(23), GETDATE(), 21)
+        <where>
+            1 = 1
+            AND [STTUS] = 'STOP'
+			<if test='sn != null and sn != ""'>
+				AND [SN] = #{sn}
+			</if>
+			<if test='cmpnyCd != null and cmpnyCd != ""'>
+				AND [CMPNY_CD] = #{cmpnyCd}
+			</if>
+			<if test='processCd != null and processCd != ""'>
+				AND [PROCESS_CD] = #{processCd}
+			</if>
+        </where>
+	</update>
+    
+    
+    
+    
+    
+    
+    
+    
+</mapper>

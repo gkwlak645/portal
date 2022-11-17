@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TaskBotScheduleMapper">
+    <select id="chkBotExistAt" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TaskBotScheduleMapper.chkBotExistAt*/    
+SELECT COUNT(TenantId) FROM [dbo].[SY_ROBOTS]
+WHERE
+    TenantId    =  (SELECT ID FROM [dbo].[SY_TENANTS] A_1 WHERE A_1.Name = #{tanantNm} AND A_1.IsDeleted = 0)
+    AND Name    =  #{robotNm}
+    AND IsDeleted = 0
+    </select>
+    
+    <select id="getBotSchedule" parameterType="java.util.Map" resultType="camelMap">
+/* TaskBotScheduleMapper.getBotSchedule */
+SELECT TOP 1
+    [SN]
+    ,[INPUT_ARGUMENTS]
+    ,[PROCESS_NAME]
+    ,[PROCESS_KEY]
+    ,[STTUS]
+FROM [dbo].[TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE]
+WHERE
+    [ROBOT_ID] = 
+        (
+            SELECT ID FROM [dbo].[SY_ROBOTS]
+			WHERE
+			    TenantId    =  (SELECT ID FROM [dbo].[SY_TENANTS] A_1 WHERE A_1.Name = #{tanantNm}  AND A_1.IsDeleted = 0)
+			    AND Name    =  #{robotNm}
+			    AND IsDeleted = 0
+        )
+    AND [STTUS] IN ('WAIT', 'START', 'STOP')
+ORDER BY SN ASC
+    </select>
+        
+    
+    <update id="setBotScheduleSttus" parameterType="java.util.Map">
+/*TaskBotScheduleMapper.setBotScheduleSttus*/
+UPDATE  [dbo].[TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE]
+SET
+   [STTUS] = #{sttus}
+<if test="startDt != null and startDt != ''">
+   ,   [START_DT] = #{startDt}
+</if>
+<if test="endDt != null and endDt != ''">
+   ,   [END_DT] = #{endDt}
+</if>
+<if test="exceptionMssage != null and exceptionMssage != ''">
+   ,   [EXCEPTION_MSSAGE] = #{exceptionMssage}
+</if>
+    WHERE [SN]= #{sn} 
+    </update>
+</mapper>

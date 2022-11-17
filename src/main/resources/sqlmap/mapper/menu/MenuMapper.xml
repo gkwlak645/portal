@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="MenuMapper">
+
+    <select id="selectAllMenuList" resultType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+        /* MenuMapper.selectAllMenuList */
+        WITH MENU_TREE AS (
+            SELECT   MENU_CD
+                   , MENU_NM
+                   , UP_MENU_CD
+                   , 1 AS LVL
+                   , MENU_ORDR * POWER(10,6) ORDR
+              FROM   TB_MENU
+             WHERE   MENU_CD = '0000000000'
+         UNION ALL
+            SELECT   A.MENU_CD
+                   , A.MENU_NM
+                   , A.UP_MENU_CD
+                   , B.LVL + 1 AS LVL
+                   , B.ORDR + A.MENU_ORDR * POWER(10, 6 - B.LVL) ORDR
+              FROM   TB_MENU A
+        INNER JOIN   MENU_TREE B
+                ON   A.UP_MENU_CD = B.MENU_CD
+        )
+        SELECT   MENU_CD
+               , MENU_NM
+          FROM   MENU_TREE
+      ORDER BY   ORDR
+    </select>
+    
+    <select id="selectLeftMenuList" parameterType="java.util.Map" resultType="camelMap">
+        /* MenuMapper.selectLeftMenuList */
+        WITH MENU_TREE AS (
+            SELECT   MENU_CD
+                   , MENU_NM
+                   , UP_MENU_CD
+                   , 1 AS MENU_LEVEL
+                   , MENU_ORDR * POWER(10, 8) ORDR
+                   , MENU_URL
+                   , MENU_ICON_COURS
+                   , USE_AT
+              FROM   TB_MENU
+             WHERE   UP_MENU_CD = '0000000000'
+               AND   MENU_CD IN (
+                                   SELECT   A.MENU_CD
+					                 FROM   TB_AUTHOR A
+					                 JOIN   TB_USER_ROLE B
+					                   ON   (
+					                               A.ROLE_CD = B.ROLE_CD
+					                          AND  B.USER_ID = #{userId}
+					                        )
+					                   WHERE A.REDNG_AUTHOR = 'Y'
+					            )
+         UNION ALL
+            SELECT   A.MENU_CD
+                   , A.MENU_NM
+                   , A.UP_MENU_CD
+                   , B.MENU_LEVEL + 1 AS MENU_LEVEL
+                   , B.ORDR + A.MENU_ORDR * POWER(10, 5 - B.MENU_LEVEL) ORDR
+                   , A.MENU_URL
+                   , A.MENU_ICON_COURS
+                   , A.USE_AT
+              FROM   TB_MENU A
+        INNER JOIN   MENU_TREE B
+                ON   A.UP_MENU_CD = B.MENU_CD
+                WHERE A.MENU_CD IN (
+                                   SELECT   A.MENU_CD
+                                     FROM   TB_AUTHOR A
+                                     JOIN   TB_USER_ROLE B
+                                       ON   (
+                                                   A.ROLE_CD = B.ROLE_CD
+                                              AND  B.USER_ID = #{userId}
+                                            )
+                                       WHERE A.REDNG_AUTHOR = 'Y'
+                                )
+        )
+        SELECT   MENU_CD
+               , MENU_NM
+               , MENU_LEVEL
+               , MENU_URL
+               , MENU_ICON_COURS
+               , USE_AT
+          FROM   MENU_TREE
+          WHERE USE_AT = 'Y'
+      ORDER BY   ORDR
+    </select>
+    
+    <select id="selectMenuList" resultType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+    /* MenuMapper.selectMenuList */
+        SELECT *
+          FROM TB_MENU
+      ORDER BY UP_MENU_CD ASC, MENU_ORDR ASC
+    </select>
+    
+    <select id="selectMenuDetail" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO" resultType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+    /* MenuMapper.selectMenuDetail */
+        SELECT *
+          FROM TB_MENU
+         WHERE MENU_CD = #{menuCd}
+    </select>
+    
+    <select id="selectMenuMaxOrdr" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO" resultType="Integer">
+         /* MenuMapper.selectMenuMaxOrdr */
+        SELECT ISNULL(MAX(MENU_ORDR),0)+1
+          FROM TB_MENU
+         WHERE UP_MENU_CD = #{menuCd}
+    </select>
+    
+    <update id="updateMenu" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+         /* MenuMapper.updateMenu */
+        UPDATE   TB_MENU
+           SET   MENU_NM = #{menuNm}
+               , MENU_URL = #{menuUrl}
+               , MENU_DC = #{menuDc}
+               , USE_AT = #{useAt}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   MENU_CD = #{menuCd}
+    </update>
+    
+    <insert id="insertMenu" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+         /* MenuMapper.insertMenu */
+        INSERT INTO TB_MENU
+             (
+                    MENU_CD
+                  , MENU_NM
+                  , MENU_URL
+                  , UP_MENU_CD
+                  , MENU_ORDR
+                  , MENU_DC
+                  , USE_AT
+                  , REGISTER_ID
+                  , REG_DT
+                  , UPDUSR_ID
+                  , UPDT_DT
+             )
+        VALUES
+             (
+                    #{menuCd}
+                  , #{menuNm}
+                  , #{menuUrl}
+                  , #{upMenuCd}
+                  , #{menuOrdr}
+                  , #{menuDc}
+                  , #{useAt}
+                  , #{txUserId}
+                  , GETDATE()
+                  , #{txUserId}
+                  , GETDATE()
+             )
+    </insert>
+    
+    <delete id="deleteMenu" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+        /* MenuMapper.deleteMenu */
+        DELETE FROM TB_MENU
+         WHERE MENU_CD = #{menuCd}
+    </delete>
+    
+    <update id="updateUseAtMenu" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+        /* MenuMapper.updateUseAtMenu */
+        UPDATE   TB_MENU
+           SET   USE_AT = #{useAt}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   MENU_CD = #{menuCd}
+    </update>
+    
+    <update id="updateOrdrMenu" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+        /* MenuMapper.updateOrdrMenu */
+        UPDATE   TB_MENU
+           SET   MENU_ORDR = #{menuOrdr}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   MENU_CD = #{menuCd}
+    </update>
+    
+    <select id="selectChildMenuCd" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO" resultType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+        /* MenuMapper.selectChildMenuCd */
+        SELECT MENU_CD
+		  FROM TB_MENU
+		 WHERE UP_MENU_CD = #{menuCd}
+    </select>
+    
+    <select id="selectCurrentMenuPath" parameterType="java.lang.String" resultType="java.lang.String">
+        /* MenuMapper.selectCurrentMenuPath */
+        WITH MENU_TREE AS (
+            SELECT   MENU_CD
+                   , MENU_NM
+                   , UP_MENU_CD
+              FROM   TB_MENU
+             WHERE   MENU_URL LIKE #{urlPath} + '%'
+         UNION ALL
+            SELECT   A.MENU_CD
+                   , A.MENU_NM
+                   , A.UP_MENU_CD
+              FROM   TB_MENU A
+        INNER JOIN   MENU_TREE B
+                ON   A.MENU_CD = B.UP_MENU_CD
+             WHERE   A.MENU_CD <![CDATA[>]]> '0000000000'
+        )
+        SELECT   REPLACE(A.MENU_PATH, '/', ' / ') AS MENU_PATH
+          FROM   (
+                    SELECT   STUFF((
+                                 SELECT   '/' + MENU_NM
+                                   FROM   MENU_TREE
+                               ORDER BY   MENU_CD
+                                FOR XML   PATH('') 
+                             ), 1, 1, '') AS MENU_PATH
+                 ) A
+    </select>
+    
+    
+    <select id="selectPathMenuCdList" parameterType="java.lang.String" resultType="camelMap">
+        /* MenuMapper.selectPathMenuCdList */
+        WITH MENU_TREE AS (
+            SELECT   MENU_CD
+                   , MENU_NM
+                   , UP_MENU_CD
+                   , 1 AS INVERSE_LVL
+              FROM   TB_MENU
+             WHERE   MENU_URL LIKE #{urlPath} + '%'
+         UNION ALL
+            SELECT   A.MENU_CD
+                   , A.MENU_NM
+                   , A.UP_MENU_CD
+                   , B.INVERSE_LVL + 1 AS INVERSE_LVL
+              FROM   TB_MENU A
+        INNER JOIN   MENU_TREE B
+                ON   A.MENU_CD = B.UP_MENU_CD
+             WHERE   A.MENU_CD <![CDATA[>]]> '0000000000'
+        )
+        SELECT   MENU_CD
+               , INVERSE_LVL
+          FROM   MENU_TREE
+      ORDER BY   INVERSE_LVL DESC
+    </select>
+    
+    <update id="updateCmmnty" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+        /* MenuMapper.updateCmmnty */
+        UPDATE   TB_MENU
+           SET   MENU_NM = #{menuNm}
+               , MENU_DC = #{menuDc}
+               , USE_AT = #{useAt}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   MENU_CD = #{menuCd}     
+    </update>
+    
+    <select id="selectMenuCd" parameterType="java.lang.String" resultType="java.lang.String">
+        /* MenuMapper.selectMenuCd */
+        SELECT MENU_CD
+          FROM TB_MENU
+         WHERE MENU_URL LIKE '%' + #{boardCd}
+    </select>
+    
+    <select id="selectMenuChildren" parameterType="java.lang.String" resultType="java.lang.String">
+        /* MenuMapper.selectMenuChildren */
+        SELECT MENU_CD
+          FROM TB_MENU
+         WHERE UP_MENU_CD = #{upMenuCd}
+    </select>
+    
+    <select id="selectCmmntyMenuCd"  resultType="int">
+    /* MenuMapper.selectCmmntyMenuCd */
+    SELECT ISNULL(MAX(MENU_CD),0)
+      FROM TB_MENU
+     WHERE UP_MENU_CD = 1000000000
+    </select>
+    
+    <select id="selectMenuBoardNo" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO" resultType="String">
+        /*MenuMapper.selectMenuBoardNo*/
+        SELECT A.BOARD_NO
+          FROM TB_BOARD_MNG A
+          JOIN TB_MENU B 
+            ON A.BOARD_URL = B.MENU_URL
+         WHERE B.MENU_CD = #{menuCd}
+    </select>
+</mapper>

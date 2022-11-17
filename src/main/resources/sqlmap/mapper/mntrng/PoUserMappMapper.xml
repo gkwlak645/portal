@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="PoUserMappMapper">
+
+	<select id="getPoUserMappList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* PoUserMappMapper.getPoUserMappList */
+	
+	SELECT (SELECT CD_NM FROM TB_CMMN_CD WHERE CLS_CD = 24 AND CD = A.CMPNY_CD) AS CmpnyNm
+		, A.PROCESS_CD AS ProcessCd
+		, A.PROCESS_NM AS ProcessNm
+		, A.EXECUT_SE
+		, A.CMPNY_CD 'cmpnyCd'
+		, CASE
+			WHEN A.PROCESS_STTUS = 'O1' THEN '운영중'
+			ELSE '테스트' END AS ProcessSttus
+		, ISNULL(B.DELETE_AT,1) AS OrcProcessCd <!-- 매핑정보(0:없다 , 1:있다) -->
+		, (SELECT DEV_TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] WHERE A.CMPNY_CD = CMPNY_CD) 'tenantId'
+	FROM TB_TASK_DEVLOP_PROCESS A
+		LEFT OUTER JOIN TB_TASK_DEVLOP_PROCESS_DEV_MAPPER B
+		ON A.PROCESS_CD = B.PROCESS_CD
+	WHERE 1 = 1 
+	AND A.EXECUT_SE = 2
+	    <!-- AND A.EXECUT_SE = 02 -->
+	<!-- <if test='cmpnyCd != null and cmpnyCd != ""'>
+	  AND   CMPNY_CD = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+	</if> -->
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  A.CMPNY_CD = #{cmpnyCd}
+	</if>
+	<if test='searchProcessState != null and searchProcessState != "" and searchProcessState == "O1"'>
+		AND A.PROCESS_STTUS = #{searchProcessState}
+	</if>
+	<if test='searchProcessState != null and searchProcessState != "" and searchProcessState == "N1"'>
+		AND A.PROCESS_STTUS != 'O1'
+	</if>
+	<if test='searchProcessCd != null and searchProcessCd != ""'>
+		AND A.PROCESS_CD = #{searchProcessCd}
+	</if>
+	<if test='searchProcessNm != null and searchProcessNm != ""'>
+		AND A.PROCESS_NM = #{searchProcessNm}
+	</if>
+ 	ORDER BY A.REG_DT DESC
+		OFFSET #{paginationInfo.firstRecordIndex} ROWS
+		FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+	</select>
+        
+	<select id="getPoUserMappCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+	/* PoUserMappMapper.getPoUserMappCount */
+	      
+	SELECT COUNT(A.CMPNY_CD)
+	FROM TB_TASK_DEVLOP_PROCESS A
+		LEFT OUTER JOIN TB_TASK_DEVLOP_PROCESS_DEV_MAPPER B
+		ON A.PROCESS_CD = B.PROCESS_CD
+	WHERE 1 = 1 
+	AND A.EXECUT_SE = 2
+	    <!-- AND A.EXECUT_SE = 02 -->
+	<!-- <if test='cmpnyCd != null and cmpnyCd != ""'>
+	  AND   CMPNY_CD = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+	</if> -->
+	<if test='cmpnyCd != null and cmpnyCd != ""'>
+		AND  A.CMPNY_CD = #{cmpnyCd}
+	</if>
+	<if test='searchProcessState != null and searchProcessState != "" and searchProcessState == "O1"'>
+		AND A.PROCESS_STTUS = #{searchProcessState}
+	</if>
+	<if test='searchProcessState != null and searchProcessState != "" and searchProcessState == "N1"'>
+		AND A.PROCESS_STTUS != 'O1'
+	</if>
+	<if test='searchProcessCd != null and searchProcessCd != ""'>
+		AND A.PROCESS_CD = #{searchProcessCd}
+	</if>
+	<if test='searchProcessNm != null and searchProcessNm != ""'>
+		AND A.PROCESS_NM = #{searchProcessNm}
+	</if>
+	</select>
+	
+	<select id="getOrcReleaseList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* PoUserMappMapper.getOrcReleaseList */	      
+	SELECT Id
+		, TenantId
+		, SUBSTRING(ProcessKey, 1,6) AS ProcessCd
+		, SUBSTRING(ProcessKey, 1, 1) AS CmpnyCd
+		, ProcessKey
+		, CreationTime
+		, Name
+	FROM SY_DEV_RELEASES A
+	WHERE   (
+			ProcessKey LIKE 'A[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'C[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'F[0-9][0-9][0-9][0-9][0-9]%'
+			OR ProcessKey LIKE 'H[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'I[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'T[0-9][0-9][0-9][0-9][0-9]%'
+			OR ProcessKey LIKE 'X[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'E[0-9][0-9][0-9][0-9][0-9]%')
+	AND  A.IsDeleted = 0
+	AND TenantId = #{tenantId}
+    --ORDER BY Id DESC
+    ORDER BY ProcessCd	
+    </select>
+	
+	
+	<select id="getOrcReleaseListForDevServer" parameterType="java.util.Map" resultType="pascalToCamelMap">
+    /* PoUserMappMapper.getOrcReleaseListForDevServer */          
+    SELECT Id
+        , TenantId
+        , SUBSTRING(ProcessKey, 1,6) AS ProcessCd
+        , SUBSTRING(ProcessKey, 1, 1) AS CmpnyCd
+        , ProcessKey
+        , CreationTime
+        , Name
+    FROM SY_RELEASES A
+    WHERE  (
+            ProcessKey LIKE 'A[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'C[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'F[0-9][0-9][0-9][0-9][0-9]%'
+            OR ProcessKey LIKE 'H[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'I[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'T[0-9][0-9][0-9][0-9][0-9]%'
+            OR ProcessKey LIKE 'X[0-9][0-9][0-9][0-9][0-9]%' OR ProcessKey LIKE 'E[0-9][0-9][0-9][0-9][0-9]%')
+    AND A.IsDeleted = 0
+    AND TenantId = #{tenantId}
+    --ORDER BY Id DESC
+    ORDER BY ProcessCd;  
+    </select>
+	
+	
+	
+	<insert id="insertMappInfo" parameterType="java.util.Map">
+	/* PoUserMappMapper.insertMappInfo */
+		
+	MERGE INTO TB_TASK_DEVLOP_PROCESS_DEV_MAPPER A
+	   USING
+	       (
+	           SELECT
+	               #{processCd}         as processCd
+	       ) B ON A.PROCESS_CD = B.processCd
+	WHEN MATCHED THEN
+	    UPDATE SET
+	        ORC_RELEASES_ID = #{orcReleaseId} , TENANT_ID = (SELECT TOP 1 TenantId FROM SY_DEV_RELEASES WHERE ID = #{orcReleaseId})
+	        , DELETE_AT = 0 , DELETE_ID = '' , DELETE_DT = ''
+	WHEN NOT MATCHED THEN
+	    INSERT(CMPNY_CD , PROCESS_CD , TENANT_ID , ORC_RELEASES_ID
+				, DELETE_AT	, REGISTER_ID	, REG_DT)
+	    VALUES(#{cmpnyCd} , #{processCd} , (SELECT TOP 1 TenantId FROM SY_DEV_RELEASES WHERE ID = #{orcReleaseId})
+		  		, #{orcReleaseId} , 0 , #{registerId} , GETDATE());
+	</insert>
+	
+	<insert id="insertMappInfoForDevServer" parameterType="java.util.Map">
+    /* PoUserMappMapper.insertMappInfoForDevServer */
+        
+    MERGE INTO TB_TASK_DEVLOP_PROCESS_DEV_MAPPER A
+       USING
+           (
+               SELECT
+                   #{processCd}         as processCd
+           ) B ON A.PROCESS_CD = B.processCd
+    WHEN MATCHED THEN
+        UPDATE SET
+            ORC_RELEASES_ID = #{orcReleaseId} , TENANT_ID = (SELECT TOP 1 TenantId FROM SY_RELEASES WHERE ID = #{orcReleaseId})
+            , DELETE_AT = 0 , DELETE_ID = '' , DELETE_DT = ''
+    WHEN NOT MATCHED THEN
+        INSERT(CMPNY_CD , PROCESS_CD , TENANT_ID , ORC_RELEASES_ID
+                , DELETE_AT , REGISTER_ID   , REG_DT)
+        VALUES(#{cmpnyCd} , #{processCd} , (SELECT TOP 1 TenantId FROM SY_RELEASES WHERE ID = #{orcReleaseId})
+                , #{orcReleaseId} , 0 , #{registerId} , GETDATE());
+    </insert>
+	
+
+	
+	<update id="deleteMappInfo" parameterType="java.util.Map">
+	/* PoUserMappMapper.deleteMappInfo */
+	UPDATE TB_TASK_DEVLOP_PROCESS_DEV_MAPPER
+	SET DELETE_AT = 1 , DELETE_ID = #{txUserId} , DELETE_DT = GETDATE()
+	WHERE PROCESS_CD = #{processCd}
+	</update>
+	
+	<select id="getDevMapperList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+	/* PoUserMappMapper.getDevMapperList */	      
+	SELECT ISNULL((SELECT TOP 1 ProcessKey FROM SY_DEV_RELEASES WHERE ID = A.ORC_RELEASES_ID), 0 ) AS OrcReleasesNm
+	FROM TB_TASK_DEVLOP_PROCESS_DEV_MAPPER A
+	WHERE PROCESS_CD = #{processCd}
+	AND DELETE_AT = 0
+	</select>
+	
+	<select id="getDevMapperListForDevServer" parameterType="java.util.Map" resultType="pascalToCamelMap">
+    /* PoUserMappMapper.getDevMapperListForDevServer */       
+    SELECT ISNULL((SELECT TOP 1 ProcessKey FROM SY_RELEASES WHERE ID = A.ORC_RELEASES_ID), 0 ) AS OrcReleasesNm
+    FROM TB_TASK_DEVLOP_PROCESS_DEV_MAPPER A
+    WHERE PROCESS_CD = #{processCd}
+    AND DELETE_AT = 0
+    </select>
+	
+	
+</mapper>

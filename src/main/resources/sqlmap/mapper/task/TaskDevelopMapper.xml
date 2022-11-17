@@ -1,0 +1,1009 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TaskDevelopMapper">
+
+    <select id="selectTaskDevelopListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /*TaskDevelopMapper.selectTaskDevelopListCount*/
+<!--     
+    SELECT   COUNT(A.DEVLOP_SN) AS cnt
+    FROM   TB_TASK_DEVLOP A
+    INNER JOIN TB_USER_DETAIL B ON (A.REGISTER_ID = B.EMP_NO)
+<where>
+    <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+        AND    A.CMPNY_CD = #{searchCmpnyCd}  
+    </if>
+    <if test='searchTaskCd != null and searchTaskCd != ""'>
+        AND    A.TASK_CD LIKE CONCAT('%', #{searchTaskCd}, '%')  
+    </if>
+    <if test='searchTaskNm != null and searchTaskNm != ""'>
+        AND    A.TASK_NM LIKE CONCAT('%', #{searchTaskNm}, '%')  
+    </if>
+</where>
+ -->
+SELECT   
+    COUNT(A.DEVLOP_SN) AS cnt
+FROM TB_TASK_DEVLOP A
+LEFT OUTER JOIN TB_TASK_DEVLOP_PROCESS B ON A.DEVLOP_SN = B.DEVLOP_SN
+LEFT OUTER JOIN TB_CMMN_CD C ON A.CMPNY_CD = C.CD AND C.CLS_CD = '0024'
+LEFT OUTER JOIN TB_CMMN_CD D ON B.PROCESS_STTUS = D.CD AND D.CLS_CD = '0037'
+WHERE A.USE_AT = 'Y'
+<if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+    AND    A.CMPNY_CD = #{searchCmpnyCd}  
+</if>
+<if test='searchTaskCd != null and searchTaskCd != ""'>
+    AND    A.TASK_CD LIKE CONCAT('%', #{searchTaskCd}, '%')  
+</if>
+<if test='searchTaskNm != null and searchTaskNm != ""'>
+    AND    A.TASK_NM LIKE CONCAT('%', #{searchTaskNm}, '%')  
+</if>
+    </select>
+        
+        
+    <select id="selectTaskDevelopList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskDevelopMapper.selectTaskDevelopList */
+<!-- 
+        SELECT   
+            A.DEVLOP_SN
+            ,   TASK_CD
+            ,   TASK_NM
+            , (SELECT A_1.CD_NM FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK) WHERE A_1.CLS_CD = '0024' AND A_1.CD =  A.CMPNY_CD) as CMPNY_NM
+            , '' as PROCESS_CD
+            , '' as PROCESS_NM
+            , '' as PROCESS_STTUS_NM
+        FROM   TB_TASK_DEVLOP A
+        WHERE
+            DEVLOP_SN IN (
+                    SELECT   
+                        A.DEVLOP_SN
+                    FROM   TB_TASK_DEVLOP A
+<where>
+    <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+                        AND    A.CMPNY_CD = #{searchCmpnyCd}  
+    </if>
+    <if test='searchTaskCd != null and searchTaskCd != ""'>
+                        AND    A.TASK_CD LIKE CONCAT('%', #{searchTaskCd}, '%')  
+    </if>
+    <if test='searchTaskNm != null and searchTaskNm != ""'>
+                        AND    A.TASK_NM LIKE CONCAT('%', #{searchTaskNm}, '%')  
+    </if>
+                        AND USE_AT = 'Y'
+</where>
+                    ORDER BY   A.DEVLOP_SN DESC
+                        OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                        FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY     
+                )
+        ORDER BY   A.DEVLOP_SN DESC
+ -->
+SELECT   
+    A.DEVLOP_SN
+    , TASK_CD
+    , TASK_NM
+    , C.CD_NM AS CMPNY_NM
+    , A.JOB_CHRG_DEPT_NM
+    , B.PROCESS_NO
+    , B.PROCESS_CD
+    , B.PROCESS_NM
+    , B.PROCESS_STTUS
+    , D.CD_NM AS PROCESS_STTUS_NM
+    ,  B.BELONGING_DE
+FROM TB_TASK_DEVLOP A
+LEFT OUTER JOIN TB_TASK_DEVLOP_PROCESS B ON A.DEVLOP_SN = B.DEVLOP_SN
+LEFT OUTER JOIN TB_CMMN_CD C ON A.CMPNY_CD = C.CD AND C.CLS_CD = '0024'
+LEFT OUTER JOIN TB_CMMN_CD D ON B.PROCESS_STTUS = D.CD AND D.CLS_CD = '0037'
+WHERE 
+    A.USE_AT = 'Y'
+<if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+    AND    A.CMPNY_CD = #{searchCmpnyCd}  
+</if>
+<if test='searchTaskCd != null and searchTaskCd != ""'>
+    AND    A.TASK_CD LIKE CONCAT('%', #{searchTaskCd}, '%')  
+</if>
+<if test='searchTaskNm != null and searchTaskNm != ""'>
+    AND    A.TASK_NM LIKE CONCAT('%', #{searchTaskNm}, '%')  
+</if>
+ORDER BY   A.DEVLOP_SN DESC, B.PROCESS_CD ASC
+<if test='paginationInfo != null'>
+    OFFSET #{paginationInfo.firstRecordIndex} ROWS
+    FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+</if>
+    </select>
+
+    <select id="getTaskDevelopMaxTaskCd" parameterType="java.util.Map" resultType="String">
+/*TaskDevelopMapper.getTaskDevelopMaxTaskCd*/
+DECLARE @V_NUM VARCHAR(3)
+
+SELECT @V_NUM = ISNULL(CONVERT(VARCHAR(3), CONVERT(INT, SUBSTRING(MAX(TASK_CD), 2, 3)) + 1), '1') FROM [dbo].[TB_TASK_DEVLOP]
+WHERE CMPNY_CD = #{cmpnyCd} AND USE_AT = 'Y'
+
+SELECT CONCAT(#{cmpnyCd}, REPLICATE('0', 3 - LEN(@V_NUM)) + @V_NUM)    
+    </select>
+        
+    <select id="chkTaskDevelopTaskCd" parameterType="java.util.Map" resultType="int">
+/*TaskDevelopMapper.chkTaskDevelopTaskCd*/
+SELECT  COUNT(TASK_CD) FROM [dbo].[TB_TASK_DEVLOP]
+WHERE TASK_CD = #{taskCd}  AND USE_AT = 'Y'
+    </select>
+    
+    <insert id="insertTaskDevelop" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskDevelop*/
+INSERT INTO [dbo].[TB_TASK_DEVLOP]
+    (
+        [TASK_CD],  [TASK_NM],  [TASK_DC],  [CMPNY_CD],  [CMPNY_NM], [CLS_CD]
+        ,   [JOB_CHRG_DEPT_CD], [JOB_CHRG_DEPT_NM], [JOB_CHARGER_ID],   [JOB_CHARGER_NM]
+        
+<if test="jobTm != null and jobTm != ''">
+        ,   [JOB_TM]
+</if>     
+        ,   [FQ_CD]
+<if test="executCnt != null and executCnt != ''">           
+        ,   [EXECUT_CNT]
+</if>
+        ,   [REGISTER_ID],  [REG_DT]
+        ,   [USE_AT]
+    )
+VALUES
+    (
+        #{taskCd},  #{taskNm},  #{taskDc},    #{cmpnyCd},    #{cmpnyNm},    #{clsCd}
+        , #{jobChrgDeptCd}, #{jobChrgDeptNm},    #{jobChargerId},    #{jobChargerNm}
+<if test="jobTm != null and jobTm != ''">
+        ,#{jobTm}
+</if>     
+      
+        ,#{fqCd}
+<if test="executCnt != null and executCnt != ''">           
+        ,#{executCnt}
+</if>                
+        ,#{registerId}
+        ,GETDATE()           
+        , 'Y'
+    )
+    </insert>
+    
+    <select id="getTaskDevelopDetail" parameterType="java.util.Map" resultType="camelMap">
+/*TaskDevelopMapper.getTaskDevelopDetail*/
+SELECT [DEVLOP_SN], [TASK_CD],  [TASK_NM],  [TASK_DC],  [CMPNY_CD], [CLS_CD]
+    ,   [JOB_CHRG_DEPT_CD], [JOB_CHRG_DEPT_NM], [JOB_CHARGER_ID],   [JOB_CHARGER_NM]
+    ,   [JOB_TM],   [FQ_CD],   [EXECUT_CNT],   [USE_AT],   [REGISTER_ID],  [REG_DT]
+    ,   (SELECT COUNT(A_1.PROCESS_NO) FROM TB_TASK_DEVLOP_PROCESS A_1 WHERE A_1.DEVLOP_SN = A.DEVLOP_SN) AS PROCESS_CNT
+FROM [dbo].[TB_TASK_DEVLOP] A
+WHERE DEVLOP_SN = #{devlopSn} AND USE_AT = 'Y'
+    </select>
+    
+   
+    <update id="updateTaskDevelop" parameterType="java.util.Map">
+/*TaskDevelopMapper.updateTaskDevelop*/
+UPDATE  [dbo].[TB_TASK_DEVLOP]
+SET
+    [TASK_NM] = #{taskNm}
+    ,   [TASK_DC] = #{taskDc}
+    ,   [CMPNY_CD] = #{cmpnyCd}
+    ,   [CLS_CD] = #{clsCd}
+    ,   [JOB_CHRG_DEPT_CD] = #{jobChrgDeptCd}
+    ,   [JOB_CHRG_DEPT_NM] = #{jobChrgDeptNm}
+    ,   [JOB_CHARGER_ID] = #{jobChargerId}
+    ,   [JOB_CHARGER_NM] = #{jobChargerNm}
+        
+<choose>
+    <when test="jobTm != null and jobTm != ''">
+    ,   [JOB_TM] = #{jobTm}
+    </when>
+    <otherwise>
+    ,   [JOB_TM] = NULL
+    </otherwise>
+</choose>
+    ,   [FQ_CD] = #{fqCd}
+<choose>
+    <when test="executCnt != null and executCnt != ''">
+    ,   [EXECUT_CNT] = #{executCnt}
+    </when>
+    <otherwise>
+    ,   [EXECUT_CNT] = NULL
+    </otherwise>
+</choose>
+    ,   [UPDUSR_ID] = #{updusrId}
+    ,   [UPDT_DT] = GETDATE()
+WHERE DEVLOP_SN = #{devlopSn} 
+    </update>
+    
+    <select id="getTaskDevelopProcessCnt" parameterType="java.util.Map" resultType="java.lang.Integer">
+SELECT COUNT(PROCESS_NO) FROM TB_TASK_DEVLOP_PROCESS
+WHERE DEVLOP_SN = #{devlopSn}
+    </select>
+    
+    <update id="deleteTaskDevelop" parameterType="java.util.Map">
+/*TaskDevelopMapper.deleteTaskDevelop*/
+UPDATE  [dbo].[TB_TASK_DEVLOP]
+SET
+    USE_AT = 'N'
+    ,   [UPDUSR_ID] = #{updusrId}
+    ,   [UPDT_DT] = GETDATE()
+WHERE DEVLOP_SN = #{devlopSn} 
+    </update> 
+    
+    <select id="getUserInfo" parameterType="java.util.Map" resultType="camelMap">
+    /*TaskDevelopMapper.getTaskDevelopDetail*/
+    SELECT B.EMP_NM AS [EMP_NM], B.EMAIL_ADR AS [EMAIL_ADR], B.TELNO AS [TELNO]
+    FROM TB_USER_BAS A, TB_USER_DETAIL B
+    WHERE A.EMP_NO = B.EMP_NO
+    AND A.USER_ID= #{jobChargerNm}
+    </select>
+    
+    <select id="chkOverlapProcessCd" parameterType="java.util.Map" resultType="java.lang.Integer">
+SELECT COUNT(PROCESS_CD) FROM TB_TASK_DEVLOP_PROCESS
+WHERE
+    DEVLOP_SN = #{devlopSn}
+    AND PROCESS_CD = #{processCd}
+    AND PROCESS_STTUS != 'P2'
+    </select>
+    
+    
+    <select id="chkOverlapProcessCdType2" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TaskDevelopMapper.chkOverlapProcessCdType2*/
+SELECT COUNT(PROCESS_CD) FROM TB_TASK_DEVLOP_PROCESS
+WHERE
+    DEVLOP_SN = #{devlopSn}
+    AND PROCESS_NO != #{processNo}
+    AND PROCESS_CD = #{processCd}
+    </select>
+    
+    <select id="chkOverlapProcessCdType3" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TaskDevelopMapper.chkOverlapProcessCdType3*/
+SELECT COUNT(PROCESS_CD) FROM TB_TASK_DEVLOP_PROCESS
+WHERE
+    DEVLOP_SN = #{devlopSn}
+    AND PROCESS_NO = #{processNo}
+    </select>
+    
+    <select id="getMaxProcessNo" parameterType="java.util.Map" resultType="camelMap">
+    /*TaskDevelopMapper.getMaxProcessNo*/
+    SELECT ISNULL(MAX(PROCESS_NO)+1, 1) AS PROCESS_NO
+    FROM TB_TASK_DEVLOP_PROCESS
+    WHERE DEVLOP_SN = #{devlopSn} 
+    </select>
+    
+    <insert id="insertTaskProcess" parameterType="java.util.Map">
+    /*TaskDevelopMapper.insertTaskProcess*/
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS]
+      ([DEVLOP_SN]           ,[PROCESS_NO]           ,[SJ]           ,[PROCESS_CD]           ,[PROCESS_NM]
+      ,[JOB_DC]           ,[CMPNY_CD]           
+<!--
+      ,[JOB_CLS_CD]           ,[RPA_CLS_CD]           ,[JOB_TM]
+-->
+      ,[REDCN_TM]           ,[EXPECT_REDCN_AMT]           ,[FQ_CD]           ,[EXECUT_CNT]           ,[EXECUT_TM]
+      ,[EMRGNCY_CRSPND]
+<if test="rto != null and rto != ''">
+      ,[RTO]           
+</if>
+      ,[DEVLOP_WDCNT]           ,[EXPECT_DEVLOP_CT]           ,[ROI_EVALUATE]
+
+      ,[DEVLOP_RESN]
+      ,[INSIDE_DEVLOP_AT]      
+<if test='devlopChargerId != null and devlopChargerId != ""'>
+		,DEVLOP_CHARGER_ID
+</if>           
+		,[EXECUT_SE], [BELONGING_DE]
+      ,[FILE_GRP_NO]           ,[RELATE_DOC]         ,[PROCESS_STTUS]           ,[REGISTER_ID]
+      ,[REG_DT])
+VALUES
+      (#{devlopSn}           ,#{processNo}           ,#{sj}           ,#{processCd}           ,#{processNm}
+      ,#{jobDc}           ,#{cmpnyCd}
+<!--                 
+      ,#{jobClsCd}           ,#{rpaClsCd}           ,#{jobTm}
+-->
+      ,#{redcnTm}           ,#{expectRedcnAmt}           ,#{fqCd}           ,#{executCnt}           ,#{executTm}
+      ,#{emrgncyCrspnd}           
+<if test="rto != null and rto != ''">
+      ,#{rto}           
+</if>
+      ,#{devlopWdcnt}           ,#{expectDevlopCt}           ,#{roiEvaluate}
+
+      ,#{devlopResn}
+      ,#{insideDevlopAt}
+
+<if test='devlopChargerId != null and devlopChargerId != ""'>
+		,#{devlopChargerId}
+</if>                 
+		,#{executSe}, #{belongingDe}
+      ,#{fileGrpNo}           ,#{relateDoc}           ,'P4'           ,#{registerId}
+      ,GETDATE())
+    </insert>
+    <insert id="insertTaskProcessChargerHist" parameterType="java.util.Map">
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_CHARGER_HIST]
+    (
+        [DEVLOP_SN]           ,[PROCESS_NO]           ,[PROCESS_HIST_NO]           ,[CHARGER_NO]           ,[CHRG_DEPT_CD]
+        ,[CHRG_DEPT_NM]           ,[CHARGER_ID]
+    )
+SELECT 
+    [DEVLOP_SN]      ,[PROCESS_NO]      ,#{processHistNo}   ,[CHARGER_NO]      ,[CHRG_DEPT_CD]
+    ,[CHRG_DEPT_NM]      ,[CHARGER_ID]
+FROM 
+    [dbo].[TB_TASK_DEVLOP_PROCESS_CHARGER]
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo} 
+    
+    </insert>
+    <insert id="insertTaskProcessCharger" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskProcessCharger*/
+MERGE INTO TB_TASK_DEVLOP_PROCESS_CHARGER A
+   USING
+       (
+           SELECT
+               #{devlopSn}         as devlopSn
+               ,   #{processNo}    as processNo 
+               ,   #{chargerNo}    as chargerNo
+               ,   #{chargerDeptCd}   as chrgDeptCd 
+               ,   #{chargerDeptNm}   as chrgDeptNm
+               ,   #{chargerUserId}    as chargerId            
+       ) B ON A.DEVLOP_SN = B.devlopSn and A.PROCESS_NO = B.processNo and A.CHARGER_NO = B.chargerNo
+WHEN MATCHED THEN
+    UPDATE SET
+        [DEVLOP_SN] = B.devlopSn
+        ,[PROCESS_NO] = B.processNo
+        ,[CHARGER_NO] = B.chargerNo
+        ,[CHRG_DEPT_CD] = B.chrgDeptCd
+        ,[CHRG_DEPT_NM] = B.chrgDeptNm
+        ,[CHARGER_ID] = B.chargerId
+WHEN NOT MATCHED THEN
+    INSERT([DEVLOP_SN]      ,[PROCESS_NO]       ,[CHARGER_NO]       ,[CHRG_DEPT_CD]     ,[CHRG_DEPT_NM]     ,[CHARGER_ID])
+    VALUES(B.devlopSn       ,B.processNo        ,B.chargerNo        ,B.chrgDeptCd       ,B.chrgDeptNm       ,B.chargerId);
+    </insert>
+    
+    <delete id="deleteTaskProcessCharger" parameterType="java.util.Map">
+/*TaskDevelopMapper.deleteTaskProcessCharger*/
+DELETE FROM TB_TASK_DEVLOP_PROCESS_CHARGER
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo} 
+    AND CHARGER_NO > #{chargerNo}
+    </delete>
+    
+    <insert id="insertTaskProcessRedcnTmHist" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskProcessRedcnTmHist*/
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_REDCN_TM_HIST]
+    (
+        [DEVLOP_SN]           ,[PROCESS_NO]           ,[PROCESS_HIST_NO]           ,[REDCN_NO]           ,[DEPT_CD]
+        ,[DEPT_NM]           ,[USER_ID]           ,[REDCN_TM]
+    )
+SELECT [DEVLOP_SN]           ,[PROCESS_NO]           ,#{processHistNo}           ,[REDCN_NO]           ,[DEPT_CD]
+        ,[DEPT_NM]           ,[USER_ID]           ,[REDCN_TM]
+FROM [dbo].[TB_TASK_DEVLOP_PROCESS_REDCN_TM]
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo} 
+       
+    </insert>
+    
+    <insert id="insertTaskProcessRedcnTm" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskProcessRedcnTm*/
+MERGE INTO TB_TASK_DEVLOP_PROCESS_REDCN_TM A
+   USING
+       (
+           SELECT
+               #{devlopSn}         as devlopSn
+               ,   #{processNo}    as processNo 
+               ,   #{redcnNo}    as redcnNo
+               ,   #{redcnTmDeptCd}   as deptCd 
+               ,   #{redcnTmDeptNm}   as deptNm
+               ,   #{redcnTmUserId}    as userId            
+               ,   #{redcnTmRedcnTm}    as redcnTm
+       ) B ON A.DEVLOP_SN = B.devlopSn and A.PROCESS_NO = B.processNo and A.REDCN_NO = B.redcnNo
+WHEN MATCHED THEN
+    UPDATE SET
+        [DEVLOP_SN] = B.devlopSn
+        ,[PROCESS_NO] = B.processNo
+        ,[REDCN_NO] = B.redcnNo
+        ,[DEPT_CD] = B.deptCd
+        ,[DEPT_NM] = B.deptNm
+        ,[USER_ID] = B.userId
+        ,[REDCN_TM] = B.redcnTm
+WHEN NOT MATCHED THEN
+    INSERT([DEVLOP_SN]      ,[PROCESS_NO]       ,[REDCN_NO]       ,[DEPT_CD]     ,[DEPT_NM]     ,[USER_ID]  ,REDCN_TM)
+    VALUES(B.devlopSn       ,B.processNo        ,B.redcnNo        ,B.deptCd       ,B.deptNm     ,B.userId   ,B.redcnTm);
+    </insert>
+    
+    <delete id="deletTaskProcessRedcnTm" parameterType="java.util.Map">
+/*TaskDevelopMapper.deletTaskProcessRedcnTm*/
+DELETE FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo} 
+    AND REDCN_NO > #{redcnNo}
+    </delete>
+    
+    <insert id="insertTaskProcessContributeHist" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskProcessContributeHist*/
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_CONTRIBUTE_HIST]
+    (
+        [DEVLOP_SN]           ,[PROCESS_NO]           ,[PROCESS_HIST_NO]           ,[CONTRIBUTE_NO]           ,[DEPT_CD]
+        ,[DEPT_NM]           ,[USER_ID]           ,[CONTRIBUTE]
+    )
+SELECT 
+    [DEVLOP_SN]           ,[PROCESS_NO]           ,#{processHistNo}           ,[CONTRIBUTE_NO]           ,[DEPT_CD]
+        ,[DEPT_NM]           ,[USER_ID]           ,[CONTRIBUTE]
+FROM
+    [dbo].[TB_TASK_DEVLOP_PROCESS_CONTRIBUTE]
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo}
+    </insert>
+    <insert id="insertTaskProcessContribute" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskProcessContribute*/
+MERGE INTO TB_TASK_DEVLOP_PROCESS_CONTRIBUTE A
+   USING
+       (
+           SELECT
+               #{devlopSn}         as devlopSn
+               ,   #{processNo}    as processNo 
+               ,   #{contributeNo}    as contributeNo
+               ,   #{contributeDeptCd}   as deptCd 
+               ,   #{contributeDeptNm}   as deptNm
+               ,   #{contributeUserId}    as userId            
+               ,   #{contributeRate}   as contribute
+       ) B ON A.DEVLOP_SN = B.devlopSn and A.PROCESS_NO = B.processNo and A.CONTRIBUTE_NO = B.contributeNo
+WHEN MATCHED THEN
+    UPDATE SET
+        [DEVLOP_SN] = B.devlopSn
+        ,[PROCESS_NO] = B.processNo
+        ,[CONTRIBUTE_NO] = B.contributeNo
+        ,[DEPT_CD] = B.deptCd
+        ,[DEPT_NM] = B.deptNm
+        ,[USER_ID] = B.userId
+        ,[CONTRIBUTE] = B.contribute
+WHEN NOT MATCHED THEN
+    INSERT([DEVLOP_SN]      ,[PROCESS_NO]       ,[CONTRIBUTE_NO]       ,[DEPT_CD]     ,[DEPT_NM]     ,[USER_ID]  ,CONTRIBUTE)
+    VALUES(B.devlopSn       ,B.processNo        ,B.contributeNo        ,B.deptCd       ,B.deptNm     ,B.userId   ,B.contribute );
+    </insert>
+    
+    <delete id="deleteTaskProcessContribute" parameterType="java.util.Map">
+/*TaskDevelopMapper.deleteTaskProcessContribute*/
+DELETE FROM TB_TASK_DEVLOP_PROCESS_CONTRIBUTE
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo} 
+    AND CONTRIBUTE_NO > #{contributeNo}
+    </delete>
+    
+    <insert id="insertTaskDevlopProcessCntcSysHist" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskDevlopProcessCntcSysHist*/
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_CNTC_SYS_HIST]
+    (
+        [DEVLOP_SN]           ,[PROCESS_NO]           ,[PROCESS_HIST_NO]           ,[CNTC_SYS_NO]           ,[CNTC_SYS_CD]
+    )
+SELECT
+    [DEVLOP_SN]           ,[PROCESS_NO]           ,#{processHistNo}           ,[CNTC_SYS_NO]           ,[CNTC_SYS_CD]
+FROM
+    [dbo].[TB_TASK_DEVLOP_PROCESS_CNTC_SYS]
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo}    
+    </insert>
+    
+    <insert id="insertTaskDevlopProcessCntcSys" parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskDevlopProcessCntcSys*/
+MERGE INTO TB_TASK_DEVLOP_PROCESS_CNTC_SYS A
+   USING
+       (
+           SELECT
+               #{devlopSn}         as devlopSn
+               ,   #{processNo}    as processNo 
+               ,   #{cntcSysNo}    as cntcSysNo
+               ,   #{cntcSysCd}   as cntcSysCd 
+       ) B ON A.DEVLOP_SN = B.devlopSn and A.PROCESS_NO = B.processNo and A.CNTC_SYS_NO = B.cntcSysNo
+WHEN MATCHED THEN
+    UPDATE SET
+        [DEVLOP_SN] = B.devlopSn
+        ,[PROCESS_NO] = B.processNo
+        ,[CNTC_SYS_NO] = B.cntcSysNo
+        ,[CNTC_SYS_CD] = B.cntcSysCd
+WHEN NOT MATCHED THEN
+    INSERT([DEVLOP_SN]      ,[PROCESS_NO]       ,[CNTC_SYS_NO]       ,[CNTC_SYS_CD])
+    VALUES(B.devlopSn       ,B.processNo        ,B.cntcSysNo        ,B.cntcSysCd);
+    </insert>
+    
+    <delete id="deleteTaskDevlopProcessCntcSys" parameterType="java.util.Map">
+/*TaskDevelopMapper.deleteTaskDevlopProcessCntcSys*/
+DELETE FROM TB_TASK_DEVLOP_PROCESS_CNTC_SYS
+WHERE
+    DEVLOP_SN =  #{devlopSn}
+    AND PROCESS_NO = #{processNo} 
+    AND CNTC_SYS_NO > #{cntcSysNo}
+    </delete>
+    
+    <resultMap id="taskDevelopProcessDetail" type="java.util.Map">
+        <result property="devlopSn" column="DEVLOP_SN"/>
+        <result property="taskCd" column="TASK_CD"/>
+        <result property="taskNm" column="TASK_NM"/>
+        <result property="taskDc" column="TASK_DC"/>
+        <result property="cmpnyCd" column="CMPNY_CD"/>
+        
+        <result property="cmpnyNm" column="CMPNY_NM"/>
+        <result property="clsCd" column="CLS_CD"/>
+        <result property="clsNm" column="CLS_NM"/>
+        <result property="jobChrgDeptCd" column="JOB_CHRG_DEPT_CD"/>
+        <result property="jobChrgDeptNm" column="JOB_CHRG_DEPT_NM"/>
+        <result property="jobChargerId" column="JOB_CHARGER_ID"/>
+        
+        <result property="jobChargerNm" column="JOB_CHARGER_NM"/>
+        <result property="jobTm" column="JOB_TM"/>
+        <result property="fqCd" column="FQ_CD"/>
+        <result property="fqNm" column="FQ_NM"/>
+        <result property="executCnt" column="EXECUT_CNT"/>
+        
+        
+        <result property="processNo" column="PROCESS_NO"/>
+        <result property="sj" column="SJ"/>
+        <result property="processCd" column="PROCESS_CD"/>
+        <result property="processNm" column="PROCESS_NM"/>
+        <result property="jobDc" column="JOB_DC"/>
+        
+        <result property="cmpnyCdReg" column="CMPNY_CD_REG"/>
+        <result property="cmpnyNmReg" column="CMPNY_NM_REG"/>
+        <result property="jobClsCd" column="JOB_CLS_CD"/>
+        <result property="rpaClsCd" column="RPA_CLS_CD"/>
+        <result property="processJobTm" column="PROCESS_JOB_TM"/>
+        <result property="redcnTm" column="REDCN_TM"/>
+        
+        <result property="expectRedcnAmt" column="EXPECT_REDCN_AMT"/>
+        <result property="fqCdReg" column="FQ_CD_REG"/>
+        <result property="fqNmReg" column="FQ_NM_REG"/>
+        <result property="executCntReg" column="EXECUT_CNT_REG"/>
+        <result property="executTm" column="EXECUT_TM"/>
+        <result property="emrgncyCrspnd" column="EMRGNCY_CRSPND"/>
+        
+        <result property="rto" column="RTO"/>
+        <result property="devlopWdcnt" column="DEVLOP_WDCNT"/>
+        <result property="expectDevlopCt" column="EXPECT_DEVLOP_CT"/>
+        <result property="roiEvaluate" column="ROI_EVALUATE"/>
+        <result property="devlopResn" column="DEVLOP_RESN"/>
+        
+        <result property="devlopChargerId" column="DEVLOP_CHARGER_ID"/>
+        <result property="devlopChargerNm" column="DEVLOP_CHARGER_NM"/>
+        <result property="executSe" column="EXECUT_SE"/>
+        <result property="belongingDe" column="BELONGING_DE"/>
+        <result property="fileGrpNo" column="FILE_GRP_NO"/>
+        <result property="relateDoc" column="RELATE_DOC"/>
+        <result property="insideDevlopAt" column="INSIDE_DEVLOP_AT"/>
+        <result property="insideDevlopAtNm" column="INSIDE_DEVLOP_AT_NM"/>
+        
+        <result property="processFileGrpNo" column="PROCESS_FILE_GRP_NO"/>
+        <result property="processSttus" column="PROCESS_STTUS"/>
+        
+        <result property="registerId" column="REGISTER_ID"/>
+        
+        <collection property="chargerList" column="{devlopSn=DEVLOP_SN, processNo=PROCESS_NO}" javaType="java.util.ArrayList" ofType="java.util.Map" select="selectTaskProcessCharger"/>
+        <collection property="redcnTmList" column="{devlopSn=DEVLOP_SN, processNo=PROCESS_NO}" javaType="java.util.ArrayList" ofType="java.util.Map" select="selectTaskProcessRedcnTm"/>
+        <collection property="contributeList" column="{devlopSn=DEVLOP_SN, processNo=PROCESS_NO}" javaType="java.util.ArrayList" ofType="java.util.Map" select="selectTaskProcessContribute"/>
+        <collection property="cntcSysList" column="{devlopSn=DEVLOP_SN, processNo=PROCESS_NO}" javaType="java.util.ArrayList" ofType="java.util.Map" select="selectTaskProcessCntcSys"/>
+        <collection property="changeHistList" column="{devlopSn=DEVLOP_SN, processNo=PROCESS_NO}" javaType="java.util.ArrayList" ofType="java.util.Map" select="selectTaskDevlopProcessChangeHist"/>
+    </resultMap>
+    
+    <select id="selectTaskProcessCharger" parameterType="java.util.Map" resultType="camelMap">
+SELECT 
+    [DEVLOP_SN]      ,[PROCESS_NO]      ,[CHARGER_NO]      ,[CHRG_DEPT_CD]      ,[CHRG_DEPT_NM]
+    
+    ,[CHARGER_ID]
+    ,(  SELECT A_1.[EMP_NM] FROM [dbo].[TB_USER_DETAIL] A_1 WITH(NOLOCK) WHERE EMP_NO = A.CHARGER_ID)   AS CHARGER_NM
+FROM [dbo].[TB_TASK_DEVLOP_PROCESS_CHARGER] A
+WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}
+    
+    </select>
+    
+    <select id="selectTaskProcessRedcnTm" parameterType="java.util.Map" resultType="camelMap">
+SELECT 
+    [DEVLOP_SN]      ,[PROCESS_NO]      ,[REDCN_NO]      ,[DEPT_CD]      ,[DEPT_NM]
+    
+    ,[USER_ID]      
+    ,(  SELECT A_1.[EMP_NM] FROM [dbo].[TB_USER_DETAIL] A_1 WITH(NOLOCK) WHERE EMP_NO = A.USER_ID)   AS USER_NM
+    ,[REDCN_TM]
+FROM [dbo].[TB_TASK_DEVLOP_PROCESS_REDCN_TM] A
+WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}    
+    </select>
+    
+    <select id="selectTaskProcessContribute" parameterType="java.util.Map" resultType="camelMap">
+SELECT 
+    [DEVLOP_SN]     ,[PROCESS_NO]      ,[CONTRIBUTE_NO]      ,[DEPT_CD]      ,[DEPT_NM]
+    
+    ,[USER_ID]
+    ,(  SELECT A_1.[EMP_NM] FROM [dbo].[TB_USER_DETAIL] A_1 WITH(NOLOCK) WHERE EMP_NO = A.USER_ID)   AS USER_NM
+    ,[CONTRIBUTE]
+FROM [dbo].[TB_TASK_DEVLOP_PROCESS_CONTRIBUTE] A
+WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}
+    </select>
+    
+    <select id="selectTaskDevlopProcessChangeHist" parameterType="java.util.Map" resultType="camelMap">
+/* TaskDevelopMapper.selectTaskDevlopProcessChangeHist */
+SELECT   
+    CONVERT(CHAR(19), A.REG_DT, 120) AS REG_DT
+    , B.CD_NM AS PROCESS_STTUS_NM
+    , C.EMP_NM 
+    , CHANGE_CN
+FROM  TB_TASK_DEVLOP_PROCESS_CHANGE_HIST A
+INNER JOIN TB_CMMN_CD B ON (A.PROCESS_STTUS =  B.CD AND B.CLS_CD = '0037')
+INNER JOIN TB_USER_DETAIL C ON (A.REGISTER_ID = C.EMP_NO)     
+WHERE 
+    DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}
+ORDER BY
+    PROCESS_HIST_NO DESC
+    </select>
+    
+    <select id="selectTaskProcessCntcSys" parameterType="java.util.Map" resultType="java.util.Map">
+SELECT   A.CNTC_SYS_CD     AS cntcSysCd         /*연계시스템코드*/
+    ,A.CNTC_SYS_NM     AS cntcSysNm        /*연계시스템명*/
+    ,C.CD_NM   AS cntcSysClsNm     /*연게시스템 분류명*/
+    ,B.CD_NM   AS cmpnyNm            /*회사명*/
+    ,A.SYS_DC  AS sysDc               /*시스템설명*/
+    ,A.USE_AT  AS useAt                /*사용여부*/                     
+FROM  TB_CNTC_SYS A
+LEFT JOIN  TB_CMMN_CD B ON  ( A.CMPNY_CD = B.CD AND B.CLS_CD = '0024' )
+JOIN  TB_CMMN_CD C ON  ( A.CNTC_SYS_CLS_CD = C.CD AND C.CLS_CD = '0035')     
+INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS_CNTC_SYS] D ON(A.CNTC_SYS_CD = D.CNTC_SYS_CD)
+WHERE D.DEVLOP_SN = #{devlopSn} AND D.PROCESS_NO = #{processNo}
+    </select>
+    
+    <select id="getTaskDevelopProcessDetail" parameterType="java.util.Map" resultMap="taskDevelopProcessDetail">
+/*TaskDevelopMapper.getTaskDevelopProcessDetail*/
+SELECT   
+    A.DEVLOP_SN         ,A.TASK_CD  ,A.TASK_NM          ,A.TASK_DC          ,A.CMPNY_CD 
+    ,A.CMPNY_NM         ,A.CLS_CD   ,A.JOB_CHRG_DEPT_CD ,A.JOB_CHRG_DEPT_NM ,A.JOB_CHARGER_ID   
+
+    ,(  SELECT A_1.[EMP_NM] FROM [dbo].[TB_USER_DETAIL] A_1 WITH(NOLOCK) WHERE EMP_NO = A.JOB_CHARGER_ID)   AS JOB_CHARGER_NM
+    ,A.JOB_TM   ,A.FQ_CD            ,A.EXECUT_CNT
+
+    ,B.PROCESS_NO   ,B.SJ   ,B.PROCESS_CD   ,B.PROCESS_NM   ,B.JOB_DC   
+    ,B.CMPNY_CD as CMPNY_CD_REG ,B.JOB_CLS_CD   ,B.RPA_CLS_CD   ,B.JOB_TM as PROCESS_JOB_TM ,B.REDCN_TM
+     
+    ,B.EXPECT_REDCN_AMT ,B.FQ_CD as FQ_CD_REG   ,B.EXECUT_CNT as EXECUT_CNT_REG ,B.EXECUT_TM    ,B.EMRGNCY_CRSPND   
+    ,B.RTO  ,B.DEVLOP_WDCNT ,B.EXPECT_DEVLOP_CT ,B.ROI_EVALUATE ,B.DEVLOP_RESN
+    
+    ,B.DEVLOP_CHARGER_ID  
+    
+    , CASE WHEN ISNULL(B.DEVLOP_CHARGER_ID, '') = '' THEN 
+    		''
+    	ELSE 
+    		(
+    			SELECT [EMP_NM] FROM [dbo].[TB_USER_DETAIL] WHERE [EMP_NO] = B.DEVLOP_CHARGER_ID 
+    		) 
+    	END AS DEVLOP_CHARGER_NM
+    ,ISNULL(B.EXECUT_SE, '') AS EXECUT_SE
+    , B.BELONGING_DE
+    ,B.FILE_GRP_NO  ,B.RELATE_DOC   ,ISNULL(B.PROCESS_FILE_GRP_NO, 0) AS PROCESS_FILE_GRP_NO  ,B.PROCESS_STTUS    
+    ,B.REGISTER_ID  , B.INSIDE_DEVLOP_AT
+FROM TB_TASK_DEVLOP A
+INNER JOIN TB_TASK_DEVLOP_PROCESS B ON A.DEVLOP_SN = B.DEVLOP_SN
+WHERE
+    B.DEVLOP_SN = #{devlopSn} AND B.PROCESS_NO = #{processNo}
+    </select>
+    
+    
+    <!-- resultMap="taskDevelopProcessDetail" -->
+    <select id="getTaskDevelopProcessDetail2" parameterType="java.util.Map" resultMap="taskDevelopProcessDetail">
+SELECT   
+     A.DEVLOP_SN    ,A.TASK_CD  ,A.TASK_NM  ,ISNULL(A.TASK_DC,'') AS TASK_DC    ,A.CMPNY_CD 
+    ,A.CMPNY_NM     ,A.CLS_CD   ,H.CD_NM AS CLS_NM  ,ISNULL(A.JOB_CHRG_DEPT_CD,'') AS JOB_CHRG_DEPT_CD    
+    ,ISNULL(A.JOB_CHRG_DEPT_NM,'') AS JOB_CHRG_DEPT_NM ,ISNULL(A.JOB_CHARGER_ID,'') AS JOB_CHARGER_ID
+    ,ISNULL((  SELECT A_1.[EMP_NM] FROM [dbo].[TB_USER_DETAIL] A_1 WITH(NOLOCK) WHERE EMP_NO = A.JOB_CHARGER_ID),'')   AS JOB_CHARGER_NM
+    ,ISNULL(CONVERT(INT,A.JOB_TM) ,0) AS JOB_TM   ,A.FQ_CD ,ISNULL(C.CD_NM,'') AS FQ_NM    ,ISNULL(A.EXECUT_CNT,0) AS EXECUT_CNT
+
+    ,B.PROCESS_NO   ,B.SJ   ,B.PROCESS_CD   ,B.PROCESS_NM
+    ,K.CD_NM 'BOT_SE'
+      ,B.JOB_DC   
+    ,B.CMPNY_CD as CMPNY_CD_REG ,D.CD_NM as CMPNY_NM_REG ,B.JOB_CLS_CD ,E.CD_NM AS JOB_CLS_NM   ,B.RPA_CLS_CD, F.CD_NM AS RPA_CLS_NM 
+    ,ISNULL(CONVERT(INT,B.JOB_TM) ,0) as PROCESS_JOB_TM ,ISNULL(CONVERT(INT,B.REDCN_TM) ,0) AS REDCN_TM
+
+    ,ISNULL(FORMAT(B.EXPECT_REDCN_AMT, '##,##0'),0) AS EXPECT_REDCN_AMT ,B.FQ_CD as FQ_CD_REG ,ISNULL(J.CD_NM,'') as FQ_NM_REG  
+    ,ISNULL(B.EXECUT_CNT,0) as EXECUT_CNT_REG ,ISNULL(CONVERT(INT,B.EXECUT_TM) ,0) AS EXECUT_TM ,B.EMRGNCY_CRSPND   
+    ,ISNULL(CONVERT(INT,B.RTO) ,0) AS RTO ,ISNULL(B.DEVLOP_WDCNT,0) AS DEVLOP_WDCNT  ,ISNULL(FORMAT(B.EXPECT_DEVLOP_CT, '##,##0'),0) AS EXPECT_DEVLOP_CT ,B.ROI_EVALUATE ,B.DEVLOP_RESN    
+    ,B.FILE_GRP_NO  ,B.RELATE_DOC   ,ISNULL(B.EXECUT_SE, '') AS EXECUT_SE    ,ISNULL(B.PROCESS_FILE_GRP_NO, 0) AS PROCESS_FILE_GRP_NO  ,B.PROCESS_STTUS, G.CD_NM AS PROCESS_STTUS_NM   
+    ,B.REGISTER_ID  , B.INSIDE_DEVLOP_AT ,I.CD_NM AS INSIDE_DEVLOP_AT_NM
+FROM TB_TASK_DEVLOP A
+INNER JOIN TB_TASK_DEVLOP_PROCESS B ON A.DEVLOP_SN = B.DEVLOP_SN
+
+LEFT OUTER JOIN   TB_CMMN_CD C
+ON   (
+        A.FQ_CD = C.CD
+        AND C.CLS_CD = '0017'
+        AND C.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD D
+ON   (
+        B.CMPNY_CD = D.CD
+        AND D.CLS_CD = '0024'
+        AND D.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD E
+ON   (
+        B.PROCESS_STTUS  = E.CD
+        AND E.CLS_CD = '0040'
+        AND E.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD F
+ON   (
+        B.JOB_CLS_CD = F.CD
+        AND F.CLS_CD = '0042'
+        AND F.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD G
+ON   (
+        B.PROCESS_STTUS = G.CD
+        AND G.CLS_CD = '0037'
+        AND G.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD H
+ON   (
+        A.CLS_CD = H.CD
+        AND H.CLS_CD = '0040'
+        AND H.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD I
+ON   (
+        B.INSIDE_DEVLOP_AT = I.CD
+        AND I.CLS_CD = '0047'
+        AND I.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD J
+ON   (
+        B.FQ_CD = J.CD
+        AND J.CLS_CD = '0017'
+        AND J.USE_AT = 'Y'
+    )
+LEFT OUTER JOIN   TB_CMMN_CD K
+ON   (
+        B.EXECUT_SE = K.CD
+        AND K.CLS_CD = '0049'
+ )
+WHERE
+    B.DEVLOP_SN = #{devlopSn} AND B.PROCESS_NO = #{processNo}
+    </select>
+    
+    <select id="selectCntcSysListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* TaskDevelopMapper.selectCntcSysListCount */
+    SELECT   
+        COUNT(A.CNTC_SYS_CD) AS cnt
+    FROM TB_CNTC_SYS A 
+    LEFT JOIN  TB_CMMN_CD B ON  ( A.CMPNY_CD = B.CD AND B.CLS_CD = '0024' )
+    JOIN TB_CMMN_CD C ON ( A.CNTC_SYS_CLS_CD = C.CD AND C.CLS_CD = '0035')     
+    WHERE
+    A.USE_AT = 'Y'
+	<if test="searchPopCntcSysClsCd !=null and searchPopCntcSysClsCd != ''">
+	    AND  C.CD = #{searchPopCntcSysClsCd}
+	</if>
+	<if test="searchPopCmpnyCd !=null and searchPopCmpnyCd != ''">
+	    AND  B.CD = #{searchPopCmpnyCd}
+	</if>
+	<if test="searchPopCntcSysCd !=null and searchPopCntcSysCd != ''">
+	    AND  A.CNTC_SYS_CD like '%${searchPopCntcSysCd}%'
+	</if>
+	<if test="searchPopCntcSysNm !=null and searchPopCntcSysNm != ''">
+	    AND  A.CNTC_SYS_NM like '%${searchPopCntcSysNm}%'
+	</if>
+	<if test="cntcSysList !=null and cntcSysList.size != 0"> 
+	    AND A.CNTC_SYS_CD NOT IN 
+	    <foreach collection="cntcSysList" item="code" index="index" separator="," open="(" close=")">
+	            #{code}
+	    </foreach>
+	</if>
+    </select>
+    
+    <select id="selectCntcSysList" parameterType="java.util.Map" resultType="java.util.Map">
+/* TaskDevelopMapper.selectCntcSysList */
+    SELECT   
+    
+    A.CNTC_SYS_CD     AS cntcSysCd         /*연계시스템코드*/
+    ,A.CNTC_SYS_NM     AS cntcSysNm        /*연계시스템명*/
+    ,C.CD_NM   AS cntcSysClsNm     /*연게시스템 분류명*/
+    ,B.CD_NM   AS cmpnyNm            /*회사명*/
+    ,A.SYS_DC  AS sysDc               /*시스템설명*/
+    ,A.USE_AT  AS useAt                /*사용여부*/                
+    
+    FROM TB_CNTC_SYS A 
+    LEFT JOIN TB_CMMN_CD B ON ( A.CMPNY_CD = B.CD AND B.CLS_CD = '0024' )
+    JOIN TB_CMMN_CD C ON ( A.CNTC_SYS_CLS_CD = C.CD AND C.CLS_CD = '0035')     
+    
+    WHERE
+    A.USE_AT = 'Y'
+	<if test="searchPopCntcSysClsCd !=null and searchPopCntcSysClsCd != ''">
+	    AND  C.CD = #{searchPopCntcSysClsCd}
+	</if>
+	<if test="searchPopCmpnyCd !=null and searchPopCmpnyCd != ''">
+	    AND  B.CD = #{searchPopCmpnyCd}
+	</if>
+	<if test="searchPopCntcSysCd !=null and searchPopCntcSysCd != ''">
+	    AND  A.CNTC_SYS_CD like '%${searchPopCntcSysCd}%'
+	</if>
+	<if test="searchPopCntcSysNm !=null and searchPopCntcSysNm != ''">
+	    AND  A.CNTC_SYS_NM like '%${searchPopCntcSysNm}%'
+	</if>
+	    
+	<if test="cntcSysList !=null and cntcSysList.size != 0"> 
+	    AND A.CNTC_SYS_CD NOT IN 
+		<foreach collection="cntcSysList" item="code" index="index" separator="," open="(" close=")">
+		        #{code}
+		</foreach>
+	</if>
+    </select>
+    
+    <select id="getTaskProcessHistNo" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TaskDevelopMapper.getTaskProcessHistNo*/
+SELECT
+    ISNULL(MAX(PROCESS_HIST_NO)+1, 1) AS PROCESS_HIST_NO
+FROM
+    [dbo].[TB_TASK_DEVLOP_PROCESS_CHANGE_HIST]
+WHERE
+    DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}
+    </select>
+    
+    <insert id="insertTaskProcessChangeHist"  parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskProcessChangeHist*/
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_CHANGE_HIST]
+	(
+	    [DEVLOP_SN]           ,[PROCESS_NO]           ,[PROCESS_HIST_NO]           ,[PROCESS_STTUS]           ,[CHANGE_CN]
+	    ,[REGISTER_ID]           ,[REG_DT]
+	)
+VALUES
+    (
+        #{devlopSn}           ,#{processNo}           ,#{processHistNo}           ,#{processSttus}           ,#{changeCn}
+        ,#{registerId}           ,GETDATE()
+    )
+
+    </insert>
+    
+    <insert id="insertTaskProcessHist"  parameterType="java.util.Map">
+/*TaskDevelopMapper.insertTaskProcessHist*/
+INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_HIST]
+	(
+	    [DEVLOP_SN]           ,[PROCESS_NO]           ,[PROCESS_HIST_NO]           ,[SJ]           ,[PROCESS_CD]
+	    ,[PROCESS_NM]           ,[JOB_DC]           ,[CMPNY_CD]           ,[JOB_CLS_CD]           ,[RPA_CLS_CD]
+	    
+	    ,[JOB_TM]           ,[REDCN_TM]           ,[EXPECT_REDCN_AMT]           ,[FQ_CD]           ,[EXECUT_CNT]
+	    ,[EXECUT_TM]           ,[EMRGNCY_CRSPND]           ,[RTO]           ,[DEVLOP_WDCNT]           ,[EXPECT_DEVLOP_CT]
+	    
+	    ,[ROI_EVALUATE]           ,[DEVLOP_RESN]
+		,[DEVLOP_CHARGER_ID]	,[EXECUT_SE] ,[BELONGING_DE]
+	    ,[FILE_GRP_NO]           ,[RELATE_DOC]           
+	    ,[PROCESS_FILE_GRP_NO]           ,[PROCESS_STTUS]           ,[REGISTER_ID]           ,[REG_DT], [UPDUSR_ID]
+      ,[UPDT_DT]
+	)
+SELECT 
+    [DEVLOP_SN]      ,[PROCESS_NO]      ,#{processHistNo}   ,[SJ]      ,[PROCESS_CD]
+      ,[PROCESS_NM]      ,[JOB_DC]      ,[CMPNY_CD]      ,[JOB_CLS_CD]      ,[RPA_CLS_CD]
+      
+      ,[JOB_TM]      ,[REDCN_TM]      ,[EXPECT_REDCN_AMT]      ,[FQ_CD]      ,[EXECUT_CNT]
+      ,[EXECUT_TM]      ,[EMRGNCY_CRSPND]      ,[RTO]      ,[DEVLOP_WDCNT]      ,[EXPECT_DEVLOP_CT]
+      
+      ,[ROI_EVALUATE]      ,[DEVLOP_RESN]
+      ,[DEVLOP_CHARGER_ID]      ,[EXECUT_SE]	,[BELONGING_DE]
+      ,[FILE_GRP_NO]      ,[RELATE_DOC]      
+      ,[PROCESS_FILE_GRP_NO]      ,[PROCESS_STTUS]       ,[REGISTER_ID]           ,[REG_DT], [UPDUSR_ID]
+      ,[UPDT_DT]
+FROM [dbo].[TB_TASK_DEVLOP_PROCESS]
+WHERE
+    DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}
+    </insert>
+    
+    <update id="updateTaskProcess"  parameterType="java.util.Map">
+/*TaskDevelopMapper.updateTaskProcess*/
+UPDATE [dbo].[TB_TASK_DEVLOP_PROCESS]
+SET
+    [SJ]                    =#{sj}
+    ,[PROCESS_CD]           =#{processCd}
+    ,[PROCESS_NM]           =#{processNm}
+    ,[JOB_DC]               =#{jobDc}
+    ,[CMPNY_CD]             =#{cmpnyCd}
+          
+    ,[JOB_CLS_CD]           =#{jobClsCd}
+    ,[RPA_CLS_CD]           =#{rpaClsCd}
+    ,[JOB_TM]               =#{jobTm}
+    ,[REDCN_TM]             =#{redcnTm}
+    ,[EXPECT_REDCN_AMT]     =#{expectRedcnAmt}
+          
+    ,[FQ_CD]                =#{fqCd}
+    ,[EXECUT_CNT]           =#{executCnt}
+    ,[EXECUT_TM]            =#{executTm}
+    ,[EMRGNCY_CRSPND]       =#{emrgncyCrspnd}
+<choose>
+    <when test="rto != null and rto != ''">
+    ,[RTO]                  = #{rto}
+    </when>
+    <otherwise>
+    ,[RTO] =                null
+    </otherwise>
+</choose>
+          
+    ,[DEVLOP_WDCNT]         =#{devlopWdcnt}
+    ,[EXPECT_DEVLOP_CT]     =#{expectDevlopCt}
+    ,[ROI_EVALUATE]         =#{roiEvaluate}
+    ,[DEVLOP_RESN]          =#{devlopResn}
+    
+<choose>
+	<when test='devlopChargerId != null and devlopChargerId != ""'>
+	,[DEVLOP_CHARGER_ID]	=#{devlopChargerId}				
+	</when>
+	<otherwise>
+	,[DEVLOP_CHARGER_ID]	= null
+	</otherwise>
+</choose>    
+	,[EXECUT_SE]            =#{executSe}
+	,[BELONGING_DE]			=#{belongingDe}
+    ,[FILE_GRP_NO]          =#{fileGrpNo}
+    ,[RELATE_DOC]           =#{relateDoc}
+    ,[PROCESS_FILE_GRP_NO]  = #{processFileGrpNo}    
+    ,[PROCESS_STTUS]        = #{processSttus}
+    ,[UPDUSR_ID]            = #{updusrId}
+    ,[UPDT_DT]              = GETDATE()
+    ,[INSIDE_DEVLOP_AT]     = #{insideDevlopAt}
+WHERE
+    DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}    
+    </update>
+    
+    
+   <update id="updateTaskProcessSttus"  parameterType="java.util.Map"> 
+/*TaskDevelopMapper.updateTaskProcessSttus*/
+UPDATE [dbo].[TB_TASK_DEVLOP_PROCESS]
+SET   
+     [PROCESS_STTUS]        = #{processSttus}
+    ,[UPDUSR_ID]            = #{updusrId}
+    ,[UPDT_DT]              = GETDATE()
+WHERE
+    DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}    
+    </update>
+ 
+ 
+    <select id="getMyCommentListById" parameterType="java.util.Map" resultType="java.util.Map">
+/* TaskDevelopMapper."getMyCommentListById */
+ SELECT id, writer, content FROM comment WHERE boardid = #{boardid} AND writer = #{writer}
+    </select>
+    
+    <select id="getTaskCdListByClsCd" parameterType="java.util.Map" resultType="camelMap">
+ /* TaskDevelopMapper.getTaskCdListByClsCd */
+ SELECT 
+    DEVLOP_SN
+    ,TASK_CD
+FROM TB_TASK_DEVLOP
+WHERE USE_AT = 'Y'
+    </select>
+    
+    
+  
+  
+  
+  
+    <delete id="deleteTaskProcessContribute2" parameterType="java.util.Map">
+	/*TaskDevelopMapper.deleteTaskProcessContribute2*/
+	DELETE FROM TB_TASK_DEVLOP_PROCESS_CONTRIBUTE
+	WHERE
+	    DEVLOP_SN =  #{devlopSn}
+	    AND PROCESS_NO = #{processNo} 
+    </delete>
+    
+    
+   <delete id="deletTaskProcessRedcnTm2" parameterType="java.util.Map">
+	/*TaskDevelopMapper.deletTaskProcessRedcnTm2*/
+	DELETE FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM
+	WHERE
+	    DEVLOP_SN =  #{devlopSn}
+	    AND PROCESS_NO = #{processNo} 
+    </delete>
+    
+    
+    <delete id="deleteTaskProcessCharger2" parameterType="java.util.Map">
+	/*TaskDevelopMapper.deleteTaskProcessCharger2*/
+	DELETE FROM TB_TASK_DEVLOP_PROCESS_CHARGER
+	WHERE
+	    DEVLOP_SN =  #{devlopSn}
+	    AND PROCESS_NO = #{processNo} 
+    </delete>
+    
+    
+    <delete id="deleteTaskProcess" parameterType="java.util.Map">
+    /*TaskDevelopMapper.deleteTaskProcess*/
+    DELETE FROM TB_TASK_DEVLOP_PROCESS
+    WHERE
+        DEVLOP_SN =  #{devlopSn}
+        AND PROCESS_NO = #{processNo} 
+    </delete>
+    
+    
+    
+    
+</mapper>

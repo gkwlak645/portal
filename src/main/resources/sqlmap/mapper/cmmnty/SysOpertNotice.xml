@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="SysOpertNotice">
+    <select id="selectSysOpertNoticeListCount" parameterType="java.util.Map" resultType="int">
+/*SysOpertNotice.selectSysOpertNoticeListCount*/
+SELECT COUNT(SON_SN) 
+FROM TB_SYS_OPERT_NOTICE A
+WHERE
+    USE_AT = 'Y' 
+    AND A.REG_DT <![CDATA[>=]]> CONVERT(DATETIME, #{searchStartDe})
+    AND A.REG_DT <![CDATA[<]]> DATEADD(DD, 1, CONVERT(DATETIME, #{searchEndDe}))
+    </select>
+    
+    <select id="selectSysOpertNoticeList" parameterType="java.util.Map" resultType="camelMap">
+/*SysOpertNotice."selectSysOpertNoticeList*/
+SELECT 
+    [SON_SN]      ,[SJ]      ,[CN]      ,[REGISTER_ID]      ,CONVERT(varchar(10), [REG_DT], 121) AS REG_DT
+    , STUFF((
+            SELECT ',' + C.CNTC_SYS_NM
+            FROM TB_SYS_OPERT_NOTICE_CNTC_SYS B 
+            INNER JOIN TB_CNTC_SYS C ON(B.CNTC_SYS_CD = C.CNTC_SYS_CD)
+            WHERE B.SON_SN = A.SON_SN FOR XML PATH('') 
+        ),1,1,'') AS CNTC_SYS_NM
+FROM [dbo].[TB_SYS_OPERT_NOTICE] A
+WHERE 
+    A.USE_AT = 'Y' 
+    AND A.REG_DT <![CDATA[>=]]> CONVERT(DATETIME, #{searchStartDe})
+    AND A.REG_DT <![CDATA[<]]> DATEADD(DD, 1, CONVERT(DATETIME, #{searchEndDe}))
+ORDER BY   SON_SN DESC
+        OFFSET   #{paginationInfo.firstRecordIndex} ROWS
+    FETCH NEXT   #{paginationInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+        
+    <select id="getSysOpertNoticeNextSn" resultType="int">
+	/*SysOpertNotice."getSysOpertNoticeNextSn*/
+	SELECT ISNULL(MAX(SON_SN),0)+1 FROM TB_SYS_OPERT_NOTICE
+    </select>
+    
+
+    
+    <insert id="insertSysOpertNotice" parameterType="java.util.Map">
+/*SysOpertNotice.insertSysOpertNotice*/
+INSERT INTO [dbo].[TB_SYS_OPERT_NOTICE]
+(
+    [SON_SN]           ,[SJ]           ,[CN]           ,[USE_AT]    ,[REGISTER_ID]           ,[REG_DT]
+)
+VALUES
+(
+    #{sonSn}           ,#{sj}           ,#{cn}         ,'Y'         ,#{registerId}           ,GETDATE()
+)
+    </insert>
+    
+    <insert id="insertSysOpertNoticeCntcSys" parameterType="java.util.Map">
+/*SysOpertNotice."insertSysOpertNoticeCntcSys*/
+MERGE INTO [dbo].[TB_SYS_OPERT_NOTICE_CNTC_SYS] A
+   USING
+       (
+           SELECT
+               #{sonSn}         as sonSn
+               ,   #{cntcSysNo}    as cntcSysNo
+               ,   #{cntcSysCd}   as cntcSysCd 
+       ) B ON A.SON_SN = B.sonSn and A.CNTC_SYS_NO = B.cntcSysNo
+WHEN MATCHED THEN
+    UPDATE SET
+        [CNTC_SYS_NO] = B.cntcSysNo
+        ,[CNTC_SYS_CD] = B.cntcSysCd
+WHEN NOT MATCHED THEN
+    INSERT([SON_SN]           ,[CNTC_SYS_NO]           ,[CNTC_SYS_CD])
+    VALUES(#{sonSn}           ,#{cntcSysNo}           ,#{cntcSysCd});
+    </insert>
+    
+    <resultMap id="sysOpertNoticeDetail" type="java.util.Map">
+        <result property="sonSn" column="SON_SN"/>
+        <result property="sj" column="SJ"/>
+        <result property="cn" column="CN"/>
+        <result property="registerId" column="REGISTER_ID"/>
+        <result property="regDt" column="REG_DT"/>
+        <collection property="cntcSysList" column="{sonSn=SON_SN}" javaType="java.util.ArrayList" ofType="java.util.Map" select="selectSysOpertNoticeCntcSys"/>
+    </resultMap>
+    
+    
+    <select id="getSysOpertNoticeDetailPopGetData" parameterType="java.util.Map" resultMap="sysOpertNoticeDetail">
+/*SysOpertNotice."selectSysOpertNoticeList*/
+SELECT 
+    [SON_SN]      ,[SJ]      ,[CN]      ,[REGISTER_ID]      ,CONVERT(varchar(10), [REG_DT], 121) AS REG_DT
+    
+FROM [dbo].[TB_SYS_OPERT_NOTICE] A
+WHERE 
+    A.USE_AT = 'Y' 
+    AND A.SON_SN = #{sonSn}
+    </select>
+    
+    
+    <select id="selectSysOpertNoticeCntcSys" parameterType="java.util.Map" resultType="java.util.Map">
+/*SysOpertNotice.selectSysOpertNoticeCntcSys*/
+SELECT   A.CNTC_SYS_CD     AS cntcSysCd         /*연계시스템코드*/
+    ,A.CNTC_SYS_NM     AS cntcSysNm             /*연계시스템명*/
+    ,C.CD   AS cntcSysClsCd                     /*연게시스템 분류 코드*/
+    ,C.CD_NM   AS cntcSysClsNm                  /*연게시스템 분류 코드*/
+    ,B.CD   AS cmpnyCd                          /*회사코드*/
+    ,B.CD_NM   AS cmpnyNm                       /*회사명*/
+    ,A.SYS_DC  AS sysDc                         /*시스템설명*/
+    ,A.USE_AT  AS useAt                         /*사용여부*/                     
+FROM  TB_CNTC_SYS A
+LEFT JOIN  TB_CMMN_CD B ON  ( A.CMPNY_CD = B.CD AND B.CLS_CD = '0024' )
+JOIN  TB_CMMN_CD C ON  ( A.CNTC_SYS_CLS_CD = C.CD AND C.CLS_CD = '0035')     
+INNER JOIN [dbo].[TB_SYS_OPERT_NOTICE_CNTC_SYS] D ON(A.CNTC_SYS_CD = D.CNTC_SYS_CD)
+WHERE D.SON_SN = #{sonSn}
+ORDER BY D.CNTC_SYS_NO ASC
+    </select>
+    
+    <update id="updateSysOpertNotice" parameterType="java.util.Map">
+/*SysOpertNotice.updateSysOpertNotice*/
+UPDATE [dbo].[TB_SYS_OPERT_NOTICE]
+SET
+    [SJ] = #{sj}
+    , [CN] = #{cn}
+    , UPDUSR_ID = #{updusrId}
+    , UPDT_DT = GETDATE()
+WHERE 
+    SON_SN = #{sonSn}
+    </update>
+    
+    <update id="deleteSysOpertNotice" parameterType="java.util.Map">
+/*SysOpertNotice.deleteSysOpertNotice*/
+UPDATE [dbo].[TB_SYS_OPERT_NOTICE]
+SET
+    USE_AT = 'N'
+    , UPDUSR_ID = #{updusrId}
+    , UPDT_DT = GETDATE()
+WHERE 
+    SON_SN = #{sonSn}
+    </update>
+    
+    <delete id="deleteSysOpertNoticeCntcSys" parameterType="java.util.Map">
+/*SysOpertNotice.deleteSysOpertNoticeCntcSys*/
+DELETE FROM [dbo].[TB_SYS_OPERT_NOTICE_CNTC_SYS]
+WHERE
+    SON_SN = #{sonSn}
+    AND CNTC_SYS_NO > #{cntcSysNo}
+    </delete>
+    
+    <select id="selectSendTrgetList" parameterType="java.util.Map" resultType="camelMap">
+/*SysOpertNotice.selectSendTrgetList*/
+<!-- select EMAIL_ADR 
+from [dbo].[TB_USER_BAS] A
+INNER JOIN [dbo].[TB_USER_DETAIL] B ON (A.EMP_NO = B.EMP_NO)
+where 
+    USER_CLS IN('01', '02')
+    AND USE_AT = 'Y'
+<if test='sumCmpnyCd != null and sumCmpnyCd != ""'>
+    AND CMPNY_CD IN (${sumCmpnyCd})  
+</if> -->
+
+
+ SELECT EMAIL_ADR 
+FROM [dbo].[TB_USER_BAS] A
+INNER JOIN [dbo].[TB_USER_DETAIL] B ON (A.EMP_NO = B.EMP_NO)
+WHERE USE_AT = 'Y'
+AND A.USER_ID IN(
+    SELECT C.USER_ID
+    FROM TB_TASK_DEVLOP_PROCESS A
+    JOIN TB_TASK_DEVLOP_PROCESS_CNTC_SYS B
+    ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+    JOIN (
+        SELECT DISTINCT DEVLOP_SN, PROCESS_NO,CHARGER_ID AS USER_ID
+        FROM TB_TASK_DEVLOP_PROCESS_CHARGER
+        UNION 
+        SELECT DISTINCT DEVLOP_SN, PROCESS_NO, USER_ID
+        FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM
+    ) C
+    ON A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+    WHERE A.PROCESS_STTUS = 'O1'
+        <if test='sSumCntcSysCd != null and sSumCntcSysCd != ""'>
+		    AND B.CNTC_SYS_CD IN (${sSumCntcSysCd})  
+		</if>
+        ) 
+
+
+    
+    </select>
+    
+</mapper>

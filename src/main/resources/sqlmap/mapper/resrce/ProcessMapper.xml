@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="ProcessMapper">
+
+        <select id="selectProcessList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ProcessMapper.selectProcessList */
+            SELECT   A.Id
+                   , dbo.UFN_GET_CMPNY_CD(A.TenantId) AS cmpnyCd
+                   , CASE 
+                        WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(A.TenantId),'') = ''   THEN 'Default'
+                   ELSE dbo.UFN_GET_CMPNY_NM(A.TenantId) END  AS CmpnyName
+                   , A.Name
+                   , C.VersionNumber AS Version
+                   , D.Name AS EnvironmentName
+                   <!-- , E.CD_NM AS JobPriorityName
+                   , F.CD_NM AS ProcessTypeName -->
+                   , A.Description
+              FROM   SY_RELEASES A
+              JOIN   (
+              
+                          SELECT   ReleaseId
+                                 , MAX(Id) AS Id
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                     ) B
+                ON   A.Id = B.ReleaseId
+              JOIN   SY_RELEASEVERSIONS C
+                ON   B.Id = C.Id
+              JOIN   SY_ENVIRONMENTS D
+                ON   A.EnvironmentId = D.Id
+              <!-- JOIN   TB_CMMN_CD E
+                ON   (
+                              A.JobPriority = E.CD
+                         AND  E.CLS_CD = '0010'
+                         AND  E.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD F
+                ON   (
+                              A.ProcessType = F.CD
+                         AND  F.CLS_CD = '0009'
+                         AND  F.USE_AT = 'Y'
+                     ) -->
+             WHERE   A.IsDeleted = 0
+             <if test='cmpny != null and cmpny != ""'>
+                AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpny})
+              </if>
+	         <if test='name != null and name != ""'>
+	           AND   A.Name LIKE '%' + #{name} + '%'
+	         </if>
+          ORDER BY   A.Name ASC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectProcessCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* ProcessMapper.selectProcessCount */
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_RELEASES A
+              JOIN   (
+              
+                          SELECT   ReleaseId
+                                 , MAX(Id) AS Id
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                     ) B
+                ON   A.Id = B.ReleaseId
+              JOIN   SY_RELEASEVERSIONS C
+                ON   B.Id = C.Id
+              JOIN   SY_ENVIRONMENTS D
+                ON   A.EnvironmentId = D.Id
+              <!-- JOIN   TB_CMMN_CD E
+                ON   (
+                              A.JobPriority = E.CD
+                         AND  E.CLS_CD = '0010'
+                         AND  E.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD F
+                ON   (
+                              A.ProcessType = F.CD
+                         AND  F.CLS_CD = '0009'
+                         AND  F.USE_AT = 'Y'
+                     ) -->
+             WHERE   A.IsDeleted = 0
+             <if test='cmpny != null and cmpny != ""'>
+                AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpny})
+              </if>
+             <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+             </if>
+        </select>
+        
+        <select id="selectProcessDetail" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ProcessMapper.selectProcessDetail */
+            <!-- SELECT   A.Id
+                   , A.Name
+                   , A.ProcessKey
+                   , C.VersionNumber AS Version
+                   , D.Name AS EnvironmentsName
+              FROM   SY_RELEASES A
+              JOIN   (
+              
+                          SELECT   ReleaseId
+                                 , MAX(Id) AS Id
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                     ) B
+                ON   A.Id = B.ReleaseId
+              JOIN   SY_RELEASEVERSIONS C
+                ON   B.Id = C.Id
+              JOIN   SY_ENVIRONMENTS D
+                ON   A.EnvironmentId = D.Id
+             WHERE   A.Id = #{id} -->
+             
+             
+             SELECT   A.Id
+			    , A.Name
+			    , A.ProcessKey
+			    , C.VersionNumber AS Version
+			    , D.Name AS EnvironmentsName
+			    , dbo.UFN_GET_CMPNY_CD(A.TenantId) AS cmpnyCd
+                , dbo.UFN_GET_CMPNY_NM(A.TenantId) AS cmpnyName
+			    , E.PROCESS_CD AS taskProcessCd
+			    , F.PROCESS_NM AS taskProcessNm
+			FROM   SY_RELEASES A
+			JOIN   (
+			              
+			            SELECT   ReleaseId
+			                    , MAX(Id) AS Id
+			            FROM   SY_RELEASEVERSIONS
+			            WHERE   IsDeleted = 0
+			        GROUP BY   ReleaseId
+			        ) B
+			ON   A.Id = B.ReleaseId
+			JOIN   SY_RELEASEVERSIONS C
+			ON   B.Id = C.Id
+			JOIN   SY_ENVIRONMENTS D
+			ON   A.EnvironmentId = D.Id
+			LEFT JOIN TB_TASK_DEVLOP_PROCESS_MAPPER E
+			ON   A.Id = E.RELEASES_ID
+			LEFT JOIN TB_TASK_DEVLOP_PROCESS F
+			ON   E.PROCESS_CD = F.PROCESS_CD
+			WHERE   A.Id = #{id}
+             
+        </select>
+        
+        <select id="selectProcessVersionList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ProcessMapper.selectProcessVersionList */
+            SELECT   A.Id
+                   , A.Name
+                   , B.Version
+                   , CASE WHEN B.Version = E.VersionNumber THEN B.Version + '현재'
+                          ELSE B.Version
+                     END AS VersionDc
+                   , CASE WHEN B.Version = E.VersionNumber THEN 'Y'
+                          ELSE 'N'
+                     END AS CurrentVersionYn
+                   , CASE WHEN B.Version = E.VersionNumber THEN B.Version + '현재'
+                          ELSE B.Version
+                     END AS CurrentYn
+                   , CASE WHEN DATEDIFF(YY, B.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, B.CreationTime, GETDATE())) + '년전'
+                          WHEN DATEDIFF(MM, B.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, B.CreationTime, GETDATE())) + '월전'
+                          WHEN DATEDIFF(DD, B.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(DD, B.CreationTime, GETDATE())) + '일전'
+                          WHEN DATEDIFF(HH, B.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, B.CreationTime, GETDATE())) + '시간전'
+                          WHEN DATEDIFF(MI, B.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, B.CreationTime, GETDATE())) + '분전'
+                          ELSE '1분전'
+                     END AS OpenTimeDc
+                   , CASE WHEN DATEDIFF(YY, C.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, C.CreationTime, GETDATE())) + '년전'
+                          WHEN DATEDIFF(MM, C.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, C.CreationTime, GETDATE())) + '월전'
+                          WHEN DATEDIFF(DD, C.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(DD, C.CreationTime, GETDATE())) + '일전'
+                          WHEN DATEDIFF(HH, C.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, C.CreationTime, GETDATE())) + '시간전'
+                          WHEN DATEDIFF(MI, C.CreationTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, C.CreationTime, GETDATE())) + '분전'
+                          ELSE '1분전'
+                     END AS UseTimeDc
+                     , B.Identifier
+              FROM   SY_RELEASES A
+              JOIN   SY_PACKAGEMETADATA B
+                ON   A.ProcessKey = B.Identifier
+              JOIN   (
+                          SELECT   ReleaseId
+                                 , VersionNumber
+                                 , MAX(CreationTime) AS CreationTime
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                                 , VersionNumber
+                     ) C
+                ON   (
+                                   A.Id = C.ReleaseId
+                             AND   B.Version = C.VersionNumber
+                     )
+              JOIN   (
+                          SELECT   ReleaseId
+                                 , MAX(Id) AS Id
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                     ) D
+                ON   A.Id = D.ReleaseId
+              JOIN   SY_RELEASEVERSIONS E
+                ON   (
+                                   A.Id = E.ReleaseId
+                             AND   D.Id = E.Id
+                     )
+             WHERE   A.ProcessKey = #{processKey}
+          ORDER BY   B.CreationTime DESC
+            OFFSET #{paginationInfo.firstRecordIndex} ROWS
+            FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectProcessVersionCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* ProcessMapper.selectProcessVersionCount */
+            SELECT   COUNT(B.Version) AS cnt
+              FROM   SY_RELEASES A
+              JOIN   SY_PACKAGEMETADATA B
+                ON   A.ProcessKey = B.Identifier
+              JOIN   (
+                          SELECT   ReleaseId
+                                 , VersionNumber
+                                 , MAX(CreationTime) AS CreationTime
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                                 , VersionNumber
+                     ) C
+                ON   (
+                                   A.Id = C.ReleaseId
+                             AND   B.Version = C.VersionNumber
+                     )
+              JOIN   (
+                          SELECT   ReleaseId
+                                 , MAX(Id) AS Id
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                     ) D
+                ON   A.Id = D.ReleaseId
+              JOIN   SY_RELEASEVERSIONS E
+                ON   (
+                                   A.Id = E.ReleaseId
+                             AND   D.Id = E.Id
+                     ) 
+             WHERE   A.ProcessKey = #{processKey}
+        </select>
+        
+        
+         <select id="selectVersionOpenTimeDc" parameterType="java.util.Map" resultType="String">
+        /* ProcessMapper.selectVersionOpenTimeDc */
+			DECLARE 
+			    @date  DATETIME , @NOW_DATE  DATETIME 
+			SET @date = LEFT(#{Published}, CHARINDEX('.', #{Published})-1);
+			SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+			
+			SELECT  
+			    CASE 
+			        WHEN DATEDIFF(YY, @date, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, @date, @NOW_DATE)) + '년전'
+			        WHEN DATEDIFF(MM, @date, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, @date, @NOW_DATE)) + '개월전'
+			        WHEN DATEDIFF(DD, @date, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(DD, @date, @NOW_DATE)) + '일전'
+			        WHEN DATEDIFF(HH, @date, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, @date, @NOW_DATE)) + '시간전'
+			        WHEN DATEDIFF(MI, @date, @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MI, @date, @NOW_DATE)) + '분전'
+			        ELSE '1분전'
+			    END AS OpenTimeDc
+        </select>
+        
+        <select id="selectVersionUseTimeDc" parameterType="java.util.Map" resultType="String">
+        /* ProcessMapper.selectVersionUseTimeDc */
+            DECLARE 
+                @NOW_DATE  DATETIME 
+            SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+
+            SELECT  
+                CASE   
+                    WHEN DATEDIFF(YY, MAX(CreationTime), @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, MAX(CreationTime), @NOW_DATE)) + '년전'
+                    WHEN DATEDIFF(MM, MAX(CreationTime), @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, MAX(CreationTime), @NOW_DATE)) + '개월전'
+                    WHEN DATEDIFF(DD, MAX(CreationTime), @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(DD, MAX(CreationTime), @NOW_DATE)) + '일전'
+                    WHEN DATEDIFF(HH, MAX(CreationTime), @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, MAX(CreationTime), @NOW_DATE)) + '시간전'
+                    WHEN DATEDIFF(MI, MAX(CreationTime), @NOW_DATE) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MI, MAX(CreationTime), @NOW_DATE)) + '분전'
+                    ELSE '1분전'
+                END AS UseTimeDc
+            FROM   SY_RELEASEVERSIONS 
+            WHERE   IsDeleted = 0
+            AND ReleaseId = #{Id} AND VersionNumber = #{Version}
+            GROUP BY   ReleaseId , VersionNumber
+        </select>
+        
+        
+        
+        
+        <select id="selectProcessInputParameterList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ProcessMapper.selectProcessInputParameterList */
+            SELECT   B.InputArguments AS type
+                   , A.InputArguments AS value
+              FROM   SY_RELEASES A
+              JOIN   SY_PACKAGEMETADATA B
+                ON   (
+                                   A.ProcessKey = B.Identifier
+                             AND   B.InputArguments IS NOT NULL
+                     )
+              JOIN   (
+                          SELECT   ReleaseId
+                                 , VersionNumber
+                                 , MAX(CreationTime) AS CreationTime
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                                 , VersionNumber
+                     ) C
+                ON   (
+                                   A.Id = C.ReleaseId
+                             AND   B.Version = C.VersionNumber
+                     ) 
+             WHERE  A.IsDeleted = '0' AND B.IsDeleted = '0'
+                AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd}) 
+                AND   B.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+                AND  A.Id = #{id} AND B.Version = #{version}
+        </select>
+        
+        <select id="selectProcessOutputParameterList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ProcessMapper.selectProcessOutputParameterList */
+            SELECT   B.OutputArguments
+              FROM   SY_RELEASES A
+              JOIN   SY_PACKAGEMETADATA B
+                ON   (
+                                   A.ProcessKey = B.Identifier
+                             AND   B.InputArguments IS NOT NULL
+                     )
+              JOIN   (
+                          SELECT   ReleaseId
+                                 , VersionNumber
+                                 , MAX(CreationTime) AS CreationTime
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                                 , VersionNumber
+                     ) C
+                ON   (
+                                   A.Id = C.ReleaseId
+                             AND   B.Version = C.VersionNumber
+                     ) 
+             WHERE  A.IsDeleted = '0' AND B.IsDeleted = '0'
+                AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd}) 
+                AND   B.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+                AND  A.Id = #{id} AND B.Version = #{version}
+        </select>
+        
+        <select id="selectProcessEstbs" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ProcessMapper.selectProcessEstbs */
+            SELECT   A.Id
+                   , A.Name
+                   , A.JobPriority
+                   , A.ProcessSettings
+              FROM   SY_RELEASES A
+             WHERE   A.Id = #{id}
+        </select>
+        
+        <select id="selectProcessEstbsUpdate" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ProcessMapper.selectProcessEstbsUpdate */
+            SELECT   A.Id
+                   , A.ProcessKey
+                   , A.ProcessSettings
+                   , C.VersionNumber AS Version
+              FROM   SY_RELEASES A
+              JOIN   (
+              
+                          SELECT   ReleaseId
+                                 , MAX(Id) AS Id
+                            FROM   SY_RELEASEVERSIONS
+                           WHERE   IsDeleted = 0
+                        GROUP BY   ReleaseId
+                     ) B
+                ON   A.Id = B.ReleaseId
+              JOIN   SY_RELEASEVERSIONS C
+                ON   B.Id = C.Id
+             WHERE   A.Id = #{id}
+        </select>
+        
+        
+        
+        <select id="selectTaskCdList" parameterType="java.util.Map" resultType="camelMap">
+        /* CmmnCdMapper.selectTaskCdList */
+            SELECT 
+			     DEVLOP_SN
+			    ,TASK_CD
+			    ,TASK_NM
+			FROM TB_TASK_DEVLOP
+			WHERE USE_AT = 'Y'
+			AND CMPNY_CD = #{cmpnyCd}
+			ORDER BY TASK_CD
+        </select>
+        
+        <!-- <select id="selectProcessCdList" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO"> -->
+        <select id="selectProcessCdList" parameterType="java.util.Map" resultType="camelMap">
+        /* ProcessMapper.selectProcessCdList */
+            <!-- SELECT   Id AS cd
+                   , Name AS cdNm
+              FROM   SY_RELEASES
+             WHERE   IsDeleted = 0
+          ORDER BY   Name ASC -->
+          
+	       SELECT
+			    CONCAT(A.DEVLOP_SN,'/',B.PROCESS_NO) AS PROCESS_SN
+			    ,A.DEVLOP_SN
+			    ,B.PROCESS_NO
+			    ,B.PROCESS_CD
+			    ,CONCAT(' (',B.PROCESS_CD,') ',B.PROCESS_NM) AS PROCESS_NM
+			FROM TB_TASK_DEVLOP A
+			JOIN TB_TASK_DEVLOP_PROCESS B
+			ON A.DEVLOP_SN = B.DEVLOP_SN
+			WHERE A.USE_AT = 'Y' AND B.PROCESS_STTUS = 'O1'
+            AND   A.CMPNY_CD = #{cmpnyCd}
+            AND   A.TASK_CD = #{taskCd}
+			ORDER BY A.DEVLOP_SN, B.PROCESS_NO
+        </select>
+        
+        
+        
+       <select id="getProcessCdListByClsCd" parameterType="java.util.Map" resultType="camelMap">
+		/* ProcessMapper.getProcessCdListByClsCd */
+		            SELECT 
+		                  PROCESS_CD
+		                  ,PROCESS_NM
+		            FROM TB_TASK_DEVLOP_PROCESS
+		<where>
+			<if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+			                AND    CMPNY_CD = #{searchCmpnyCd}  
+			</if>
+		</where>              
+        </select>
+        
+        
+        
+    <!--프로세스, 패키지, 환경 등록여부 확인-->    
+    <select id="chkOverlapTaskDevelopProcessCdMapper" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* ProcessMapper.chkOverlapTaskDevelopProcessCdMapper */
+    SELECT COUNT(PROCESS_CD) FROM TB_TASK_DEVLOP_PROCESS_MAPPER
+    WHERE USE_AT = 'Y' AND  PROCESS_CD = #{processCd}  AND PROCESS_KEY = #{ProcessKey} AND ENVIRONMENT_ID = #{EnvironmentId}
+    </select>
+    
+    <!--///패키지, 환경 등록여부 확인--> 
+    <select id="chkOverlapReleases" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* ProcessMapper.chkOverlapReleases */
+    SELECT COUNT(Id)
+    FROM [dbo].[SY_RELEASES]
+    WHERE IsDeleted = '0'
+    AND ProcessKey = #{ProcessKey}
+    AND EnvironmentId = #{EnvironmentId}
+    </select>
+    
+    <!--//프로세스키에 등록된 환경에 로봇중에 새로 등록 하려는 환경에 로봇이 있는지 확인--> 
+    <select id="chkOverlapRobotsXEnvironments" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* ProcessMapper.chkOverlapReleasesXRobots */
+    SELECT COUNT(*)
+	FROM SY_RELEASES A
+	INNER JOIN SY_ROBOTSXENVIRONMENTS B
+	ON A.EnvironmentId = B.EnvironmentId
+	WHERE IsDeleted = '0'
+	AND A.ProcessKey = #{ProcessKey}
+	<!-- AND A.EnvironmentId = #{EnvironmentId} -->
+	AND B.RobotId IN (
+	    SELECT RobotId
+	    FROM SY_ENVIRONMENTS C
+	    INNER JOIN SY_ROBOTSXENVIRONMENTS D
+	    ON C.ID = D.EnvironmentId
+	    WHERE C.IsDeleted = '0' AND C.Id = #{EnvironmentId}
+    )
+   </select>
+    
+        
+        
+        
+    <insert id="insertTaskDevlopProcessMapper" parameterType="java.util.Map">
+        
+    INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_MAPPER]
+           ([PROCESS_CD]
+	      ,[TENANT_ID]
+	      ,[CMPNY_CD]
+	      ,[RELEASES_ID]
+	      ,[RELEASES_KEY]
+	      ,[RELEASES_NAME]
+	      ,[PROCESS_KEY]
+	      ,[ENVIRONMENT_ID]
+	      ,[INPUTARGUMENTS]
+	      ,[USE_AT]
+	      ,[REGISTER_ID]
+	      ,[REG_DT])
+     VALUES
+           (
+           #{processCd}
+           ,ISNULL(dbo.UFN_GET_TENANT_ID(#{cmpnyCd}),'')
+           ,#{cmpnyCd}
+           ,#{releasesId}
+           ,#{releasesKey}
+           ,#{releasesName}
+           ,#{processKey}
+           ,#{EnvironmentId}
+           ,#{inputArguments}
+           ,'Y'
+           ,#{txUserId}           
+           ,GETDATE()
+           )
+    
+    </insert> 
+    
+    <update id="updateIATaskDevlopProcessMapper" parameterType="java.util.Map">
+    UPDATE [dbo].[TB_TASK_DEVLOP_PROCESS_MAPPER]
+    SET INPUTARGUMENTS = #{inputArguments}
+      ,[UPDUSR_ID] = #{txUserId}
+      ,[UPDT_DT] = GETDATE()
+    WHERE PROCESS_CD = #{processCd}
+    </update>
+    
+    
+    <update id="updateUseAtTaskDevlopProcessMapper" parameterType="java.util.Map">
+    UPDATE [dbo].[TB_TASK_DEVLOP_PROCESS_MAPPER]
+    SET [USE_AT] = #{useAt}
+      ,[UPDUSR_ID] = #{txUserId}
+      ,[UPDT_DT] = GETDATE()
+    WHERE PROCESS_CD = #{processCd}
+    </update>
+        
+        
+</mapper>

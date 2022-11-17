@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="UnmanagtErrorMapper">
+
+    <select id="selectUnmanagtErrorList" parameterType="java.util.Map" resultType="camelMap">
+        SELECT 
+              A.UNMANAGT_SN
+            , A.CMPNY_CD
+            , A.UNMANAGT_DE
+            , (SELECT PROCESS_CD 
+               FROM TB_PROCESS
+               WHERE PROCESS_SN = A.PROCESS_SN) AS PROCESS_SN
+            , A.ERROR_OCCRRNC_SE_CD            
+            , A.ERROR_TY_CD
+            , A.ERROR_CN
+            , A.MANAGT_CN
+            , A.SOURC_UPDT_ID
+            , A.MANAGT_CHARGER_ID
+            , A.OCCRRNC_DE
+            , A.MANAGT_PREARNGE_DE  
+            , A.MANAGT_COMPT_DE
+            , A.MANAGT_STTUS_CD             
+            , A.OPERT_TM
+            , A.JOB_CHARGER_GRPWR_ID
+            , A.REGISTER_ID
+            , A.REG_DT
+            , A.UPDUSR_ID
+            , A.UPDT_DT
+            , B.CD_NM AS CMPNY_NM
+            , C.CD_NM AS OCCRRNC_SE_NM
+            , D.CD_NM AS TY_NM
+            , E.CD_NM AS MANAGT_TY_NM        
+        FROM TB_UNMANAGT_ERROR A
+        JOIN TB_CMMN_CD B
+        ON   (
+                A.CMPNY_CD = B.CD
+                AND B.CLS_CD = '0024'
+                AND B.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD C
+        ON   (
+                A.ERROR_OCCRRNC_SE_CD = C.CD
+                AND C.CLS_CD = '0025'
+                AND C.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD D
+        ON   (
+                A.ERROR_TY_CD = D.CD
+                AND D.CLS_CD = (CASE WHEN A.ERROR_OCCRRNC_SE_CD = '01' THEN '0026' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '02' THEN '0027' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '03' THEN '0028' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '04' THEN '0029' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '05' THEN '0030'
+                                END)
+                AND D.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD E
+        ON   (
+                A.MANAGT_STTUS_CD = E.CD
+                AND E.CLS_CD = '0031'
+                AND E.USE_AT = 'Y'
+            )
+       WHERE 1 = 1
+       <if test='cmpnyCd != null and cmpnyCd != ""'>
+             AND   A.CMPNY_CD = #{cmpnyCd}
+       </if>
+       <if test='processSn != null and processSn != ""'>
+             AND   A.PROCESS_SN = #{processSn}
+       </if>
+       <choose>
+            <when test='occrrncSeCd != null and occrrncSeCd != "" and tyCd != null and tyCd != ""'>
+                AND  (A.ERROR_OCCRRNC_SE_CD = #{occrrncSeCd} AND A.ERROR_TY_CD = #{tyCd})
+            </when>
+            <when test='occrrncSeCd != null and occrrncSeCd != ""'>
+                AND   A.ERROR_OCCRRNC_SE_CD = #{occrrncSeCd}
+            </when>
+       </choose>
+       AND  (CONVERT(DATETIME, A.UNMANAGT_DE) <![CDATA[>=]]> CONVERT(DATETIME, #{startDe})
+       AND   CONVERT(DATETIME, A.UNMANAGT_DE) <![CDATA[<=]]> CONVERT(DATETIME, #{endDe}))
+       ORDER BY A.UNMANAGT_SN
+       OFFSET #{paginationInfo.firstRecordIndex} ROWS
+       FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+    </select>
+    
+    
+    <select id="getUnmanagtErrorCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+       SELECT 
+              COUNT(A.UNMANAGT_SN) AS cnt        
+        FROM TB_UNMANAGT_ERROR A
+        JOIN TB_CMMN_CD B
+        ON   (
+                A.CMPNY_CD = B.CD
+                AND B.CLS_CD = '0024'
+                AND B.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD C
+        ON   (
+                A.ERROR_OCCRRNC_SE_CD = C.CD
+                AND C.CLS_CD = '0025'
+                AND C.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD D
+        ON   (
+                A.ERROR_TY_CD = D.CD
+                AND D.CLS_CD = (CASE WHEN A.ERROR_OCCRRNC_SE_CD = '01' THEN '0026' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '02' THEN '0027' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '03' THEN '0028' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '04' THEN '0029' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '05' THEN '0030'
+                                END)
+                AND D.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD E
+        ON   (
+                A.MANAGT_STTUS_CD = E.CD
+                AND E.CLS_CD = '0031'
+                AND E.USE_AT = 'Y'
+            )
+       WHERE 1 = 1
+       <if test='cmpnyCd != null and cmpnyCd != ""'>
+             AND   A.CMPNY_CD = #{cmpnyCd}
+       </if>
+       <if test='processCd != null and processCd != ""'>
+             AND   A.PROCESS_SN = #{processSn}
+       </if>
+       <choose>
+            <when test='occrrncSeCd != null and occrrncSeCd != "" and tyCd != null and tyCd != ""'>
+                AND  (A.ERROR_OCCRRNC_SE_CD = #{occrrncSeCd} AND A.ERROR_TY_CD = #{tyCd})
+            </when>
+            <when test='occrrncSeCd != null and occrrncSeCd != ""'>
+                AND   A.ERROR_OCCRRNC_SE_CD = #{occrrncSeCd}
+            </when>
+       </choose>
+       AND  (CONVERT(DATETIME, A.UNMANAGT_DE) <![CDATA[>=]]> CONVERT(DATETIME, #{startDe})
+       AND   CONVERT(DATETIME, A.UNMANAGT_DE) <![CDATA[<=]]> CONVERT(DATETIME, #{endDe}))
+    </select>
+    
+    
+    <insert id="saveUnmanagtErrorData" parameterType="java.util.Map">
+        INSERT INTO TB_UNMANAGT_ERROR
+            (
+                CMPNY_CD
+              , UNMANAGT_DE
+              , PROCESS_SN
+              , ERROR_OCCRRNC_SE_CD
+              , ERROR_TY_CD
+              , ERROR_CN
+              , MANAGT_CN
+              , SOURC_UPDT_ID
+              , MANAGT_CHARGER_ID
+              , OCCRRNC_DE
+              , MANAGT_PREARNGE_DE
+              , MANAGT_COMPT_DE
+              , MANAGT_STTUS_CD
+              , OPERT_TM
+              , JOB_CHARGER_GRPWR_ID
+              , REGISTER_ID
+              , REG_DT
+            )
+        VALUES
+            (
+              #{cmpnyCd} 
+            , #{unmanagtDe}
+            , #{processSn}
+            , #{errorOccrrncSeCd}
+            , #{errorTyCd}
+            , #{errorCn}
+            , #{managtCn}
+            , #{sourcUpdtId}
+            , #{managtChargerId}
+            , #{occrrncDe}
+            , #{managtPrearngeDe}
+            , #{managtComptDe}
+            , #{managtSttusCd}
+            , #{opertTm}
+            , #{jobChargerGrpwrId}
+            , #{registerId}
+            , GETDATE()
+            )
+    </insert>
+    
+   <select id="getManagtErrorDetail" parameterType="java.util.Map" resultType="camelMap">
+        SELECT 
+              A.UNMANAGT_SN
+            , A.CMPNY_CD
+            , A.UNMANAGT_DE
+            , A.PROCESS_SN
+            , A.ERROR_OCCRRNC_SE_CD            
+            , A.ERROR_TY_CD
+            , A.ERROR_CN
+            , A.MANAGT_CN
+            , A.SOURC_UPDT_ID
+            , (SELECT DISPLAY_NAME A  
+               FROM   VW_ORG_PERSON_RPA 
+               WHERE  LogonID = A.SOURC_UPDT_ID) AS SOURC_UPDT_NM
+            , A.MANAGT_CHARGER_ID
+            , (SELECT DISPLAY_NAME A  
+               FROM   VW_ORG_PERSON_RPA 
+               WHERE  LogonID = A.MANAGT_CHARGER_ID) AS MANAGT_CHARGER_NM
+            , A.OCCRRNC_DE
+            , A.MANAGT_PREARNGE_DE  
+            , A.MANAGT_COMPT_DE
+            , A.MANAGT_STTUS_CD             
+            , A.OPERT_TM
+            , A.JOB_CHARGER_GRPWR_ID
+            , (SELECT DISPLAY_NAME A  
+               FROM   VW_ORG_PERSON_RPA 
+               WHERE  LogonID = A.JOB_CHARGER_GRPWR_ID) AS JOB_CHARGER_GRPWR_NM            
+            , A.REGISTER_ID
+            , A.REG_DT
+            , A.UPDUSR_ID
+            , A.UPDT_DT
+            , B.CD_NM AS CMPNY_NM
+            , C.CD_NM AS OCCRRNC_SE_NM
+            , D.CD_NM AS TY_NM
+            , E.CD_NM AS MANAGT_TY_NM        
+        FROM TB_UNMANAGT_ERROR A
+        JOIN TB_CMMN_CD B
+        ON   (
+                A.CMPNY_CD = B.CD
+                AND B.CLS_CD = '0024'
+                AND B.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD C
+        ON   (
+                A.ERROR_OCCRRNC_SE_CD = C.CD
+                AND C.CLS_CD = '0025'
+                AND C.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD D
+        ON   (
+                A.ERROR_TY_CD = D.CD
+                AND D.CLS_CD = (CASE WHEN A.ERROR_OCCRRNC_SE_CD = '01' THEN '0026' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '02' THEN '0027' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '03' THEN '0028' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '04' THEN '0029' 
+                                     WHEN A.ERROR_OCCRRNC_SE_CD = '05' THEN '0030'
+                                END)
+                AND D.USE_AT = 'Y'
+            )
+        JOIN   TB_CMMN_CD E
+        ON   (
+                A.MANAGT_STTUS_CD = E.CD
+                AND E.CLS_CD = '0031'
+                AND E.USE_AT = 'Y'
+            )
+       WHERE 1 = 1
+       <if test='id != null and id != ""'>
+             AND   A.UNMANAGT_SN = #{id}
+       </if>
+    </select>
+    
+    <update id="updateUnmanagtError" parameterType="java.util.Map">
+        UPDATE TB_UNMANAGT_ERROR 
+        SET    CMPNY_CD             = #{cmpnyCd}           
+              ,UNMANAGT_DE          = #{unmanagtDe}        
+              ,PROCESS_SN           = #{processSn}         
+              ,ERROR_OCCRRNC_SE_CD  = #{errorOccrrncSeCd}  
+              ,ERROR_TY_CD          = #{errorTyCd}         
+              ,ERROR_CN             = #{errorCn}           
+              ,MANAGT_CN            = #{managtCn}          
+              ,SOURC_UPDT_ID        = #{sourcUpdtId}       
+              ,MANAGT_CHARGER_ID    = #{managtChargerId}   
+              ,OCCRRNC_DE           = #{occrrncDe}         
+              ,MANAGT_PREARNGE_DE   = #{managtPrearngeDe}  
+              ,MANAGT_COMPT_DE      = #{managtComptDe}     
+              ,MANAGT_STTUS_CD      = #{managtSttusCd}     
+              ,OPERT_TM             = #{opertTm}
+              ,JOB_CHARGER_GRPWR_ID = #{jobChargerGrpwrId} 
+              ,UPDUSR_ID            = #{updusrId}
+              ,UPDT_DT              = GETDATE() 
+        WHERE UNMANAGT_SN           = #{managtErrorSn}
+    </update>
+
+
+
+</mapper>

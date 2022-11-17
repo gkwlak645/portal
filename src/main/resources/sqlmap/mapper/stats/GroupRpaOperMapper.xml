@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="GroupRpaOperMapper">
+
+    <!-- 그룹 RPA 운영 실적  -->
+    <select id="getGroupRpaOperList" parameterType="java.util.Map" resultType="camelMap">
+	    /*GroupRpaOperMapper.getGroupRpaOperList*/
+	    DECLARE @START_DATE  DATETIME ,@END_DATE  DATETIME
+	    
+	    SET @START_DATE = #{searchStartDe}; 
+	    SET @START_DATE = CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEPART ( YYYY , @START_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @START_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @START_DATE )));
+	    SET @END_DATE = #{searchEndDe}; 
+	    SET @END_DATE = CONVERT(DATETIME,CONVERT(VARCHAR(10), DATEPART ( YYYY , @END_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @END_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @END_DATE )) + ' 23:59:59.999');
+		    
+		WITH TB_TEMP AS(
+		 SELECT 
+		 [CMPNY_CD]
+		 
+		 --, [CMPNY_NM]
+		 , (SELECT CD_NM FROM [rpa_potal].[dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = [CMPNY_CD]) 'CMPNY_NM'
+		 
+		 , COUNT(DISTINCT([PROCESS_CD])) 'PROCESS_COUNT'
+		 , COUNT([JOB_ID]) 'JOB_TOTAL_COUNT'
+		 , COUNT(CASE WHEN [SUCCESS_AT] = 1 THEN 1 END) 'JOB_SUCCESS_COUNT'
+		 , COUNT(CASE WHEN [SUCCESS_AT] = 0 THEN 1 END) 'JOB_FAIL_COUNT'
+		 , COUNT(CASE WHEN [JOB_STATE] = 5 THEN 1 END) 'JOB_SUCCESS_COUNT_BEFORE'
+         , COUNT(CASE WHEN [JOB_STATE] != 5 THEN 1 END) 'JOB_FAIL_COUNT_BEFORE'
+		 FROM [RPA_POTAL].[DBO].[TB_JOB_MNG]
+		  <where>  
+	          1 = 1   
+	          <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+	             AND [CMPNY_CD] = #{searchCmpnyCd}
+	          </if>           
+	          <if test='searchProcessCd != null and searchProcessCd != ""'>
+	             AND [PROCESS_CD] LIKE CONCAT('%', #{searchProcessCd}, '%')            
+	          </if> 
+	          <if test='searchProcessNm != null and searchProcessNm != ""'>
+	             AND [PROCESS_NM] LIKE CONCAT('%', #{searchProcessNm}, '%')
+	          </if>       
+	          <if test='searchRobotId != null and searchRobotId != "" and searchRobotId != "전체" '>
+	             AND [ROBOT_ID] = #{searchRobotId}
+	          </if>    
+	          <if test='searchStartDe != null and searchStartDe != "" and searchEndDe != null and searchEndDe != ""'>
+	               AND (CONVERT(DATETIME, [START_TIME_ADD]) <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE) AND CONVERT(DATETIME, [START_TIME_ADD]) <![CDATA[<]]> CONVERT(DATETIME, @END_DATE))      
+	          </if>    
+	      </where> 
+		  
+		 GROUP BY [CMPNY_CD]
+		)  
+  
+	    SELECT
+		0 AS CMPNY_ORDER
+		, '' [CMPNY_CD]
+		, '그룹 計'[CMPNY_NM]
+		, ISNULL(SUM([PROCESS_COUNT]), 0) 'PROCESS_COUNT'
+		, ISNULL(SUM([JOB_TOTAL_COUNT]), 0) 'JOB_TOTAL_COUNT'
+		
+		, ISNULL(SUM(JOB_SUCCESS_COUNT_BEFORE), 0) 'JOB_SUCCESS_COUNT_BEFORE'
+		, CASE WHEN SUM(JOB_SUCCESS_COUNT_BEFORE) != 0 
+		  THEN CONVERT(DECIMAL(12,2), SUM(JOB_SUCCESS_COUNT_BEFORE) / CONVERT(DECIMAL, SUM([JOB_TOTAL_COUNT])) * 100) 
+		  ELSE 0 END AS 'SUCCESS_RATE_BEFORE'
+		
+		, ISNULL(SUM(JOB_FAIL_COUNT_BEFORE), 0) 'JOB_FAIL_COUNT_BEFORE'
+		, CASE WHEN SUM(JOB_FAIL_COUNT_BEFORE) != 0 
+		  THEN CONVERT(DECIMAL(12,2), SUM(JOB_FAIL_COUNT_BEFORE) / CONVERT(DECIMAL, SUM([JOB_TOTAL_COUNT])) * 100) 
+		  ELSE 0 END AS 'FAIL_RATE_BEFORE'
+		
+		, ISNULL(SUM([JOB_SUCCESS_COUNT]), 0) 'JOB_SUCCESS_COUNT'
+		, CASE WHEN SUM([JOB_SUCCESS_COUNT]) != 0 
+		  THEN CONVERT(DECIMAL(12,2), SUM([JOB_SUCCESS_COUNT]) / CONVERT(DECIMAL, SUM([JOB_TOTAL_COUNT])) * 100) 
+		  ELSE 0 END AS 'SUCCESS_RATE'
+		, ISNULL(SUM([JOB_FAIL_COUNT]), 0) 'JOB_FAIL_COUNT'
+		, CASE WHEN SUM([JOB_FAIL_COUNT]) != 0 
+		  THEN CONVERT(DECIMAL(12,2), SUM([JOB_FAIL_COUNT]) / CONVERT(DECIMAL, SUM([JOB_TOTAL_COUNT])) * 100) 
+		  ELSE 0 END AS 'FAIL_RATE'
+		FROM [TB_TEMP]
+		
+		UNION ALL
+		
+		SELECT
+		B.[CD_ORDER] AS CMPNY_ORDER
+		, B.[CD] 'CMPNY_CD'
+		, B.[CD_NM] 'CMPNY_NM'
+		, ISNULL(A.[PROCESS_COUNT], 0)
+		, ISNULL(A.[JOB_TOTAL_COUNT], 0)
+		
+		, ISNULL(A.[JOB_SUCCESS_COUNT_BEFORE], 0) 'JOB_SUCCESS_COUNT_BEFORE'
+		, CASE WHEN A.[JOB_SUCCESS_COUNT_BEFORE] != 0 
+		  THEN CONVERT(DECIMAL(12,2), A.[JOB_SUCCESS_COUNT_BEFORE] / CONVERT(DECIMAL, A.[JOB_TOTAL_COUNT]) * 100)
+		  ELSE 0 END AS 'SUCCESS_RATE_BEFORE'
+		
+		, ISNULL(A.[JOB_FAIL_COUNT_BEFORE], 0) 'JOB_FAIL_COUNT_BEFORE'
+		, CASE WHEN A.[JOB_FAIL_COUNT_BEFORE] != 0 
+		  THEN CONVERT(DECIMAL(12,2), A.[JOB_FAIL_COUNT_BEFORE] / CONVERT(DECIMAL, A.[JOB_TOTAL_COUNT]) * 100)
+		  ELSE 0 END AS 'FAIL_RATE_BEFORE'
+  
+		, ISNULL(A.[JOB_SUCCESS_COUNT], 0)
+		, CASE WHEN A.[JOB_SUCCESS_COUNT] != 0 
+		  THEN CONVERT(DECIMAL(12,2), A.[JOB_SUCCESS_COUNT] / CONVERT(DECIMAL, A.[JOB_TOTAL_COUNT]) * 100)
+		  ELSE 0 END AS 'SUCCESS_RATE'
+		, ISNULL(A.[JOB_FAIL_COUNT], 0)
+		, CASE WHEN A.[JOB_FAIL_COUNT] != 0 
+		  THEN CONVERT(DECIMAL(12,2), A.[JOB_FAIL_COUNT] / CONVERT(DECIMAL, A.[JOB_TOTAL_COUNT]) * 100)
+		  ELSE 0 END AS 'FAIL_RATE'
+		FROM [TB_TEMP] A
+		RIGHT OUTER JOIN [TB_CMMN_CD] B ON A.[CMPNY_CD] = B.[CD]
+		<where>  
+              B.[CLS_CD] = '0024' AND B.[USE_AT] = 'Y' AND B.[CD] != 'S'
+              <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+                 AND [CMPNY_CD] = #{searchCmpnyCd}
+              </if> 
+        </where>
+		ORDER BY [CMPNY_ORDER] 
+    </select>
+    
+    
+    
+    
+    
+    
+    <!-- (주간 실적) 그룹 RPA 운영 실적  -->
+    <select id="getGroupRpaOperWeekList" parameterType="java.util.Map" resultType="camelMap">
+        /*GroupRpaOperMapper.getGroupRpaOperWeekList*/
+         DECLARE @START_DATE  DATETIME , @END_DATE  DATETIME, @DIFF INT
+
+		SET @START_DATE = #{searchStartDe};
+		SET @START_DATE = CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEPART ( YYYY , @START_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @START_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @START_DATE )));
+		SET @END_DATE = #{searchEndDe}; 
+		SET @END_DATE = CONVERT(DATETIME,CONVERT(VARCHAR(10), DATEPART ( YYYY , @END_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @END_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @END_DATE )) + ' 23:59:59.999');
+		SET @DIFF = DATEDIFF(DD, @START_DATE, @END_DATE);
+		
+		SELECT 
+		A.CMPNY_NM
+		, A.SUCCESS_RATE 'A_SUCCESS_RATE'
+		, A.JOB_TOTAL_COUNT 'A_JOB_TOTAL_COUNT'
+		, A.JOB_SUCCESS_COUNT 'A_JOB_SUCCESS_COUNT'
+		, B.SUCCESS_RATE 'B_SUCCESS_RATE'
+		, B.JOB_TOTAL_COUNT 'B_JOB_TOTAL_COUNT'
+		, B.JOB_SUCCESS_COUNT 'B_JOB_SUCCESS_COUNT'
+		, C.SUCCESS_RATE 'C_SUCCESS_RATE'
+		, C.JOB_TOTAL_COUNT 'C_JOB_TOTAL_COUNT'
+		, C.JOB_SUCCESS_COUNT 'C_JOB_SUCCESS_COUNT'
+		, D.SUCCESS_RATE 'D_SUCCESS_RATE'
+		, D.JOB_TOTAL_COUNT 'D_JOB_TOTAL_COUNT'
+		, D.JOB_SUCCESS_COUNT 'D_JOB_SUCCESS_COUNT'
+		FROM DBO.GROUP_RPA_OPER(@START_DATE, @END_DATE) A
+		INNER JOIN DBO.GROUP_RPA_OPER(DATEADD(DAY, -@DIFF, @START_DATE), DATEADD(DAY, -@DIFF, @END_DATE)) B         ON A.CMPNY_CD = B.CMPNY_CD
+		INNER JOIN DBO.GROUP_RPA_OPER(DATEADD(DAY, -@DIFF * 2, @START_DATE), DATEADD(DAY, -@DIFF * 2, @END_DATE)) C ON B.CMPNY_CD = C.CMPNY_CD
+		INNER JOIN DBO.GROUP_RPA_OPER(DATEADD(DAY, -@DIFF * 3, @START_DATE), DATEADD(DAY, -@DIFF * 3, @END_DATE)) D ON C.CMPNY_CD = D.CMPNY_CD
+		<where>  
+              <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+                 AND A.[CMPNY_CD] = #{searchCmpnyCd}
+              </if> 
+        </where>
+		ORDER BY A.CMPNY_ORDER
+    </select>
+    
+    
+    
+    
+    
+
+    <!-- 현재 로봇과 로봇 현황 List -->
+    <select id="selectBotListForGroupRpaOper" parameterType="java.util.Map" resultType="camelMap">
+        /*GroupRpaOperMapper.selectBotListForGroupRpaOper*/
+        SELECT
+              (SELECT b.CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] b WHERE b.[TENANT_ID] = A.[TENANTID]) 'CMPNY_CD'
+              , B.[NAME]
+              , A.[STATE]
+              , A.[ROBOTID] 'ROBOT_ID'
+              , CASE 
+                    WHEN A.[STATE] = 0  AND A.[ISUNRESPONSIVE] = 0 THEN 0 -- Available
+                    WHEN A.[STATE] = 1  AND A.[ISUNRESPONSIVE] = 0 THEN 1 -- Busy
+                    WHEN A.[STATE] = 2  AND A.[ISUNRESPONSIVE] = 0 THEN 2 -- Disconnected
+                    WHEN A.[STATE] != 2 AND A.[ISUNRESPONSIVE] = 1 THEN 3 -- Unresponsive
+                END 'ROBOT_STATE'
+        FROM [RPA_POTAL]. [DBO].[SY_SESSIONS] A
+        INNER JOIN [RPA_POTAL].[DBO].[SY_ROBOTS] B
+        ON A.ROBOTID = B.ID
+
+        <where>
+          A.ISDELETED = 0 AND B.ISDELETED = 0
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnyCd})
+          </if>                    
+        </where>
+        
+        ORDER BY CMPNY_CD, NAME
+    </select>
+ 
+</mapper>

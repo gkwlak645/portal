@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="BatchMapper">
+    <insert id="syncDongwonDept" parameterType="java.util.Map">
+    /*batchMapper.syncDept*/
+        MERGE INTO TB_DEPT A
+        USING
+            (
+                SELECT
+                    #{dnCode}               as dnCode
+                    ,   #{dnName}           as dnName 
+                    ,   #{unitName}         as unitName
+                    ,   #{unitCode}         as unitCode
+                    ,   #{parentUnitCode}   as parentUnitCode 
+                    ,   #{sortKey}          as sortKey
+                    ,   #{isuse}            as isUse            
+            ) B ON A.CMPNY_CD = B.dnCode and A.DEPT_CD = B.unitCode
+        WHEN MATCHED THEN
+            UPDATE SET
+                DEPT_NM     = B.unitName
+<choose>
+    <when test ="parentUnitCode != null">
+        ,   UP_DEPT_CD  = B.parentUnitCode
+    </when>
+    <otherwise>
+        ,   UP_DEPT_CD  = ''
+    </otherwise>
+</choose>
+                
+                ,   DEPT_ORDR   = B.sortKey
+                ,   USE_AT = B.isUse
+        WHEN NOT MATCHED THEN
+            INSERT(CMPNY_CD, DEPT_CD,  DEPT_NM, UP_DEPT_CD,  DEPT_ORDR,   USE_AT,  REGISTER_ID, REG_DT)
+            VALUES(B.dnCode, B.unitCode, B.unitName, B.parentUnitCode, B.sortKey, B.isUse, 'system', GETDATE());
+    </insert>
+    
+    
+    <insert id="syncDongwonUserBas" parameterType="java.util.Map">
+    /*batchMapper.syncDongwonUserBas*/
+        MERGE INTO TB_USER_BAS A
+        USING
+            (
+                SELECT
+                    #{dnCode}       as dnCode
+                    , #{logonid}    as logonId
+            ) B ON A.USER_ID = B.logonId
+        WHEN MATCHED THEN
+            UPDATE SET
+                CMPNY_CD     = B.dnCode 
+                --WHERE B.dnCode != 'T'
+        WHEN NOT MATCHED THEN
+            INSERT(CMPNY_CD, USER_ID, PASSWORD, EMP_NO, USE_AT, REGISTER_ID, REG_DT)
+            VALUES(B.dnCode, B.logonId, '85071bc28cc748134e5fc9f56cd867708edc894103811b442007c478c252695a', B.logonId, 'N', 'system', GETDATE());
+            
+    </insert>
+    
+    <insert id="syncDongwonUserDetail" parameterType="java.util.Map">
+        MERGE INTO TB_USER_DETAIL A
+        USING
+            (
+                SELECT
+                    #{logonid}    as logonId
+                    , #{displayName} as displayName
+                    , #{grCode} as grCode
+                    , #{email} as email
+            ) B ON A.EMP_NO = B.logonId
+        WHEN MATCHED THEN
+            UPDATE SET
+                EMP_NM     = B.displayName
+                , DEPT_CD   = B.grCode
+                , EMAIL_ADR = B.email
+        WHEN NOT MATCHED THEN
+            INSERT(EMP_NO, EMP_NM, DEPT_CD, EMAIL_ADR)
+            VALUES(B.logonId, B.displayName, B.grCode, B.email);    
+    </insert>
+    
+    <insert id="insertSyncExecutDscntcImg" parameterType="java.util.Map">
+/*batchMapper.insertSyncExecutDscntcImg*/
+INSERT INTO [dbo].[TB_EXECUT_DSCNTC_IMAGE]
+    (
+        [CMPNY_CD]           ,[EXECUT_DSCNTC_DT]           ,[PROCESS_CD]           
+        ,[ROBOT_ID]          ,[ROBOT_NM]
+        
+        ,[FILE_COURS]         ,[FILE_NM]           
+    )
+VALUES
+    (
+        #{cmpnyCd}           , convert(DATETIME, #{cmpnyexecutDscntcDt})           ,#{processCd}           
+        ,   (
+                SELECT ID FROM SY_ROBOTS A_2  WITH(NOLOCK)
+                WHERE 
+                    TenantId = (
+                            SELECT CD FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK)
+                            WHERE 
+                            A_1.CLS_CD = '0034'                 AND A_1.CD_NM = #{cmpnyCd}                  AND A_1.USE_AT = 'Y'
+                        )
+                    AND A_2.NAME = #{robotNm}
+                    AND A_2.IsDeleted = 0
+                        
+            )    
+        ,#{robotNm}           
+        
+        ,#{fileCours}           ,#{fileNm}           
+)
+        </insert>
+        
+	<update id="syncArcLogs" statementType="CALLABLE">
+        {  
+        	call SP_BACKUP_ARC_LOGS()
+        }
+    </update>
+
+
+
+</mapper>

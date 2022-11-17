@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="AssetMapper">
+
+        <select id="selectAssetList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* AssetMapper.selectAssetList */
+            SELECT *
+            FROM (
+            SELECT DISTINCT  
+                    A.Id
+                    , dbo.UFN_GET_CMPNY_CD(A.TenantId) AS cmpnyCd
+                    , CASE 
+                         WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(A.TenantId),'') = ''   THEN 'Default'
+                      ELSE dbo.UFN_GET_CMPNY_NM(A.TenantId) END  AS CmpnyName
+                   , A.Name
+                   , A.Description
+                   , C.CD_NM AS ValueTypeName
+                   , CASE 
+                         WHEN A.ValueType = 5 THEN '자격증명저장소'
+                         WHEN A.ValueScope = 1 THEN '[로봇별값]'
+                     ELSE B.Value
+                     END AS Value
+              FROM   SY_ASSETS A
+              JOIN   SY_ASSETVALUES B
+                ON   A.Id = B.AssetId
+              JOIN   TB_CMMN_CD C
+                ON   (
+                             A.ValueType = C.CD
+                         AND C.CLS_CD = '0033'
+                         AND C.USE_AT = 'Y'
+                     )
+             WHERE  A.IsDeleted = 0 AND B.IsDeleted = 0
+             <if test='cmpny != null and cmpny != ""'>
+               AND   A.TenantId = ISNULL(dbo.UFN_GET_TENANT_ID(#{cmpny}),'')
+             </if>
+             <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+             </if>
+          )A
+          ORDER BY   A.Name ASC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectAssetCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* AssetMapper.selectAssetCount */
+        SELECT COUNT(A.Id) AS cnt
+        FROM (
+              SELECT DISTINCT  A.Id
+              FROM   SY_ASSETS A
+              JOIN   SY_ASSETVALUES B
+                ON   A.Id = B.AssetId
+              JOIN   TB_CMMN_CD C
+                ON   (
+                         A.ValueType = C.CD
+                         AND C.CLS_CD = '0033'
+                         AND C.USE_AT = 'Y'
+                     )
+             WHERE  A.IsDeleted = 0 AND B.IsDeleted = 0 
+             <if test='cmpny != null and cmpny != ""'>
+               AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpny})
+             </if>
+             <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+             </if>
+         )A    
+        </select>
+        
+        
+        <!-- 박해선 -->
+        <select id="selectAsset" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* AssetMapper.selectAsset */
+            SELECT  A.Id
+             , (SELECT E.Name FROM SY_ROBOTS E WHERE E.Id = B.RobotId) AS RobotNm
+             , B.RobotId
+                   ,B.Value
+                   , D.CD_NM AS CmpnyCd
+                   , dbo.UFN_GET_CMPNY_NM(A.TenantId) AS CmpnyName
+                   , A.Name
+                   , A.Description
+                   , A.ValueScope
+                   , A.ValueType
+                   , C.CD_NM AS ValueTypeName
+                   , CASE WHEN  A.ValueScope = 1 THEN '' 
+                     ELSE B.Value END AS Value
+              FROM   SY_ASSETS A
+              JOIN   SY_ASSETVALUES B
+                ON   A.Id = B.AssetId
+              JOIN   TB_CMMN_CD C
+                ON   (
+                         A.ValueType = C.CD
+                         AND C.CLS_CD = '0033'
+                         AND C.USE_AT = 'Y'
+                     )
+              LEFT OUTER JOIN   TB_CMMN_CD D
+				ON   (
+				            A.TenantId = D.CD
+				            AND D.CLS_CD = '0034'
+				            AND D.USE_AT = 'Y'
+				      )
+             WHERE  A.IsDeleted = 0 AND B.IsDeleted = 0
+             <if test='id != null and id != ""'>
+               AND   A.Id = #{id}
+             </if>
+        </select>
+        
+        
+        <select id="selectRobtList" parameterType="java.util.Map" resultType="camelMap">
+        /* AssetMapper.selectRobtList */
+			SELECT 
+			       D.ROBOT_ID
+			      ,D.NAME
+			FROM  SY_ROBOTS C
+			inner JOIN  (
+			    SELECT 
+			          A.ID AS ROBOT_ID
+			        , A.NAME
+			        , A.USERNAME
+			        , A.ROBOTDESCRIPTION
+			        , A.TYPE
+			        , A.MACHINEID AS DEVICEID
+			        , B.NAME AS DEVICENAME
+			        , A.TENANTID
+			        , A.IsDeleted
+			    FROM  SY_ROBOTS A
+			    INNER JOIN  SY_MACHINES B
+			    ON  A.MACHINEID = B.ID       
+			) D
+			ON C.Id = D.ROBOT_ID
+			WHERE D.IsDeleted = 0
+			AND   D.TenantId = ISNULL(dbo.UFN_GET_TENANT_ID(#{cmpnyCd}),'')
+        </select>
+
+        <select id="selectAssetRobtList" parameterType="java.util.Map" resultType="camelMap">
+        /* AssetMapper.selectAssetRobtList */
+             SELECT   
+			         B.Id AS ID
+			        ,B.AssetId AS ASSET_ID
+			        ,B.RobotId AS ROBOT_ID
+			        ,D.NAME AS ROBOT_NM
+			        ,B.Value AS VALUE
+			FROM   SY_ASSETS A
+			JOIN   SY_ASSETVALUES B
+			ON   A.Id = B.AssetId
+			JOIN   TB_ROBOT C
+			ON B.RobotId = C.ROBOT_ID
+			JOIN  (
+			    SELECT 
+			          A.ID AS ROBOT_ID
+			        , A.NAME
+			        , A.USERNAME
+			        , A.ROBOTDESCRIPTION
+			        , A.TYPE
+			        , A.MACHINEID AS DEVICEID
+			        , B.NAME AS DEVICENAME
+			        , A.TENANTID
+			        , A.IsDeleted
+			    FROM  SY_ROBOTS A
+			    INNER JOIN  SY_MACHINES B
+			    ON  A.MACHINEID = B.ID       
+			) D
+			ON C.ROBOT_ID = D.ROBOT_ID
+			WHERE  A.IsDeleted = 0 AND B.IsDeleted = 0 AND D.IsDeleted = 0 
+			AND   A.Id = #{id}
+			ORDER BY   A.ValueType ASC
+        </select>
+        
+        
+     <select id="chkOverAssetName" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT COUNT(Name)
+		FROM SY_ASSETS
+		WHERE IsDeleted = '0' 
+		AND   TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+		AND   Name = #{Name}
+    </select>
+    
+    
+    <select id="updateChkOverAssetName" parameterType="java.util.Map" resultType="java.lang.Integer">
+        SELECT COUNT(Name)
+        FROM SY_ASSETS
+        WHERE IsDeleted = '0' 
+        AND   TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+        AND   Name = #{Name} and Name != #{orgName}
+    </select>
+
+</mapper>

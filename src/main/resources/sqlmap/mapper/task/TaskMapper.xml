@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TaskMapper">
+
+        <select id="selectTaskRequstList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskMapper.selectTaskRequstList */
+            SELECT   C.TASK_NO
+                   , C.TASK_NM
+                   , D.DEPT_NM AS CHRG_DEPT_NM
+                   , E.EMP_NM AS CHARGER_USER_NM
+                   , C.REQUST_DE
+                   , F.CD_NM AS STTUS_NM
+              FROM   TB_TASK_REVIEW A
+              JOIN   (
+                           SELECT   TASK_NO
+                                  , MAX(TASK_REVIEW_NO) AS TASK_REVIEW_NO
+                             FROM   TB_TASK_REVIEW
+                            WHERE   PRGR_STP_CD = 'A01'
+                         GROUP BY   TASK_NO
+                     ) B
+                ON   (
+                             A.TASK_NO = B.TASK_NO
+                        AND  A.TASK_REVIEW_NO = B.TASK_REVIEW_NO
+                     )
+              JOIN   TB_TASK C
+                ON   (
+                             A.TASK_NO = C.TASK_NO
+		           <if test='startDe != null and startDe != "" and endDe != null and endDe != ""'>
+		              AND    C.REQUST_DE BETWEEN #{startDe} AND #{endDe}
+		           </if>
+		           <if test='searchIem != null and searchIem != ""'>
+		               <choose>
+		                   <when test='searchIem == "1"'>
+		                   AND   C.TASK_NM LIKE '%' + #{searchKwrd} + '%'
+		                   </when>
+		                   <when test='searchIem == "2"'>
+		                   AND   C.CHRG_DEPT_CD = #{searchKwrd}
+		                   </when>
+		                   <when test='searchIem == "3"'>
+		                   AND   C.CHARGER_USER_ID = #{searchKwrd}
+		                   </when>
+		               </choose>
+		           </if>
+                     )
+              JOIN   VW_DEPT D
+                ON   C.CHRG_DEPT_CD = D.DEPT_CD
+              JOIN   VW_USER_INFO E
+                ON   C.CHARGER_USER_ID = E.USER_ID
+              JOIN   TB_CMMN_CD F
+                ON   (
+                              A.STTUS_CD = F.CD
+                        AND   F.CLS_CD = '0020'
+                        AND   F.USE_AT = 'Y'
+                     )
+             WHERE   1 = 1
+           <if test='searchSttusList != null and searchSttusList.size != 0'>
+               AND   A.STTUS_CD IN
+               <foreach collection="searchSttusList" item="item" index="index"  open="(" close=")" separator=",">
+                    #{item.sttus}
+               </foreach>
+           </if>
+          ORDER BY   C.REQUST_DE DESC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectTaskRequstCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* TaskMapper.selectTaskRequstCount */
+            SELECT   COUNT(A.TASK_REVIEW_NO) AS cnt
+              FROM   TB_TASK_REVIEW A
+              JOIN   (
+                           SELECT   TASK_NO
+                                  , MAX(TASK_REVIEW_NO) AS TASK_REVIEW_NO
+                             FROM   TB_TASK_REVIEW
+                            WHERE   PRGR_STP_CD = 'A01'
+                         GROUP BY   TASK_NO
+                     ) B
+                ON   (
+                             A.TASK_NO = B.TASK_NO
+                        AND  A.TASK_REVIEW_NO = B.TASK_REVIEW_NO
+                     )
+              JOIN   TB_TASK C
+                ON   (
+                             A.TASK_NO = C.TASK_NO
+                   <if test='startDe != null and startDe != "" and endDe != null and endDe != ""'>
+                      AND    C.REQUST_DE BETWEEN #{startDe} AND #{endDe}
+                   </if>
+                   <if test='searchIem != null and searchIem != ""'>
+                       <choose>
+                           <when test='searchIem == "1"'>
+                           AND   C.TASK_NM LIKE '%' + #{searchKwrd} + '%'
+                           </when>
+                           <when test='searchIem == "2"'>
+                           AND   C.CHRG_DEPT_CD = #{searchKwrd}
+                           </when>
+                           <when test='searchIem == "3"'>
+                           AND   C.CHARGER_USER_ID = #{searchKwrd}
+                           </when>
+                       </choose>
+                   </if>
+                     )
+              JOIN   VW_DEPT D
+                ON   C.CHRG_DEPT_CD = D.DEPT_CD
+              JOIN   VW_USER_INFO E
+                ON   C.CHARGER_USER_ID = E.USER_ID
+              JOIN   TB_CMMN_CD F
+                ON   (
+                              A.STTUS_CD = F.CD
+                        AND   F.CLS_CD = '0020'
+                        AND   F.USE_AT = 'Y'
+                     )
+             WHERE   1 = 1
+           <if test='searchSttusList != null and searchSttusList.size != 0'>
+               AND   A.STTUS_CD IN
+               <foreach collection="searchSttusList" item="item" index="index"  open="(" close=")" separator=",">
+                    #{item.sttus}
+               </foreach>
+           </if>
+        </select>
+        
+	    <select id="selectNextTaskNo" resultType="java.lang.String">
+	        /* TaskMapper.selectNextTaskNo */
+			SELECT   CASE WHEN ISNULL(MAX(TASK_NO), '') = '' THEN 'TN' + FORMAT(GETDATE(), 'yyyyMM') + '001'
+			         ELSE 'TN' + FORMAT(GETDATE(), 'yyyyMM') + REPLICATE('0', 3 - LEN(CONVERT(VARCHAR(3), CONVERT(INT, SUBSTRING(MAX(TASK_NO), 9, 3)) + 1)))
+			         END AS TASK_NO
+			  FROM   TB_TASK 
+			 WHERE   TASK_NO LIKE 'TN' + FORMAT(GETDATE(), 'yyyyMM') + '%'
+	    </select>
+        
+        <insert id="insertTask" parameterType="kr.co.rpaplatform.dongwon.task.vo.TaskVO">
+            /* TaskMapper.insertTask */
+            INSERT INTO TB_TASK (
+                TASK_NO
+              , TASK_NM
+              , CHRG_DEPT_CD
+              , CHARGER_USER_ID
+              , TASK_FQ_CD
+              , TASK_FQ_CNT
+              , CSBY_PROCESS_TM
+              , PROCESS_TM_UNIT
+              , PROCESS_NP
+              , TASK_DC
+              , REQUST_DE
+              , FILE_GRP_NO
+              , REGISTER_ID
+              , REG_DT
+              , UPDUSR_ID
+              , UPDT_DT
+            ) VALUES (
+                #{taskNo}
+              , #{taskNm}
+              , #{txDeptCd}
+              , #{txUserId}
+              , #{taskFqCd}
+              , #{taskFqCnt}
+              , #{csbyProcessTm}
+              , #{processTmUnit}
+              , #{processNp}
+              , #{taskDc}
+              , FORMAT(GETDATE(), 'yyyyMMdd')
+              , #{fileGrpNo}
+              , #{txUserId}
+              , GETDATE()
+              , #{txUserId}
+              , GETDATE()
+            )
+        </insert>
+        
+        <select id="selectNextTaskReviewNo" parameterType="java.lang.String" resultType="java.lang.String">
+            /* TaskMapper.selectNextTaskReviewNo */
+            SELECT   CASE WHEN ISNULL(MAX(TASK_REVIEW_NO), '') = '' THEN '001'
+                     ELSE REPLICATE('0', 3 - LEN(CONVERT(VARCHAR(3), CONVERT(INT, MAX(TASK_REVIEW_NO)) + 1)))
+                     END AS TASK_NO
+              FROM   TB_TASK_REVIEW
+             WHERE   TASK_NO = #{taskNo}
+        </select>
+        
+        <insert id="insertTaskReview" parameterType="kr.co.rpaplatform.dongwon.task.vo.TaskReviewVO">
+            /* TaskMapper.insertTaskReview */
+            INSERT INTO TB_TASK_REVIEW (
+                TASK_NO
+              , TASK_REVIEW_NO
+              , PRGR_STP_CD
+              , STTUS_CD
+              , REGISTER_ID
+              , REG_DT
+              , UPDUSR_ID
+              , UPDT_DT
+            ) VALUES (
+                #{taskNo}
+              , #{taskReviewNo}
+              , #{prgrStpCd}
+              , #{sttusCd}
+              , #{txUserId}
+              , GETDATE()
+              , #{txUserId}
+              , GETDATE()
+            )
+        </insert>
+        
+        <insert id="insertTaskPrcuseSys" parameterType="kr.co.rpaplatform.dongwon.task.vo.TaskPrcuseSysVO">
+            /* TaskMapper.insertTaskPrcuseSys */
+            INSERT INTO TB_TASK_PRCUSE_SYS (
+                TASK_NO
+              , PRCUSE_SYS_CD
+            ) VALUES (
+                #{taskNo}
+              , #{prcuseSysCd}
+            )
+        </insert>
+        
+        <delete id="deleteTaskPrcuseSysForTask" parameterType="java.lang.String">
+            /* TaskMapper.deleteTaskPrcuseSysForTask */
+            DELETE
+              FROM  TB_TASK_PRCUSE_SYS
+             WHERE  TASK_NO = #{taskNo}
+        </delete>
+
+        <select id="selectTask" parameterType="java.lang.String" resultType="kr.co.rpaplatform.dongwon.task.vo.TaskVO" >
+            /* TaskMapper.selectTask */
+            SELECT    A.TASK_NO
+                    , A.TASK_NM
+                    , A.CHRG_DEPT_CD
+                    , A.CHARGER_USER_ID
+                    , A.TASK_FQ_CD
+                    , A.TASK_FQ_CNT
+                    , A.CSBY_PROCESS_TM
+                    , A.PROCESS_TM_UNIT
+                    , A.PROCESS_NP
+                    , A.TASK_DC
+                    , A.REQUST_DE
+                    , A.DSGNR_USER_ID
+                    , B.EMP_NM AS DSGNR_USER_NM
+                    , A.FILE_GRP_NO
+              FROM    TB_TASK A
+         LEFT JOIN    VW_USER_INFO B
+                ON    A.DSGNR_USER_ID = B.USER_ID
+             WHERE    A.TASK_NO = #{taskNo}
+        </select>
+        
+        <select id="selectLastRequstTaskReview" parameterType="java.lang.String" resultType="kr.co.rpaplatform.dongwon.task.vo.TaskReviewVO" >
+            /* TaskMapper.selectLastRequstTaskReview */
+            SELECT   A.TASK_NO
+                   , A.TASK_REVIEW_NO
+                   , A.PRGR_STP_CD
+                   , A.STTUS_CD
+                   , B.CD_NM AS STTUS_NM
+                   , A.REVIEW_OPIN
+             FROM    TB_TASK_REVIEW A
+             JOIN    TB_CMMN_CD B
+               ON    (
+                             A.STTUS_CD = B.CD
+                        AND  B.CLS_CD = '0020'
+                        AND  B.USE_AT = 'Y'
+                     )
+            WHERE    A.TASK_NO = #{taskNo}
+              AND    A.TASK_REVIEW_NO = (
+                                           SELECT   MAX(TASK_REVIEW_NO)
+                                             FROM   TB_TASK_REVIEW
+                                            WHERE   TASK_NO = #{taskNo}
+                                              AND   PRGR_STP_CD = 'A01'
+                                        )
+        </select>
+        
+        <select id="selectTaskPrcuseSysList" parameterType="java.lang.String" resultType="kr.co.rpaplatform.dongwon.task.vo.TaskPrcuseSysVO" >
+            /* TaskMapper.selectTaskPrcuseSysList */
+            SELECT   TASK_NO
+                   , PRCUSE_SYS_CD
+             FROM    TB_TASK_PRCUSE_SYS
+            WHERE    TASK_NO = #{taskNo}
+         ORDER BY    PRCUSE_SYS_CD ASC
+        </select>
+        
+</mapper>

@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="PackageMapper">
+
+    <select id="selectCmpnyCdAll" resultType="camelMap">
+        /* PackageMapper.selectCmpnyCd */
+            SELECT   CMPNY_CD, [dbo].[UFN_GET_CMPNY_NM](TENANT_ID) AS CMPNY_NM
+              FROM   TB_API_TKN WITH(NOLOCK)
+              WHERE CMPNY_CD IS NOT NULL AND CMPNY_CD != '' AND TENANT_NM != 'host'
+    </select>
+
+    <select id="selectCmpnyCd" resultType="camelMap">
+        /* PackageMapper.selectCmpnyCd */
+            SELECT   CMPNY_CD, [dbo].[UFN_GET_CMPNY_NM](TENANT_ID) AS CMPNY_NM
+              FROM   TB_API_TKN WITH(NOLOCK)
+              WHERE CMPNY_CD IS NOT NULL AND CMPNY_CD = #{cmpnyCd}
+    </select>
+
+    <select id="selectPackageLibraryList" parameterType="java.util.Map" resultType="camelMap">
+    /* PackageMapper.selectPackageLibraryList */
+        SELECT   A.IDENTIFIER
+                ,A.DESCRIPTION
+                ,CONVERT(VARCHAR(10), A.LASTUPDATED, 120) AS LASTUPDATED
+         FROM   SY_PACKAGEDEFINITIONS A
+          <choose>
+             <when test='checked == "package"'>
+                  JOIN   SY_PACKAGEMETADATA B ON A.IDENTIFIER = B.IDENTIFIER
+                   AND   A.TENANTID = B.TENANTID 
+                   AND   A.VERSION = B.VERSION
+                 WHERE   A.TenantId = 1 
+                   AND   A.SemVer1IsAbsoluteLatest = 1 
+                   AND   A.SemVer1IsLatest = 1
+                   AND   A.ISDELETED = 0
+             </when>
+             <otherwise>
+                 WHERE   1=1
+<!--                    AND   A.FEEDID = '02B44D1E-2658-404C-8A8E-7F28049F3134' -->
+                   AND   A.TenantId IS NULL 
+                   AND   A.SemVer1IsAbsoluteLatest = 1 
+                   AND   A.SemVer1IsLatest = 1 
+                   AND   A.ISDELETED = 0
+             </otherwise>
+          </choose>
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+           AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+          </if>
+        <if test='searchKwrd != null and searchKwrd != ""'>
+           AND   A.IDENTIFIER LIKE '%' + #{searchKwrd} + '%'
+        </if>
+      ORDER BY   A.CREATIONTIME
+                 OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                 FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+    </select>
+        
+        <select id="selectPackageLibraryRequstCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* PackageMapper.selectPackageLibraryRequstCount */
+            SELECT   COUNT(A.IDENTIFIER)
+              FROM   SY_PACKAGEDEFINITIONS A
+         <choose>
+             <when test='checked == "package"'>
+                  JOIN   SY_PACKAGEMETADATA B ON A.IDENTIFIER = B.IDENTIFIER
+                   AND   A.TENANTID = B.TENANTID 
+                   AND   A.VERSION = B.VERSION
+                 WHERE   A.TenantId = 1 
+                   AND   A.SemVer1IsAbsoluteLatest = 1 
+                   AND   A.SemVer1IsLatest = 1
+                   AND   A.ISDELETED = 0
+             </when>
+             <otherwise>
+                 WHERE   1=1
+<!--                    AND   A.FEEDID = '02B44D1E-2658-404C-8A8E-7F28049F3134' -->
+                   AND   A.TenantId IS NULL 
+                   AND   A.SemVer1IsAbsoluteLatest = 1 
+                   AND   A.SemVer1IsLatest = 1 
+                   AND   A.ISDELETED = 0
+             </otherwise>
+          </choose>
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+            </if>
+            <if test='searchKwrd != null and searchKwrd != ""'>
+                AND   A.IDENTIFIER LIKE '%' + #{searchKwrd} + '%'
+            </if>
+        </select>
+        
+<!--         <select id="packageLibraryVersionInfoList" parameterType="java.util.Map" resultType="kr.co.rpaplatform.dongwon.resrce.vo.PackageVO"> -->
+<!--         /* PackageMapper.packageLibraryVersionInfoList */ -->
+<!--         SELECT A.Identifier, B.ProcessKey, A.Version, B.Id, D.ReleaseId, D.VersionNumber, D.CreationTime, -->
+<!--              CONVERT(VARCHAR(10), A.CREATED, 120) AS CREATED, -->
+<!-- 			 CASE WHEN A.Version = D.VersionNumber THEN '활성' -->
+<!-- 			    ELSE '비활성' -->
+<!-- 			  END AS statement -->
+<!-- 		FROM SY_PACKAGEDEFINITIONS A -->
+<!-- 		LEFT JOIN SY_RELEASES B -->
+<!-- 			ON( -->
+<!-- 			 A.Identifier = B.ProcessKey -->
+<!-- 			 AND B.IsDeleted = 0 -->
+<!-- 			 ) -->
+<!-- 		LEFT JOIN ( -->
+<!-- 			    SELECT   ReleaseId -->
+<!-- 			            , MAX(Id) AS Id -->
+<!-- 			    FROM   SY_RELEASEVERSIONS -->
+<!-- 			    WHERE   IsDeleted = 0 -->
+<!-- 			    GROUP BY   ReleaseId -->
+<!-- 			) C -->
+<!-- 			ON ( -->
+<!-- 			 B.Id = C.ReleaseId -->
+<!-- 			 ) -->
+<!-- 		LEFT JOIN SY_RELEASEVERSIONS D -->
+<!-- 			ON ( -->
+<!-- 			    C.Id = D.Id -->
+<!-- 			    AND B.Id = D.ReleaseId -->
+<!-- 			) -->
+<!--           <choose> -->
+<!--             <when test='checked == "package"'> -->
+<!--                 WHERE   A.TenantId = 1  -->
+<!--                   AND   A.IDENTIFIER = #{identifier}  -->
+<!--                   AND   A.ISDELETED = 0 -->
+<!--             </when> -->
+<!--             <otherwise> -->
+<!--                 WHERE A.IDENTIFIER  = #{identifier} -->
+<!--                   AND A.ISDELETED = 0 -->
+<!--                   AND A.FEEDID = '02B44D1E-2658-404C-8A8E-7F28049F3134' -->
+<!--             </otherwise> -->
+<!--           </choose> -->
+<!--           ORDER BY   A.CREATIONTIME DESC -->
+<!--         </select> -->
+        
+        
+<!--     <select id="packageLibraryHistInqireList" parameterType="java.util.Map" resultType="kr.co.rpaplatform.dongwon.resrce.vo.PackageVO"> -->
+<!--     /* PackageMapper.packageLibraryHistInqireList */ -->
+<!--         SELECT A.Identifier, B.ProcessKey, A.Version, B.Id, D.ReleaseId, D.VersionNumber, D.CreationTime, A.Authors , -->
+<!--                 CONVERT(VARCHAR(10), CREATED, 120) AS CREATED ,A.Description, -->
+<!-- 			 CASE WHEN A.Version = D.VersionNumber THEN '활성' -->
+<!-- 			    ELSE '비활성' -->
+<!-- 			  END AS statement -->
+<!-- 		FROM SY_PACKAGEDEFINITIONS A -->
+<!-- 		LEFT JOIN SY_RELEASES B -->
+<!-- 			ON( -->
+<!-- 			 A.Identifier = B.ProcessKey -->
+<!-- 			 AND B.IsDeleted = 0 -->
+<!-- 			 ) -->
+<!-- 		LEFT JOIN ( -->
+<!-- 			    SELECT   ReleaseId -->
+<!-- 			            , MAX(Id) AS Id -->
+<!-- 			    FROM   SY_RELEASEVERSIONS -->
+<!-- 			    WHERE   IsDeleted = 0 -->
+<!-- 			    GROUP BY   ReleaseId -->
+<!-- 			) C -->
+<!-- 			ON ( -->
+<!-- 			 B.Id = C.ReleaseId -->
+<!-- 			 ) -->
+<!-- 		LEFT JOIN SY_RELEASEVERSIONS D -->
+<!-- 			ON ( -->
+<!-- 			    C.Id = D.Id -->
+<!-- 			    AND B.Id = D.ReleaseId -->
+<!-- 			) -->
+<!--           <choose> -->
+<!--             <when test='checked == "package"'> -->
+<!--                 WHERE   A.TenantId = 1  -->
+<!--                   AND   A.IDENTIFIER = #{identifier}  -->
+<!--                   AND   A.ISDELETED = 0 -->
+<!--             </when> -->
+<!--             <otherwise> -->
+<!--                 WHERE A.IDENTIFIER  = #{identifier} -->
+<!--                   AND A.ISDELETED = 0 -->
+<!--                   AND A.FEEDID = '02B44D1E-2658-404C-8A8E-7F28049F3134' -->
+<!--             </otherwise> -->
+<!--           </choose> -->
+<!--           ORDER BY   A.CREATIONTIME DESC -->
+<!--       </select> -->
+        
+        
+        <select id="chkProcess" parameterType="java.util.Map" resultType="java.lang.Integer">
+	    /* PackageMapper.chkProcess */
+	    SELECT COUNT(Id) AS CNT
+		FROM SY_PACKAGEMETADATA
+		WHERE IsDeleted = 0
+		    AND Identifier = #{identifier}
+		    AND Version = #{version}
+	    </select>  
+        
+</mapper>

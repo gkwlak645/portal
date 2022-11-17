@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="GwpwrDeptMapper">
+
+     <select id="selectAllGwpwrDeptList" parameterType="java.util.Map" resultType="camelMap">
+        /* GwpwrDeptMapper.selectAllGwpwrDeptList */
+        WITH ORG_TREE AS (
+            SELECT   DN_CODE
+                   , DN_NAME
+                   , UNIT_CODE
+                   , UNIT_NAME
+                   , PARENT_UNIT_CODE
+              FROM   VW_ORG_UNIT_RPA
+             WHERE   UNIT_CODE = 'ORGROOT'
+         UNION ALL
+            SELECT   A.DN_CODE
+                   , A.DN_NAME
+                   , A.UNIT_CODE
+                   , A.UNIT_NAME
+                   , A.PARENT_UNIT_CODE
+              FROM   VW_ORG_UNIT_RPA A
+        INNER JOIN   ORG_TREE B
+                ON   A.PARENT_UNIT_CODE = B.UNIT_CODE
+        )
+        SELECT   DN_CODE AS CMPNY_CD
+               , DN_NAME AS CMPNY_NM
+               , UNIT_CODE AS DEPT_CD
+               , UNIT_NAME AS DEPT_NM
+               , PARENT_UNIT_CODE AS UP_DEPT_CD
+       FROM   ORG_TREE
+       WHERE 1 = 1
+       <if test='cmpnyCd != null and cmpnyCd != ""'>
+          AND   DN_CODE = #{cmpnyCd}
+       </if>
+       <if test='schDept != null and schDept != ""'>
+          AND   UNIT_NAME LIKE '%' + #{schDept} + '%'
+       </if>
+    </select>
+    
+    <select id="getDongwonDeptList"  parameterType="java.util.List" resultType="camelMap">
+/*GwpwrUserMapper.getDongwonDeptList*/
+        SELECT [DN_CODE],   [DN_NAME],  [UNIT_NAME],    [UNIT_CODE],    [PARENT_UNIT_CODE], [SORT_KEY], [IsUse]  FROM [dbo].[VW_ORG_UNIT_RPA] WITH(NOLOCK)
+        ORDER BY isUse ASC
+    </select>
+</mapper>

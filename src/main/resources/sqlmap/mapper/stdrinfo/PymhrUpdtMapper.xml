@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="PymhrUpdtMapper">
+
+        <select id="selectListPymhr" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.PymhrUpdtVO">
+        /* PymhrUpdtMapper.selectListPymhr */
+            SELECT   PYMHR_YY
+                    ,PYMHR_AMT
+              FROM   TB_PYMHR
+          ORDER BY   PYMHR_YY DESC
+        </select>
+        
+        <select id="selectPymhrCount" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.PymhrUpdtVO" resultType="int">
+        /* PymhrUpdtMapper.selectPymhrCount */
+            SELECT   COUNT(PYMHR_YY)
+              FROM   TB_PYMHR
+             WHERE   PYMHR_YY = #{pymhrYy} 
+        </select>
+        
+        <update id="updtPymhrList" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.PymhrUpdtVO">
+        /* PymhrUpdtMapper.updtPymhrList */
+            UPDATE   TB_PYMHR
+               SET   PYMHR_AMT = #{pymhrAmt}
+                    ,UPDUSR_ID = #{txUserId}
+                    ,UPDT_DT = GETDATE()
+             WHERE   PYMHR_YY = #{pymhrYy}
+        </update>
+        
+        <insert id="insertPymhr" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.PymhrUpdtVO">
+        /* PymhrUpdtMapper.insertPymhr */
+        INSERT INTO     TB_PYMHR
+                  (
+	                    PYMHR_YY
+	                   ,PYMHR_AMT
+	                   ,REGISTER_ID
+	                   ,REG_DT
+	                   ,UPDUSR_ID
+	                   ,UPDT_DT
+                  )
+             VALUES
+                  (
+                        #{pymhrYy}
+                       ,#{pymhrAmt}
+                       ,#{txUserId}
+                       ,GETDATE()
+	                   ,#{txUserId}
+	                   ,GETDATE() 
+                  )
+        </insert>
+        
+        <delete id="deletePymhr" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.PymhrUpdtVO">
+        /* PymhrUpdtMapper.deletePymhr */
+            DELETE FROM TB_PYMHR
+                  WHERE PYMHR_YY = #{pymhrYy}
+        </delete>
+</mapper>

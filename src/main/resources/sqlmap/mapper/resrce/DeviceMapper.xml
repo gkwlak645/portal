@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="DeviceMapper">
+
+        <select id="selectDeviceList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* DeviceMapper.selectDeviceList */
+            SELECT   A.Id
+                   , CASE 
+                        WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(A.TenantId),'') = ''   THEN 'Default'
+                        ELSE dbo.UFN_GET_CMPNY_NM(A.TenantId) END  AS CmpnyName
+                   , A.Name
+                   , A.Description
+                   , A.Type
+                   , B.CD_NM AS TypeName
+                   , ISNULL(C.Version, '로봇 없음') AS Version
+              FROM   SY_MACHINES A
+        INNER JOIN   TB_CMMN_CD B
+                ON   (
+                             A.Type = B.CD
+                         AND B.CLS_CD = '0005'
+                         AND B.USE_AT = 'Y'
+<!--                          <if test='cmpnyCd != null and cmpnyCd != ""'> -->
+<!--                          AND B.CD_NM = #{cmpnyCd} -->
+<!--                          </if> -->
+                     )
+<!--          LEFT JOIN   TB_CMMN_CD D -->
+<!--                 ON   ( -->
+<!--                         CONVERT(VARCHAR(4),A.TenantId) = D.CD -->
+<!--                         AND D.CLS_CD = '0034' -->
+<!--                         AND D.USE_AT = 'Y' -->
+<!--                      ) -->
+         LEFT JOIN   (
+                         SELECT   E.MachineId, E.TenantId
+                                , E.Version
+                           FROM   SY_ROBOTS E
+                           WHERE IsDeleted = 0
+                     ) C
+                ON   A.Id = C.MachineId AND A.TenantId = C.TenantId
+             WHERE   A.IsDeleted = 0
+		             <if test='cmpnyCd != null and cmpnyCd != ""'>
+		              AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+		             </if>
+            <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+            </if>
+          ORDER BY   A.Name ASC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectDeviceCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* DeviceMapper.selectDeviceCount */
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_MACHINES A
+        INNER JOIN   TB_CMMN_CD B
+                ON   (
+                             A.Type = B.CD
+                         AND B.CLS_CD = '0005'
+                         AND B.USE_AT = 'Y'
+<!--                          <if test='cmpnyCd != null and cmpnyCd != ""'> -->
+<!--                          AND B.CD_NM = #{cmpnyCd} -->
+<!--                          </if> -->
+                     )
+         LEFT JOIN   (
+                         SELECT   E.MachineId, E.TenantId
+                                , E.Version
+                           FROM   SY_ROBOTS E
+                           WHERE IsDeleted = 0
+                     ) C
+                ON   A.Id = C.MachineId AND A.TenantId = C.TenantId
+             WHERE   A.IsDeleted = 0
+                     <if test='cmpnyCd != null and cmpnyCd != ""'>
+                        AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+                     </if>
+            <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+            </if>
+        </select>
+        
+        <select id="selectDeviceDetail" parameterType="kr.co.rpaplatform.dongwon.resrce.vo.DeviceVO" resultType="kr.co.rpaplatform.dongwon.resrce.vo.DeviceVO">
+        /* DeviceMapper.selectDeviceDetail */
+          SELECT A.ID
+               , A.LICENSEKEY
+               , A.DESCRIPTION
+			   , A.NAME
+			   , A.NONPRODUCTIONSLOTS
+			   , A.UNATTENDEDSLOTS
+<!-- 			   , A.HEADLESSSLOTS -->
+<!-- 			   , A.TESTAUTOMATIONSLOTS -->
+			   , B.CD_NM AS CMPNYCD
+		   FROM SY_MACHINES A
+		   LEFT JOIN   TB_CMMN_CD B
+                ON   (
+                        CONVERT(VARCHAR(4), A.TENANTID) = B.CD
+                        AND B.CLS_CD = '0034'
+                        AND B.USE_AT = 'Y'
+                     )
+		   <where>
+                A.ID = #{id}
+            </where>
+        </select>      
+
+        <select id="getDeviceNameList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* DeviceMapper.getDeviceNameList */
+            SELECT   Id
+                   , Name
+              FROM   SY_MACHINES
+            <where>
+                ISDELETED = 0
+            </where>
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND  TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+            </if>
+        </select>
+
+
+
+
+
+
+
+</mapper>

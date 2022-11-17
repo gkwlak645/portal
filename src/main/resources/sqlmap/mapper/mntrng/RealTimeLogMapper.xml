@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="RealTimeLogMapper">
+
+    <!-- 실시간 로그 개수 -->
+    <select id="selectRealTimeLogCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /*RealTimeLogMapper.selectRealTimeLogCount*/
+	  DECLARE @START_DATE  DATETIME ,@END_DATE  DATETIME, @TENANT_ID INT
+      
+      SET @START_DATE = #{startDe}; 
+      SET @START_DATE = CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEPART ( YYYY , @START_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @START_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @START_DATE )));
+      SET @END_DATE = #{endDe}; 
+      SET @END_DATE = CONVERT(DATETIME,CONVERT(VARCHAR(10), DATEPART ( YYYY , @END_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @END_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @END_DATE )) + ' 23:59:59');
+      SET @TENANT_ID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnycd})
+
+      SELECT 
+      
+      COUNT([ID])
+      
+      <!-- FROM [SY_LOGS] A WITH(NOLOCK) -->
+      FROM [SY_LOGS] A WITH(NOLOCK)
+      INNER JOIN [rpa_potal].[dbo].[TB_CMMN_CD] B WITH(NOLOCK) ON B.CD = #{cmpnycd}                   AND B.CLS_CD = '0024'
+      INNER JOIN [DBO].[TB_CMMN_CD] C WITH(NOLOCK)             ON C.CD = CONVERT(VARCHAR(1), A.LEVEL) AND C.CLS_CD = '0013'
+      
+      <where>  
+          1 = 1   
+          <if test='paramJobKey != null and paramJobKey != ""'>
+            AND A.[JOBKEY] = #{paramJobKey}
+          </if>
+          <if test='cmpnycd != null and cmpnycd != ""'>
+             AND A.TENANTID = @TENANT_ID
+          </if>         
+          <if test='searchLevel != null and searchLevel != ""'>
+             AND A.[LEVEL] = #{searchLevel}
+          </if>     
+          <if test='searchMessage != null and searchMessage != ""'>
+             AND A.[MESSAGE] LIKE CONCAT('%', #{searchMessage}, '%')            
+          </if> 
+          <if test='searchProcessNm != null and searchProcessNm != ""'>
+             AND A.[PROCESSNAME] LIKE CONCAT('%', #{searchProcessNm}, '%')
+          </if>
+          <if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+             AND A.[ROBOTNAME] LIKE CONCAT('%', #{searchRobotName}, '%')
+          </if> 
+          <if test='tokenRealTimeNow != "Y"'>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, DATEADD(HH, 9,  A.TIMESTAMP)) <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, DATEADD(HH, 9,  A.TIMESTAMP)) <![CDATA[<=]]> CONVERT(DATETIME, @END_DATE))
+             </if>
+          </if>          
+      </where> 
+    </select>
+    
+    <!-- 실시간 로그 조회 List -->
+    <select id="selectRealTimeLogList" parameterType="java.util.Map" resultType="camelMap">
+    /*RealTimeLogMapper.selectRealTimeLogList*/
+	  DECLARE @START_DATE  DATETIME ,@END_DATE  DATETIME, @TENANT_ID INT
+      
+      SET @START_DATE = #{startDe}; 
+      SET @START_DATE = CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEPART ( YYYY , @START_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @START_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @START_DATE )));
+      SET @END_DATE = #{endDe}; 
+      SET @END_DATE = CONVERT(DATETIME,CONVERT(VARCHAR(10), DATEPART ( YYYY , @END_DATE )) + '-' + CONVERT(VARCHAR(10), DATEPART( MM , @END_DATE ))  +'-' +  CONVERT(VARCHAR(10), DATEPART( DD , @END_DATE )) + ' 23:59:59');
+      SET @TENANT_ID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnycd})
+
+	  SELECT
+	  
+      <!-- [ID]
+      ,[ROBOTNAME]
+	  ,[PROCESSNAME] PROCESS_NM
+	  ,CONVERT(CHAR(19), DATEADD(HH, 9, A.TIMESTAMP), 21) OCCRRNC_DT
+	  ,[LEVEL]
+	  ,(SELECT CD_NM FROM [DBO].[TB_CMMN_CD] WHERE CLS_CD = '0013' AND CD = CONVERT(VARCHAR(1), A.LEVEL)) AS LEVEL_NM
+	  ,[MESSAGE]
+	  ,[RAWMESSAGE]
+	  ,[TENANTID]
+	  ,(SELECT CD_NM FROM [rpa_potal].[dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = #{cmpnycd}) CMPNY_NM -->
+	  
+	  
+	   [ID]
+      ,[ROBOTNAME]
+      ,[PROCESSNAME] PROCESS_NM
+      ,CONVERT(CHAR(19), DATEADD(HH, 9, A.TIMESTAMP), 21) OCCRRNC_DT
+      ,[LEVEL]
+      ,C.CD_NM AS LEVEL_NM
+      ,[MESSAGE]
+      ,[RAWMESSAGE]
+      ,[TENANTID]
+     , B.CD_NM CMPNY_NM
+	  
+	  
+	  <!-- FROM [SY_LOGS] A WITH(NOLOCK) -->
+	  FROM [SY_LOGS] A WITH(NOLOCK)
+      INNER JOIN [rpa_potal].[dbo].[TB_CMMN_CD] B WITH(NOLOCK) ON B.CD = #{cmpnycd}                   AND B.CLS_CD = '0024'
+      INNER JOIN [DBO].[TB_CMMN_CD] C WITH(NOLOCK)             ON C.CD = CONVERT(VARCHAR(1), A.LEVEL) AND C.CLS_CD = '0013'
+	  
+	  <where>  
+	      1 = 1   
+          <if test='paramJobKey != null and paramJobKey != ""'>
+            AND A.[JOBKEY] = #{paramJobKey}
+          </if>
+          <if test='cmpnycd != null and cmpnycd != ""'>
+             AND A.TENANTID = @TENANT_ID
+          </if> 
+          <if test='searchLevel != null and searchLevel != ""'>
+             AND A.[LEVEL] = #{searchLevel}
+          </if> 
+          <if test='searchMessage != null and searchMessage != ""'>
+             AND A.[MESSAGE] LIKE CONCAT('%', #{searchMessage}, '%')            
+          </if> 
+          <if test='searchProcessNm != null and searchProcessNm != ""'>
+             AND A.[PROCESSNAME] LIKE CONCAT('%', #{searchProcessNm}, '%')
+          </if> 
+          <if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+             AND A.[ROBOTNAME] LIKE CONCAT('%', #{searchRobotName}, '%')
+          </if> 
+          <if test='tokenRealTimeNow != "Y"'>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, DATEADD(HH, 9,  A.TIMESTAMP)) <![CDATA[>=]]> CONVERT(DATETIME, @START_DATE)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, DATEADD(HH, 9,  A.TIMESTAMP)) <![CDATA[<=]]> CONVERT(DATETIME, @END_DATE))
+             </if>
+          </if>              
+      </where>    
+
+	  ORDER BY A.ID DESC
+	  
+	  <if test='excelDownload != "Y"'> 
+           OFFSET #{paginationInfo.firstRecordIndex} ROWS
+           FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+      </if>
+               
+      OPTION(FAST 10000000)
+    </select>   
+</mapper>

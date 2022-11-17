@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="ExecutDscntcImgMapper">
+
+        <select id="getSelectRobotList" parameterType="java.util.Map" resultType="java.util.Map">
+        /* JobMapper.selectJobList */
+            SELECT  ROBOT_ID AS robotId
+              FROM TB_ROBOT
+        </select>
+
+        <select id="selectExecutDscntcImgList" parameterType="java.util.Map" resultType="kr.co.rpaplatform.dongwon.mntrng.vo.ExecutDscntcImgVO">
+        /* JobMapper.selectJobList */
+            SELECT  EXECUT_DSCNTC_IMAGE_SN AS executDscntcImageSn
+					, CMPNY_CD AS cmpnyCd
+					, EXECUT_DSCNTC_DT AS executDscntcDt
+					, PROCESS_CD AS processCd
+					, (SELECT PROCESS_NM
+					   FROM TB_PROCESS
+					   WHERE PROCESS_CD = #{processCd}
+					) AS processNm
+					, ROBOT_ID AS robotId
+					, FILE_COURS AS fileCours
+					, FILE_NM AS fileNm
+              FROM TB_EXECUT_DSCNTC_IMAGE
+             WHERE   1 = 1
+             <if test='startDt != null and startDt != ""'>
+               AND   EXECUT_DSCNTC_DT <![CDATA[>=]]> CONVERT(DATETIME, #{startDt} + ' 00:00:00')
+             </if>
+             <if test='lastDt != null and lastDt != ""'>
+               AND   EXECUT_DSCNTC_DT <![CDATA[<=]]> CONVERT(DATETIME, #{lastDt} + ' 23:59:59')
+             </if>
+             <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND   CMPNY_CD = #{cmpnyCd}
+             </if>
+             <if test='processCd != null and processCd != ""'>
+               AND   PROCESS_CD = #{processCd}
+             </if>
+             <if test='robotId != null and robotId != ""'>
+               AND   ROBOT_ID = #{robotId}
+             </if>
+          ORDER BY   EXECUT_DSCNTC_DT DESC
+                     OFFSET #{pageInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{pageInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectExecutDscntcImgCount" parameterType="kr.co.rpaplatform.dongwon.mntrng.vo.ExecutDscntcImgVO" resultType="int">
+        /* JobMapper.selectJobCount */
+            SELECT   COUNT(EXECUT_DSCNTC_IMAGE_SN) AS cnt
+              FROM   TB_EXECUT_DSCNTC_IMAGE
+             WHERE   1 = 1
+             <if test='startDt != null and startDt != ""'>
+               AND   EXECUT_DSCNTC_DT <![CDATA[>=]]> CONVERT(DATETIME, #{startDt} + ' 00:00:00')
+             </if>
+             <if test='lastDt != null and lastDt != ""'>
+               AND   EXECUT_DSCNTC_DT <![CDATA[<=]]> CONVERT(DATETIME, #{lastDt} + ' 23:59:59')
+             </if>
+             <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND   CMPNY_CD = #{cmpnyCd}
+             </if>
+             <if test='processCd != null and processCd != ""'>
+               AND   PROCESS_CD = #{processCd}
+             </if>
+             <if test='robotId != null and robotId != ""'>
+               AND   ROBOT_ID = #{robotId}
+             </if>
+        </select>
+        
+        <select id="getExecutDscntcImgDetail" parameterType="kr.co.rpaplatform.dongwon.mntrng.vo.ExecutDscntcImgVO" resultType="kr.co.rpaplatform.dongwon.mntrng.vo.ExecutDscntcImgVO">
+        /* JobMapper.selectJobDetail */
+            SELECT  EXECUT_DSCNTC_IMAGE_SN AS executDscntcImageSn
+                    , CMPNY_CD AS cmpnyCd
+                    , (
+                            SELECT CD_NM FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK)
+                            WHERE A_1.CLS_CD = '0024'
+                            AND A_1.CD = A.CMPNY_CD 
+                        ) AS cmpnyNm
+                    , CONVERT(CHAR(10), EXECUT_DSCNTC_DT, 23) AS executDscntcDt
+                    , PROCESS_CD AS processCd
+                    , (SELECT A_1.PROCESS_NM
+                       FROM TB_TASK_DEVLOP_PROCESS A_1
+                       WHERE
+                            A_1.PROCESS_CD = A.PROCESS_CD  
+                    ) AS processNm
+                    , ROBOT_ID AS robotId
+                    , ROBOT_Nm AS robotNm
+                    , FILE_COURS AS fileCours
+                    , FILE_NM AS fileNm
+              FROM   TB_EXECUT_DSCNTC_IMAGE A
+             WHERE   EXECUT_DSCNTC_IMAGE_SN = #{executDscntcImageSn}
+        </select>
+</mapper>

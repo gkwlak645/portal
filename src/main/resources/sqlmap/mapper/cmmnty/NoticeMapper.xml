@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="NoticeMapper">
+   <select id="selectTotalNoticeListCount" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO" resultType="int">
+        /*BbsAnswerMapper.selectTotalBoardCount*/
+        SELECT COUNT(BOARD_SJ)
+          FROM TB_BOARD
+         WHERE BOARD_NO = #{boardNo}
+           
+         <choose>
+            <when test='boardSj != null and boardCn == null'>
+           AND BOARD_SJ like '%'+#{boardSj}+'%'
+           AND   CONVERT(VARCHAR,REG_DT,112)  BETWEEN #{startDt} AND #{lastDt}
+            </when>
+            <when test='boardCn != null and boardSj == null'>
+           AND BOARD_CN like '%'+#{boardCn}+'%'
+           AND   CONVERT(VARCHAR,REG_DT,112)  BETWEEN #{startDt} AND #{lastDt}
+            </when>
+            <when test='boardCn != null and boardSj != null'>
+           AND BOARD_SJ like '%'+#{boardSj}+'%'
+           AND BOARD_CN like '%'+#{boardCn}+'%'
+           AND   CONVERT(VARCHAR,REG_DT,112)  BETWEEN #{startDt} AND #{lastDt}
+            </when>
+         </choose>
+
+    </select>
+    
+    <select id="selectNoticeList" statementType="CALLABLE" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsVO" resultType="map">
+        /*BbsAnswerMapper.selectBoardList*/
+        SELECT   BOARD_SN AS boardSn                              /*게시글번호*/
+               , BOARD_SJ AS boardSj                              /*게시글제목*/
+               , BOARD_CN AS boardCn                              /*게시글내용*/
+               , REGISTER_ID  AS registerId                       /*글쓴이*/
+               , CONVERT(VARCHAR,REG_DT,120) AS regDt             /*등록일*/
+               , FILE_GRP_NO  AS fileGrpNo                        /*파일그룹번호*/
+               , NUM_OF_HIT  AS numOfHit                          /*조회수*/
+          FROM   TB_BOARD
+         WHERE   BOARD_NO = #{boardNo}
+         <choose>
+            <when test='boardSj != null and boardCn == null'>
+           AND   BOARD_SJ like '%'+#{boardSj}+'%'
+           AND   CONVERT(VARCHAR,REG_DT,112)  BETWEEN #{startDt} AND #{lastDt}
+            </when>
+            <when test='boardCn != null and boardSj == null'>
+           AND   <![CDATA[dbo.fn_removeHtml(BOARD_CN, '0')]]> like '%'+#{boardCn}+'%'
+           AND   CONVERT(VARCHAR,REG_DT,112)  BETWEEN #{startDt} AND #{lastDt}
+            </when>
+            <when test='boardCn != null and boardSj != null'>
+           AND   <![CDATA[dbo.fn_removeHtml(BOARD_CN, '0')]]> like '%'+#{boardCn}+'%'
+           AND   BOARD_SJ like '%'+#{boardSj}+'%'
+            </when>
+         </choose>
+      ORDER BY   BOARD_SN DESC
+        OFFSET   #{pageInfo.firstRecordIndex} ROWS
+    FETCH NEXT   #{pageInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+</mapper>

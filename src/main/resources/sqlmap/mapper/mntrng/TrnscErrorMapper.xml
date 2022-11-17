@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TrnscErrorMapper">
+
+    <select id="getTrnscErrorCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TrnscErrorMapper.getTrnscErrorCount*/
+SELECT 
+    COUNT(A.ID)
+FROM [dbo].[TB_TRNSC_RPA_LOG] A WITH (NOLOCK)
+    LEFT OUTER JOIN TB_TRNSC_ERROR C WITH (NOLOCK) ON A.ID = C.SN
+    
+<where>
+    
+    <choose>
+            <when test='paramJobId != null and paramJobId != ""'>
+                AND A.JOB_ID = #{paramJobId}
+            </when>
+            <otherwise>
+                <choose>
+                    <when test='searhChkDe != null and searhChkDe == "occrrncDe"'>
+                        <!-- AND  (CONVERT(DATETIME, A.OCCRRNC_DE) BETWEEN  @start_date and @end_date) -->
+                       AND  A.TimeStamp <![CDATA[>=]]> DATEADD(HH, -9, CONVERT(DATETIME, #{searchStartDe}))
+                       AND  A.TimeStamp <![CDATA[<]]> DATEADD(HH, 15, CONVERT(DATETIME, #{searchEndDe}))
+                    </when>
+                    <when test='searhChkDe != null and searhChkDe == "managtDe"'>
+                       AND  C.MANAGT_DE BETWEEN #{searchStartDe} AND #{searchEndDe}
+                    </when>
+                </choose> 
+            </otherwise>
+      </choose>
+      <if test='searchLevel != null and searchLevel != ""'>
+                AND A.LEVEL = #{searchLevel}
+       </if>
+       <if test='searchLogSe != null and searchLogSe != ""'>
+                AND A.LOG_SE = #{searchLogSe}
+       </if>
+       
+       <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+                AND C.CMPNY_CD = #{searchCmpnyCd}
+       </if>
+       
+       <if test='searchProcessCd != null and searchProcessCd != ""'>
+                AND C.PROCESS_CD = #{searchProcessCd}
+       </if>
+       
+       <if test='searchOccrrncSeCd != null and searchOccrrncSeCd != ""'>
+                AND C.OCCRRNC_SE_CD = #{searchOccrrncSeCd}
+       </if>
+       
+       <if test='searchTyCd != null and searchTyCd != ""'>
+                AND C.TY_CD = #{searchTyCd}
+       </if>
+       
+       <if test='searchSttusCd != null and searchSttusCd != ""'>
+                AND C.STTUS_CD = #{searchSttusCd}
+       </if>
+       <if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+                AND A.[RobotName] = #{searchRobotName}
+            </if> 
+            
+            
+</where>
+    </select>
+
+    <select id="selectTrnscErrorList" parameterType="java.util.Map" resultType="camelMap">
+/*TrnscErrorMapper.selectTrnscErrorList*/
+SELECT 
+    A.ID
+    ,  CONVERT(CHAR(19), DATEADD(HH, 9, A.TimeStamp), 21) AS OCCRRNC_DT
+    , C.CMPNY_CD    
+    , (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = C.CMPNY_CD) AS CMPNY_NM
+    , A.RobotName AS ROBOT_NAME
+    , A.Level
+    , (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0013' AND CD = CONVERT(VARCHAR(1), A.Level)) AS Level_NM
+    , LOG_SE
+    , (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0048' AND CD = A.LOG_SE) AS LOG_SE_NM
+    , C.ERROR_UNITY_SN  /*오류_통합_일련_번호*/
+    , C.REPRSNT_AT      /*대표여부*/
+    , A.PROCESS_CD
+    , A.ProcessName 'PROCESS_NM'
+    , A.Message
+    , C.STTUS_CD        /*상태코드*/
+    , (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0031' AND CD = C.STTUS_CD) STTUS_NM     /*상태*/
+FROM [dbo].[TB_TRNSC_RPA_LOG] A WITH (NOLOCK)
+    LEFT OUTER JOIN TB_TRNSC_ERROR C WITH (NOLOCK) ON A.ID = C.SN
+<where>
+        <choose>
+            <when test='paramJobId != null and paramJobId != ""'>
+                AND A.JOB_ID = #{paramJobId}
+            </when>
+            <otherwise>
+                <choose>
+                    <when test='searhChkDe != null and searhChkDe == "occrrncDe"'>
+                        <!-- AND  (CONVERT(DATETIME, A.OCCRRNC_DE) BETWEEN  @start_date and @end_date) -->
+                       AND  A.TimeStamp <![CDATA[>=]]> DATEADD(HH, -9, CONVERT(DATETIME, #{searchStartDe}))
+                       AND  A.TimeStamp <![CDATA[<]]> DATEADD(HH, 15, CONVERT(DATETIME, #{searchEndDe}))
+                    </when>
+                    <when test='searhChkDe != null and searhChkDe == "managtDe"'>
+                       AND  C.MANAGT_DE BETWEEN #{searchStartDe} AND #{searchEndDe}
+                    </when>
+                </choose> 
+            </otherwise>
+      </choose>
+       
+       <if test='searchLevel != null and searchLevel != ""'>
+                AND A.LEVEL = #{searchLevel}
+       </if>
+       <if test='searchLogSe != null and searchLogSe != ""'>
+                AND A.LOG_SE = #{searchLogSe}
+       </if>
+       
+       <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+                AND C.CMPNY_CD = #{searchCmpnyCd}
+       </if>
+       
+       <if test='searchProcessCd != null and searchProcessCd != ""'>
+                AND C.PROCESS_CD = #{searchProcessCd}
+       </if>
+       
+       <if test='searchOccrrncSeCd != null and searchOccrrncSeCd != ""'>
+                AND C.OCCRRNC_SE_CD = #{searchOccrrncSeCd}
+       </if>
+       
+       <if test='searchTyCd != null and searchTyCd != ""'>
+                AND C.TY_CD = #{searchTyCd}
+       </if>
+       
+       <if test='searchSttusCd != null and searchSttusCd != ""'>
+                AND C.STTUS_CD = #{searchSttusCd}
+       </if>
+<if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+                AND A.[RobotName] = #{searchRobotName}
+            </if> 
+
+</where>
+    ORDER BY A.ID DESC
+       OFFSET #{paginationInfo.firstRecordIndex} ROWS
+       FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+
+
+    </select>
+    
+    
+
+    
+   <select id="getTrnscErrorDetail" parameterType="java.util.Map" resultType="camelMap">
+/*TrnscErrorMapper.getTrnscErrorDetail*/
+SELECT 
+    A.ID
+    , A.JOB_ID
+    , (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = B.CMPNY_CD) AS CMPNY_NM
+    ,  CONVERT(CHAR(23), DATEADD(HH, 9, TimeStamp), 21) AS OCCRRNC_DT
+    , B.PROCESS_CD  
+    , B.PROCESS_NM
+    , A.Message
+    , A.RawMessage as error_Cn
+
+    , REPRSNT_AT
+    , ERROR_UNITY_SN
+    , ERROR_UNITY_CNT
+    , OCCRRNC_SE_CD
+    , TY_CD
+    , ANALS_CN
+    , MANAGT_CN
+
+    , PROCESS_TM
+    , MANAGT_TY_CD
+    , SOURC_UPDT_ID
+    , C.DEVLOP_CHARGER_ID
+    , CASE WHEN  ISNULL(C.DEVLOP_CHARGER_ID, '') = '' THEN
+            ''
+        ELSE
+            (SELECT A_1.EMP_NM FROM TB_USER_DETAIL A_1 WITH(NOLOCK) WHERE A_1.EMP_NO = C.DEVLOP_CHARGER_ID)
+        END AS DEVLOP_CHARGER_NM
+    , MANAGT_CHARGER_ID
+    , CASE WHEN  ISNULL(C.MANAGT_CHARGER_ID, '') = '' THEN 
+            '' 
+      ELSE
+            (SELECT A_1.EMP_NM FROM TB_USER_DETAIL A_1 WITH(NOLOCK) WHERE A_1.EMP_NO = C.MANAGT_CHARGER_ID)
+      END AS MANAGT_CHARGER_NM
+    , MANAGT_DE
+    , MANAGT_HM
+    , C.STTUS_CD        /*상태코드*/
+
+    , A.LOG_SE
+    , A.Level
+    , A.ROBOT_ID
+    , (SELECT TOP 1 A_1.Name FROM [SY_ROBOTS] A_1 WITH (NOLOCK) WHERE  A_1.ID = A.ROBOT_ID) AS  robot_Nm
+FROM [dbo].[TB_TRNSC_RPA_LOG] A WITH (NOLOCK)
+    INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS] B WITH (NOLOCK) ON A.PROCESS_CD = B.PROCESS_CD
+    INNER JOIN TB_TRNSC_ERROR C WITH (NOLOCK) ON A.ID = C.SN
+WHERE
+    C.SN = #{id}
+    AND PROCESS_STTUS = 'O1'
+    </select>
+    
+    <insert id="createTrnscError" parameterType="java.util.Map">
+        INSERT INTO TB_JOB_ERROR
+            (
+                JOB_ERROR_SN
+              , CMPNY_CD
+              , OCCRRNC_SE_CD
+              , TY_CD
+              , OCCRRNC_DE
+              , OCCRRNC_HM
+              , PROCESS_SN
+              , ERROR_CN
+              , MANAGT_DE
+              , MANAGT_HM
+              , PROCESS_TM
+              , SE_DE
+              , MANAGT_CN
+              , MANAGT_TY_CD
+              , SOURC_UPDT_ID
+              , DEVLOP_CHARGER_ID
+              , MANAGT_CHARGER_ID
+              , OCCRRNC_ROBOT_ID
+              , MANAGT_STTUS_CD
+              , REGISTER_ID
+              , REG_DT
+            )
+        VALUES
+            (
+              #{jboErrorSn}
+            , #{cmpnyCd} 
+            , #{occrrncSeCd}
+            , #{tyCd}
+            , #{occrrncDe}
+            , #{occrrncHm}
+            , #{processCd}
+            , #{errorCn}
+            , #{managtDe}
+            , #{managtHm}
+            , #{processTm}
+            , #{seDe}
+            , #{managtCn}
+            , #{managtTyCd}
+            , #{sourcUpdtId}
+            , #{devlopChargerId}
+            , #{managtChargerId}
+            , #{occrrncRobotId}
+            , #{managtSttusCd}
+            , #{registerId}
+            , GETDATE()
+            )
+    </insert>
+    
+    <select id="getCreateIdx" resultType="String">
+    SELECT dbo.fn_creatIdx()
+    </select>
+    
+    <update id="updateTrnscError" parameterType="java.util.Map">
+UPDATE TB_TRNSC_ERROR 
+SET
+    UPDUSR_ID = #{txUserId} 
+    , UPDT_DT = GETDATE()
+    , OCCRRNC_SE_CD     = #{occrrncSeCd}
+    , TY_CD             = #{tyCd}
+    , ANALS_CN          = #{analsCn}
+    , MANAGT_CN         = #{managtCn}
+<choose>
+    <when test='processTm != null and processTm != ""'>
+    , PROCESS_TM        = #{processTm}
+    </when>
+    <otherwise>
+    , PROCESS_TM        = null
+    </otherwise>
+</choose>
+    , MANAGT_DE         = #{managtDe}
+    , MANAGT_HM         = #{managtHm}
+    , MANAGT_TY_CD      = #{managtTyCd}
+    , SOURC_UPDT_ID     = #{sourcUpdtId}
+<choose>
+    <when test='devlopChargerId != null and devlopChargerId != ""'>
+    , DEVLOP_CHARGER_ID = #{devlopChargerId}
+    </when>
+    <otherwise>
+    , DEVLOP_CHARGER_ID = null
+    </otherwise>
+</choose>
+<choose>
+    <when test='managtChargerId != null and managtChargerId != ""'>
+    , MANAGT_CHARGER_ID = #{managtChargerId}
+    </when>
+    <otherwise>
+    , MANAGT_CHARGER_ID = null
+    </otherwise>
+</choose>
+    , STTUS_CD          = #{sttusCd}
+<where>
+    AND SN = #{where.sn}
+</where>
+    </update>
+    
+    
+    <delete id="delateTrnscError" parameterType="java.util.Map">
+        DELETE FROM
+            TB_TRNSC_ERROR
+        <where>
+            AND TRNSC_ERROR_SN = #{trnscErrorSn}
+        </where>
+    </delete>
+    
+    
+    
+    <select id="getOverlapTrnscErrorCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TrnscErrorMapper.getTrnscErrorCount*/
+SELECT 
+    COUNT(A.ID)
+FROM [dbo].[TB_TRNSC_RPA_LOG] A WITH (NOLOCK)
+WHERE
+    A.JOB_ID = #{jobId}
+    AND A.MESSAGE LIKE CONCAT(#{message}, '%') 
+    AND A.ID != #{id}   
+    </select>
+
+    <select id="selectOverlapTrnscErrorList" parameterType="java.util.Map" resultType="camelMap">
+/*TrnscErrorMapper.selectOverlapTrnscErrorList*/
+SELECT 
+    A.ID
+    , CONVERT(CHAR(19), DATEADD(HH, 9, A.TimeStamp), 21) AS OCCRRNC_DT
+    , B.ERROR_UNITY_SN
+    , A.MESSAGE 
+FROM [dbo].[TB_TRNSC_RPA_LOG] A WITH (NOLOCK)
+    INNER JOIN TB_TRNSC_ERROR B WITH (NOLOCK) ON A.ID = B.SN 
+WHERE
+    A.JOB_ID = #{jobId}
+    AND A.MESSAGE LIKE CONCAT(#{message}, '%') 
+    AND A.ID != #{id}
+    AND (ERROR_UNITY_SN = #{id} OR ERROR_UNITY_SN IS NULL) 
+    </select>
+
+
+    <update id="setOverlapTrnscErrorUnity" parameterType="java.util.Map">
+UPDATE  [dbo].[TB_TRNSC_ERROR]
+SET 
+    ERROR_UNITY_SN = #{errorUnitySn}
+WHERE
+    SN = #{sn}  
+    </update>
+    
+    <update id="setOverlapTrnscErrorNotUnity" parameterType="java.util.Map">
+UPDATE  [dbo].[TB_TRNSC_ERROR]
+SET 
+    ERROR_UNITY_SN = null
+WHERE
+    SN = #{sn}  
+    </update>
+    
+    <select id="getTbTrnscError2ErrorUnityCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*TrnscErrorMapper.getTbTrnscError2ErrorUnityCount*/
+SELECT COUNT(A.SN) FROM [dbo].[TB_TRNSC_ERROR] A
+WHERE A.ERROR_UNITY_SN = #{errorUnitySn}
+    </select>
+    
+    <update id="setTbTrnscError2ReprsntAt" parameterType="java.util.Map">
+/*TrnscErrorMapper.setTbTrnscError2ReprsntAt*/
+UPDATE 
+[dbo].[TB_TRNSC_ERROR]
+SET 
+    REPRSNT_AT = #{reprsntAt}
+    , ERROR_UNITY_CNT = #{errorUnityCnt}
+WHERE SN = #{errorUnitySn}
+    </update>
+    
+    
+    
+    
+    <!-- 현재 로봇과 로봇 현황 List -->
+    <select id="selectBotListTrnscError" parameterType="java.util.Map" resultType="camelMap">
+        /*TrnscErrorMapper.selectBotListTrnscError*/
+        SELECT
+              (SELECT b.CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] b WHERE b.[TENANT_ID] = A.[TENANTID]) 'CMPNY_CD'
+              , B.[NAME]
+              , A.[STATE]
+              , A.[ROBOTID] 'ROBOT_ID'
+              , CASE 
+                    WHEN A.[STATE] = 0  AND A.[ISUNRESPONSIVE] = 0 THEN 0 -- Available
+                    WHEN A.[STATE] = 1  AND A.[ISUNRESPONSIVE] = 0 THEN 1 -- Busy
+                    WHEN A.[STATE] = 2  AND A.[ISUNRESPONSIVE] = 0 THEN 2 -- Disconnected
+                    WHEN A.[STATE] != 2 AND A.[ISUNRESPONSIVE] = 1 THEN 3 -- Unresponsive
+                END 'ROBOT_STATE'
+        FROM [RPA_POTAL]. [DBO].[SY_SESSIONS] A
+        INNER JOIN [RPA_POTAL].[DBO].[SY_ROBOTS] B
+        ON A.ROBOTID = B.ID
+
+        <where>
+          A.ISDELETED = 0 AND B.ISDELETED = 0
+          <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{searchCmpnyCd})
+          </if>                    
+        </where>
+        
+        ORDER BY CMPNY_CD, NAME
+    </select>
+    
+    
+    
+    
+    
+</mapper>

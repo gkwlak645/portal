@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TaskPaymentMapper">
+
+
+    <select id="chkOverlapMkey" parameterType="java.util.Map" resultType="java.lang.Integer">
+		/*TaskPaymentMapper.chkOverlapMkey*/
+		SELECT COUNT(mkey) FROM TB_TASK_DEVLOP_PROCESS_PAYMENT
+		WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}  AND MKEY = #{mKey}
+    </select>
+
+
+    <insert id="insertTaskPayment" parameterType="java.util.Map">
+		/*TaskPaymentMapper.insertTaskPayment*/
+		INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_PAYMENT]
+	           (
+	            [DEVLOP_SN]
+	           ,[PROCESS_NO]
+	           ,[MKEY]
+	           ,[REGISTER_ID]
+	           ,[REG_DT]
+	           )
+	     VALUES
+	           (
+	            #{devlopSn}
+	           ,#{processNo}
+	           ,#{mKey}
+	           ,#{txUserId}
+	           ,GETDATE()
+	           )
+    </insert>
+    
+    
+    
+    <update id="updateTaskPayment"  parameterType="java.util.Map"> 
+		/*TaskPaymentMapper.updateTaskPayment*/
+		UPDATE [dbo].[TB_TASK_DEVLOP_PROCESS_PAYMENT]
+		SET  [UPDUSR_ID]            = #{txUserId}
+		    ,[UPDT_DT]              = GETDATE()
+		WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo}  AND MKEY = #{mKey}
+    </update>
+    
+    
+    
+    <select id="getTaskOverlapMkeyHistNo" parameterType="java.util.Map" resultType="java.lang.Integer">
+		/*TaskPaymentMapper.getTaskOverlapMkeyHistNo*/
+		SELECT
+		    ISNULL(MAX(MKEY_HIST_NO)+1, 1) AS MKEY_HIST_NO
+		FROM
+		    TB_TASK_DEVLOP_PROCESS_PAYMENT_HIST		    
+		WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo} AND MKEY = #{mKey}
+    </select>
+    
+    
+     <insert id="insertTaskPaymentHist" parameterType="java.util.Map">
+        /*TaskPaymentMapper.insertTaskPaymentHist*/
+        INSERT INTO [dbo].[TB_TASK_DEVLOP_PROCESS_PAYMENT_HIST]
+           (
+            [DEVLOP_SN]
+           ,[PROCESS_NO]
+           ,[MKEY]
+           ,[MKEY_HIST_NO]
+           ,[TITLE]
+           ,[BODIES]
+           ,[USERID]
+           ,[FORMNAME]
+           ,[FORMPREFIX]
+           ,[BODYTYPE]
+           ,[REGISTER_ID]
+           ,[REG_DT]
+           )
+     VALUES
+           (
+             #{devlopSn}
+           , #{processNo}
+           , #{mKey}
+           , #{mkeyHistNo}
+           , #{sj}
+           , #{bodies}
+           , #{userid}
+           , #{formName}
+           , #{formPrefix}
+           , 'html'
+           , #{txUserId}
+           , GETDATE()
+           )
+    </insert>
+    
+    <delete id="deleteTaskPaymentHist" parameterType="java.util.Map">
+    /*TaskDevelopMapper.deleteTaskPaymentHist*/
+    DELETE FROM TB_TASK_DEVLOP_PROCESS_PAYMENT_HIST
+    WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo} AND MKEY = #{mKey}
+        AND MKEY_HIST_NO = (
+            SELECT MAX(MKEY_HIST_NO) AS MKEY_HIST_NO
+        FROM
+            TB_TASK_DEVLOP_PROCESS_PAYMENT_HIST
+        WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo} AND MKEY = #{mKey}
+    )
+    </delete>
+    
+    
+   <delete id="deleteTaskPayment" parameterType="java.util.Map">
+    /*TaskDevelopMapper.deleteTaskPayment*/
+    DELETE FROM TB_TASK_DEVLOP_PROCESS_PAYMENT
+    WHERE DEVLOP_SN = #{devlopSn} AND PROCESS_NO = #{processNo} AND MKEY = #{mKey}
+    </delete>
+
+</mapper>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="LogMapper">
+
+
+        <select id="selectLogList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* LogMapper.selectLogList */
+            SELECT   CONVERT(CHAR(19), A.TimeStamp, 20) AS TimeStamp
+                   , B.CD_NM AS LevelName
+                   , A.ProcessName
+                   , C.Name AS DeviceName
+                   , A.WindowsIdentity
+                   , A.Message
+              FROM   SY_LOGS A
+              JOIN   TB_CMMN_CD B
+                ON   (
+                             A.Level = B.CD
+                         AND B.CLS_CD = '0013'
+                         AND B.USE_AT = 'Y'
+                     )
+              JOIN   SY_MACHINES C
+                ON   A.MachineId = C.Id
+             WHERE   1 = 1
+             <if test='startDe != null and startDe != ""'>
+               AND   A.TimeStamp <![CDATA[>=]]> CONVERT(DATETIME, #{startDe} + ' 00:00:00')
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   A.TimeStamp <![CDATA[<=]]> CONVERT(DATETIME, #{endDe} + ' 23:59:59')
+             </if>
+             <if test='deviceName != null and deviceName != ""'>
+               AND   C.Name LIKE '%' + #{deviceName} + '%'
+             </if>
+             <if test='processName != null and processName != ""'>
+               AND   A.ProcessName LIKE '%' + #{processName} + '%'
+             </if>
+             <if test='windowsIdentity != null and windowsIdentity != ""'>
+               AND   A.WindowsIdentity LIKE '%' + #{windowsIdentity} + '%'
+             </if>
+          ORDER BY   A.TimeStamp DESC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectLogCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* LogMapper.selectLogCount */
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_LOGS A
+              JOIN   TB_CMMN_CD B
+                ON   (
+                             A.Level = B.CD
+                         AND B.CLS_CD = '0013'
+                         AND B.USE_AT = 'Y'
+                     )
+              JOIN   SY_MACHINES C
+                ON   A.MachineId = C.Id
+             WHERE   1 = 1
+             <if test='startDe != null and startDe != ""'>
+               AND   A.TimeStamp <![CDATA[>=]]> CONVERT(DATETIME, #{startDe} + ' 00:00:00')
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   A.TimeStamp <![CDATA[<=]]> CONVERT(DATETIME, #{endDe} + ' 23:59:59')
+             </if>
+             <if test='deviceName != null and deviceName != ""'>
+               AND   C.Name LIKE '%' + #{deviceName} + '%'
+             </if>
+             <if test='processName != null and processName != ""'>
+               AND   A.ProcessName LIKE '%' + #{processName} + '%'
+             </if>
+             <if test='windowsIdentity != null and windowsIdentity != ""'>
+               AND   A.WindowsIdentity LIKE '%' + #{windowsIdentity} + '%'
+             </if>
+        </select>
+
+
+</mapper>

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="CmmnCdMapper">
+
+        <select id="selectCmmnCdListByClsCd" parameterType="java.lang.String" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.selectCmmnCdListByClsCd */
+            SELECT   CD
+                   , CD_NM
+              FROM   TB_CMMN_CD
+             WHERE   CLS_CD = #{clsCd}
+               AND   USE_AT = 'Y'
+        </select>
+          
+        <select id="selectCmmnClsCdList" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.selectCmmnClsCdList */
+            SELECT   CLS_CD
+                   , CLS_CD_NM
+                   , USE_AT
+                   , CLS_CD_DC
+              FROM   TB_CMMN_CLS_CD
+              WHERE 1 = 1
+		      <if test='clsCd != null and clsCd != ""'>
+		             AND   CLS_CD = #{clsCd}
+		      </if>
+		      <if test='clsCdNm != null and clsCdNm != ""'>
+                     AND   CLS_CD_NM LIKE '%' + #{clsCdNm} + '%'
+              </if>
+        </select>                
+
+        <select id="selectCmmnCdList" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.selectCmmnCdList */
+            SELECT   CD
+                   , CD_NM
+                   , USE_AT
+                   , CD_DC
+              FROM   TB_CMMN_CD
+              WHERE  CLS_CD = #{clsCd}
+              <if test='cd != null and cd != ""'>
+                     AND   CD = #{cd}
+              </if>
+              <if test='cdNm != null and cdNm != ""'>
+                     AND CD_NM LIKE '%' + #{cdNm} + '%'
+              </if>
+              ORDER BY CD ASC
+        </select>   
+      
+      <!-- 공통 코드 조회 시  1을 text로 인식, text인식 시 앞에 문자로 비교 그러다 보니 01, 02, 1, 10, 100, 2.... 이런 식으로 비교됨! 그에대한 대비! but 이건 숫자형으로 교환해주어 01을 1로 인식한다.
+        <select id="selectCmmnCdList" resultType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CodeMapper.selectCmmnCdList */
+          SELECT   COnvert(int, CD) as CD
+                   , CD_NM
+                   , USE_AT
+                   , CD_DC
+              FROM   TB_CMMN_CD
+              where     CLS_CD = #{clsCd}
+              ORDER BY CD ASC
+        </select>  -->
+        
+         
+        <select id="selectCountCmmnCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO" resultType="int">
+        /* CmmnCdMapper.selectCountCmmnCd */
+            SELECT COUNT(CD)
+              FROM TB_CMMN_CD
+             WHERE CD=#{cd} 
+               AND CLS_CD=#{clsCd}
+        </select>
+        
+        <select id="selectCountCmmnClsCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO" resultType="int">
+        /* CmmnCdMapper.selectCountCmmnClsCd */
+            SELECT COUNT(CLS_CD)
+            FROM   TB_CMMN_CLS_CD
+            WHERE  CLS_CD=#{clsCd}
+        </select>
+        
+        
+        <select id="getCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO" resultType="string">
+        /* CmmnCdMapper."getCd" */
+            SELECT CONVERT(VARCHAR(4),FORMAT(ISNULL(MAX(CAST(CD AS INT))+1, 1),'0000')) AS CD       
+			FROM   TB_CMMN_CD
+			WHERE   CLS_CD=#{clsCd}
+			AND   USE_AT = 'Y'
+        </select>
+        
+        
+        <insert id="insertCmmnCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.insertCmmnCd */
+            INSERT INTO  TB_CMMN_CD
+                      (
+		                 CLS_CD
+		                ,CD
+		                ,CD_NM
+		                ,CD_DC
+		                ,USE_AT 
+		                ,REGISTER_ID
+		                ,REG_DT
+		                ,UPDUSR_ID
+		                ,UPDT_DT
+                      )
+                 VALUES
+                      (
+		                 #{clsCd}
+		                ,#{cd}
+		                ,#{cdNm}
+		                ,#{cdDc}
+		                ,#{useAt}
+		                ,#{txUserId}
+		                ,GETDATE()
+		                ,#{txUserId}
+		                ,GETDATE()
+                      );
+        </insert>
+        
+        
+        <update id="updateCmmnCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.updateCmmnCd */
+            UPDATE TB_CMMN_CD
+               SET  CD_NM = #{cdNm}
+	               ,CD_DC = #{cdDc}
+	               ,USE_AT = #{useAt}
+	               ,UPDUSR_ID = #{txUserId}
+	               ,UPDT_DT = GETDATE()
+             WHERE  CD=#{cd}
+               AND  CLS_CD=#{clsCd}
+        </update>
+        
+        <delete id="deleteCmmnCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.deleteCmmnCd */
+            DELETE FROM 
+                   TB_CMMN_CD
+             WHERE CLS_CD = #{clsCd}
+               AND CD = #{cd}            
+        </delete>
+        
+        
+        <insert id="insertCmmnClsCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.insertCmmnClsCd */
+        INSERT INTO   TB_CMMN_CLS_CD
+                  (
+			           CLS_CD
+			          ,CLS_CD_NM
+			          ,CLS_CD_DC
+			          ,USE_AT
+			          ,REGISTER_ID
+			          ,REG_DT
+			          ,UPDUSR_ID
+			          ,UPDT_DT
+		          )
+             VALUES
+	              (
+				       #{clsCd}
+				      ,#{clsCdNm}
+				      ,#{clsCdDc}
+				      ,#{useAt}
+				      ,#{txUserId}
+				      ,GETDATE()
+				      ,#{txUserId}
+				      ,GETDATE()
+	              );
+        </insert>
+        
+        
+        <update id="updateCmmnClsCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.updateCmmnClsCd */
+        UPDATE   TB_CMMN_CLS_CD
+           SET   CLS_CD_NM = #{clsCdNm}
+                ,CLS_CD_DC = #{clsCdDc}
+                ,USE_AT = #{useAt}
+                ,UPDUSR_ID = #{txUserId}
+                ,UPDT_DT = GETDATE()
+         WHERE   CLS_CD=#{clsCd}
+        </update>
+        
+        <delete id="deleteCmmnClsCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.deleteCmmnClsCd */
+            DELETE FROM 
+                   TB_CMMN_CLS_CD
+             WHERE CLS_CD = #{clsCd}
+        </delete>
+        
+        <delete id="deleteSecCmmnCd" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.deleteSecCmmnCd */
+            DELETE FROM 
+                   TB_CMMN_CD
+             WHERE CLS_CD = #{clsCd}
+        </delete>
+        
+        <update id="updateCdUseAt" parameterType="kr.co.rpaplatform.dongwon.stdrinfo.vo.CmmnCdVO">
+        /* CmmnCdMapper.updateCdUseAt */
+            UPDATE   TB_CMMN_CD
+               SET   USE_AT = 'N'
+                    ,UPDUSR_ID = #{txUserId}
+                    ,UPDT_DT = GETDATE()
+              WHERE  CLS_CD = #{clsCd}
+        </update>
+</mapper>

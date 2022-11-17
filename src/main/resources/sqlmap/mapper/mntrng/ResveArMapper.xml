@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="ResveArMapper">
+
+        <select id="selectResveArList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* ResveArMapper.selectResveArList */
+        
+        DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+        SET @start_date = #{startDe}; 
+        SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+        SET @end_date = #{endDe}; 
+        SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+        SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+        
+            SELECT   A.RESV_NO AS resvNo
+            		,A.CMPNY_CD AS cmpnyCd
+            		,(SELECT CD_NM FROM TB_CMMN_CD WHERE CD = #{cmpnyCd} AND CLS_CD = '0024') AS cmpnyNm
+					,A.PROCESS_CD AS processCd
+					,(SELECT B.PROCESS_NM 
+						FROM TB_TASK_DEVLOP_PROCESS B
+						WHERE B.PROCESS_STTUS = 'O1' AND B.PROCESS_CD = A.PROCESS_CD) AS processNm
+					,CONVERT(varchar, A.DATE_YMSHM, 120) AS dateYmshm
+					,A.SEND_YN AS sendYn
+              FROM   TB_TEMP_RESRVE_BOT A
+             WHERE   1 = 1
+             AND	A.CMPNY_CD = #{cmpnyCd}
+             AND	A.DELETE_AT = 0
+             AND 	A.REG_GBN = 'B'
+             <if test='sendYn != null and sendYn != ""'>
+               AND  A.SEND_YN = #{sendYn}
+             </if>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, A.DATE_YMSHM) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, A.DATE_YMSHM) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+             </if>
+          ORDER BY   A.DATE_YMSHM DESC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectResveArCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* ResveArMapper.selectResveArCount */
+        
+        DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+        SET @start_date = #{startDe}; 
+        SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+        SET @end_date = #{endDe}; 
+        SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59');
+        SET @NOW_DATE = DATEADD(Hour, -9, GETDATE()); 
+        
+            SELECT   COUNT(A.CMPNY_CD) as cnt
+              FROM   TB_TEMP_RESRVE_BOT A
+             WHERE   1 = 1
+             AND	A.CMPNY_CD = #{cmpnyCd}
+             AND	A.DELETE_AT = 0
+             AND 	A.REG_GBN = 'B'
+             <if test='sendYn != null and sendYn != ""'>
+               AND  A.SEND_YN = #{sendYn}
+             </if>
+             <if test='startDe != null and startDe != ""'>
+               AND  (CONVERT(DATETIME, A.DATE_YMSHM) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   CONVERT(DATETIME, A.DATE_YMSHM) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+             </if>
+        </select>
+        
+        <select id="selectResveArSttus" parameterType="java.util.Map" resultType="java.lang.String">
+        /* ResveArMapper.selectResveArSttus */
+            SELECT SEND_YN
+			FROM TB_TEMP_RESRVE_BOT
+			WHERE RESV_NO = #{resvNo}
+        </select>
+        
+        <update id="delResveAr" parameterType="java.util.Map">
+        /* ResveArMapper.delResveAr */
+           UPDATE TB_TEMP_RESRVE_BOT
+			SET DELETE_AT = '1' , UPDUSR_ID = #{txUserId}, UPDT_DT = GETDATE()
+			WHERE
+			    RESV_NO = #{resvNo}
+        </update>
+
+</mapper>

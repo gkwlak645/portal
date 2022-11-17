@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TaskIdeaMapper">
+    <select id="selectTaskIdeaListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* TaskIdeaMapper.selectTaskIdeaListCount */
+            SELECT   COUNT(A.IDEA_SN) AS cnt
+              FROM   TB_TASK_IDEA A
+              INNER JOIN TB_USER_DETAIL B ON (A.REGISTER_ID = B.EMP_NO)
+		<where>
+		    <if test='startDe != null and startDe != "" and endDe != null and endDe != ""'>
+		       AND    A.REG_DT >= CONVERT(DATETIME, #{startDe}) AND A.REG_DT <![CDATA[<]]> DATEADD(DD, 1, convert(DATETIME, #{endDe}))
+		    </if>
+		    <if test='prgrSttus != null and prgrSttus != ""'>
+		       AND    A.PRGR_STTUS = #{prgrSttus}  
+		    </if>
+		    <if test='cmpnyCd != null and cmpnyCd != ""'>
+		       AND    A.CMPNY_CD = #{cmpnyCd}  
+		    </if>
+		    <if test='registerNm != null and registerNm != ""'>
+		       AND    B.EMP_NM LIKE CONCAT('%', #{registerNm}, '%')  
+		    </if>
+		    <if test='sj != null and sj != ""'>
+		       AND    A.IDEA_SJ LIKE CONCAT('%', #{sj}, '%')  
+		    </if>
+		    <if test='searchReviewTrgetAt != null and searchReviewTrgetAt != ""'>
+               AND    A.REVIEW_TRGET_AT = #{searchReviewTrgetAt}  
+            </if>
+            <if test='searchJobClsCd != null and searchJobClsCd != ""'>
+               AND    A.JOB_CLS_CD = #{searchJobClsCd}  
+            </if>
+            <if test='searchRpaClsCd != null and searchRpaClsCd != ""'>
+               AND    A.RPA_CLS_CD = #{searchRpaClsCd}  
+            </if>
+		</where>             
+    </select>
+        
+    <select id="selectTaskIdeaList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskIdeaMapper.selectTaskIdeaList */
+            SELECT   
+                A.IDEA_SN
+                ,   IDEA_SJ
+                ,   CMPNY_NM
+                ,   DEPT_NM
+                ,   B.EMP_NM as REGISTER__NM
+                ,   CONVERT(VARCHAR(10), A.REG_DT, 121) AS REG_DT
+                ,   (SELECT A_1.CD_NM FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK) WHERE A_1.CLS_CD = '0039' AND A_1.CD =  A.PRGR_STTUS) as PRGR_STTUS_NM
+                ,   (SELECT A_1.CD_NM FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK) WHERE A_1.CLS_CD = '0021' AND A_1.CD =  A.REVIEW_TRGET_AT) as REVIEW_TRGET_NM
+                
+              FROM   TB_TASK_IDEA A
+              INNER JOIN TB_USER_DETAIL B ON (A.REGISTER_ID = B.EMP_NO)
+        <where>
+            <if test='startDe != null and startDe != "" and endDe != null and endDe != ""'>
+               AND    A.REG_DT >= CONVERT(DATETIME, #{startDe}) AND A.REG_DT <![CDATA[<]]> DATEADD(DD, 1, convert(DATETIME, #{endDe}))  
+            </if>
+            <if test='prgrSttus != null and prgrSttus != ""'>
+               AND    A.PRGR_STTUS = #{prgrSttus}  
+            </if>
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND    A.CMPNY_CD = #{cmpnyCd}  
+            </if>
+            <if test='registerNm != null and registerNm != ""'>
+               AND    B.EMP_NM LIKE CONCAT('%', #{registerNm}, '%')  
+            </if>
+            <if test='sj != null and sj != ""'>
+               AND    A.IDEA_SJ LIKE CONCAT('%', #{sj}, '%')  
+            </if>
+            <if test='searchReviewTrgetAt != null and searchReviewTrgetAt != ""'>
+               AND    A.REVIEW_TRGET_AT = #{searchReviewTrgetAt}  
+            </if>
+            <if test='searchJobClsCd != null and searchJobClsCd != ""'>
+               AND    A.JOB_CLS_CD = #{searchJobClsCd}  
+            </if>
+            <if test='searchRpaClsCd != null and searchRpaClsCd != ""'>
+               AND    A.RPA_CLS_CD = #{searchRpaClsCd}  
+            </if>
+        </where>     
+          ORDER BY   A.IDEA_SN DESC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+    </select>
+        
+    <insert id="insertTaskIdea" parameterType="HashMap">
+            /* TaskIdeaMapper.insertTaskIdea */
+            INSERT INTO [dbo].[TB_TASK_IDEA]
+           (
+           [IDEA_SJ]
+           ,[JOB_DC]
+           ,[JOB_CLS_CD]
+           ,[RPA_CLS_CD]
+           ,[CMPNY_CD]
+           
+           ,[CMPNY_NM]
+           ,[DEPT_CD]
+           ,[DEPT_NM]
+           ,[IDEA_USER_ID]
+<if test="jobTm != null and jobTm != ''">
+           ,[JOB_TM]
+</if>     
+      
+           ,[FQ_CD]
+<if test="executCnt != null and executCnt != ''">           
+           ,[EXECUT_CNT]
+</if>     
+           ,[DEVLOP_RESN]
+           ,[EXPC_EFFECT]
+           ,[FILE_GRP_NO]
+           
+<!--            ,[RELATE_DOC] -->
+           ,[REVIEW_TRGET_AT]
+           ,[PRGR_STTUS]
+           ,[REGISTER_ID]
+           ,[REG_DT]
+           )
+     VALUES
+           (
+           #{ideaSj}
+           ,#{jobDc}
+           ,#{jobClsCd}
+           ,#{rpaClsCd}
+           ,#{cmpnyCd}
+           
+           ,#{cmpnyNm}
+           ,#{deptCd}
+           ,#{deptNm}
+           ,#{ideaUserId}
+<if test="jobTm != null and jobTm != ''">
+           ,#{jobTm}
+</if>     
+      
+           ,#{fqCd}
+<if test="executCnt != null and executCnt != ''">           
+           ,#{executCnt}
+</if>     
+           ,#{devlopResn}
+           ,#{expcEffect}
+           ,#{fileGrpNo}
+           
+<!--            ,#{relateDoc} -->
+           ,'N'
+           ,'01'
+           ,#{registerId}
+           ,GETDATE()
+           )
+    </insert>
+
+    
+    <select id="getTaskIdeaDetail" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskIdeaMapper.getTaskIdeaDetail */
+            SELECT   
+                A.IDEA_SN
+                ,   A.PRGR_STTUS
+                ,   (SELECT A_1.CD_NM FROM [dbo].[TB_CMMN_CD] A_1 WITH(NOLOCK) WHERE A_1.CLS_CD = '0039' AND A_1.CD =  A.PRGR_STTUS) as PRGR_STTUS_NM
+                ,   A.IDEA_SJ
+                ,[JOB_DC]
+	            ,[JOB_CLS_CD]
+                ,[RPA_CLS_CD]
+                ,[CMPNY_CD]
+	           
+                ,[CMPNY_NM]
+                ,[DEPT_CD]
+                ,[DEPT_NM]
+                ,[IDEA_USER_ID]
+                ,   (SELECT EMP_NM FROM TB_USER_DETAIL A_1 WITH(NOLOCK)  WHERE A_1.EMP_NO = A.IDEA_USER_ID ) AS IDEA_USER_NM
+                ,   (SELECT EMAIL_ADR FROM TB_USER_DETAIL A_1 WITH(NOLOCK)  WHERE A_1.EMP_NO = A.IDEA_USER_ID ) AS EMAIL_ADR
+                ,[JOB_TM]
+                ,[FQ_CD]
+           
+                ,[EXECUT_CNT]
+     
+                ,[DEVLOP_RESN]
+                ,[EXPC_EFFECT]
+                ,[FILE_GRP_NO]
+           
+<!--                 ,[RELATE_DOC] -->
+                ,[REVIEW_OPIN]
+                ,[REVIEW_TRGET_AT]
+                ,[REGISTER_ID]
+              FROM   TB_TASK_IDEA A
+            WHERE A.IDEA_SN = #{ideaSn}  
+    </select>
+    
+    <update id="setTaskIdeaReviewComplete" parameterType="java.util.Map">
+        /* TaskIdeaMapper.setTaskIdeaReviewComplete */
+            UPDATE TB_TASK_IDEA
+            SET
+                PRGR_STTUS = '03'
+                ,[REVIEW_TRGET_AT] = #{reviewTrgetAt}
+                ,[REVIEW_OPIN] = #{reviewOpin}
+                , [UPDUSR_ID] = #{updusrId} 
+                , [UPDT_DT] = GETDATE()
+            WHERE IDEA_SN = #{ideaSn}
+    </update>
+    
+    <update id="setTaskIdeaCancel" parameterType="java.util.Map">
+        /* TaskIdeaMapper.setTaskIdeaCancel */
+            UPDATE TB_TASK_IDEA
+            SET
+                PRGR_STTUS = '02'
+                , [UPDUSR_ID] = #{updusrId} 
+                , [UPDT_DT] = GETDATE()
+            WHERE IDEA_SN = #{ideaSn}
+    </update>
+    
+    <update id="setTaskIdeaDetail" parameterType="java.util.Map">
+        /* TaskIdeaMapper.setTaskIdeaDetail */
+   UPDATE TB_TASK_IDEA
+   SET [IDEA_SJ] = #{ideaSj}
+      ,[JOB_DC] = #{jobDc}
+      ,[JOB_CLS_CD] = #{jobClsCd}
+      ,[RPA_CLS_CD] = #{rpaClsCd}
+<choose>
+    <when test="jobTm != null and jobTm != ''">
+        ,[JOB_TM] = #{jobTm}
+    </when>
+    <otherwise>
+        ,[JOB_TM] = NULL
+    </otherwise>
+</choose>
+
+      ,[FQ_CD] = #{fqCd}
+<choose>
+    <when test="executCnt != null and executCnt != ''">
+        ,[EXECUT_CNT] = #{executCnt}
+    </when>
+    <otherwise>
+        ,[EXECUT_CNT] = NULL
+    </otherwise>
+</choose>
+      ,[DEVLOP_RESN] = #{devlopResn}
+      ,[EXPC_EFFECT] = #{expcEffect}
+<if test="fileGrpNo != null and fileGrpNo != ''">
+      ,[FILE_GRP_NO] = #{fileGrpNo}
+</if>
+<!--       ,[RELATE_DOC] = #{relateDoc} -->
+      ,[UPDUSR_ID] = #{updusrId}
+      ,[UPDT_DT] = GETDATE()
+    WHERE IDEA_SN = #{ideaSn}
+    </update>
+</mapper>

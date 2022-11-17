@@ -1,0 +1,25 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ taglib uri="http://tiles.apache.org/tags-tiles" prefix="tiles"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions"%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt"%>
+<jsp:include page="/template/script.jsp"></jsp:include>
+<body>
+	json text:<br>
+	<textarea id="jsonText" cols="100" rows="10"></textarea><br /><p />
+
+    reponseText:<br>
+	<textarea id="responseText" cols="100" rows="10"></textarea><br/><br/>
+
+	<button id="exec">실행</button>
+	
+	
+</body>
+<script type="text/javascript">
+$(document.body).ready(function () {
+	$("#exec").on('click', function(){
+		$("#responseText").val(encodeURI($("#jsonText").val()));
+	});
+});
+</script>

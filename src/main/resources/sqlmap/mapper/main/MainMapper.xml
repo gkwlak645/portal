@@ -1,0 +1,1512 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="MainMapper">
+    
+    <!-- 메인 - 로그인 유저의 권한 확인 -->
+    <select id="selectMainUserRoleCd" parameterType="java.util.Map" resultType="java.lang.String">
+        SELECT ROLE_CD FROM TB_USER_ROLE WHERE USER_ID = #{txUserId}
+    </select>
+    
+    
+    <!-- 메인 - 회사명 -->
+    <select id="selectCmpnyNm" parameterType="java.util.Map" resultType="camelMap">
+    /* MainMapper.selectCmpnyNm */
+        SELECT CD_NM AS CMPNY_NM
+        FROM TB_CMMN_CD WITH(NOLOCK)
+        WHERE CLS_CD = '0024'
+         <if test='cmpnyCd != null and cmpnyCd != ""'>
+            AND  CD = #{cmpnyCd}
+         </if>
+    </select>
+    
+
+    <!-- 메인(1_1) - 효과금액 -->
+    <select id="selectRedcnAmt" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectRedcnAmt */
+        DECLARE 
+              @week_start_date  DATETIME , @week_end_date  DATETIME 
+            , @month_start_date DATETIME , @month_end_date DATETIME   
+            , @year_start_date  DATETIME , @year_end_date  DATETIME  
+            , @start_date       DATETIME , @end_date       DATETIME
+            , @NOW_DATE         DATETIME , @PYMHR_AMT      INT
+        
+        <!-- 오늘날짜 기준 -->
+        SET @NOW_DATE   = GETDATE();        
+        
+        <!-- week     주간  기준) 현재날짜 - 7 ~ 현재날짜 까지          예) 기준날짜 : 2020/11/24 일 경우  11/24 ~ 11/18일 까지 -->
+        SET @week_start_date = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),-6);
+        SET @week_end_date   = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),0);
+        SET @week_end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @week_end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @week_end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @week_end_date )) + ' 23:59:59')
+        
+        <!-- month    당월  기준) 현재날짜 월의 1일 ~ 현재날짜 까지        예) 기준날짜 : 2020/11/24 일 경우  11/1 ~ 11/24일 까지 --> 
+        SET @month_start_date = DATEADD(MM, DATEDIFF(MM, 0, @NOW_DATE), 0)
+        SET @month_end_date   = @NOW_DATE
+        SET @month_end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @month_end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @month_end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @month_end_date )) + ' 23:59:59')
+        
+        <!-- year     누계  기준) 현재날짜 년도의 1/1 ~ 현재날짜 까지  예) 기준날짜 : 2020/11/24 일 경우  1/1 ~ 11/24일 까지 -->
+        SET @year_start_date = DATEADD(YEAR, DATEDIFF(YEAR, 0, @NOW_DATE), 0);
+        SET @year_end_date   = @NOW_DATE
+        SET @year_end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @year_end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @year_end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @year_end_date )) + ' 23:59:59')
+        
+        <!-- 그외 -->
+        <choose>
+              <when test='chkDay != null and chkDay != "" and chkDay == "roiWeek" '>
+                 SET @start_date = @week_start_date;
+                 SET @end_date   = @week_end_date;
+              </when>
+              <when test='chkDay != null and chkDay != "" and chkDay == "roiMon"'>
+                 SET @start_date = @month_start_date;
+                 SET @end_date   = @month_end_date;
+              </when>
+              <otherwise>
+                 SET @start_date = @year_start_date;
+                 SET @end_date   = @year_end_date;
+            </otherwise>
+        </choose>
+        
+        <!-- 시간당 인건비 단가 -->
+        SELECT @PYMHR_AMT = ISNULL(PYMHR_AMT,0) FROM TB_PYMHR WHERE PYMHR_YY = DATEPART ( yyyy , @NOW_DATE );
+        
+        SELECT
+        <choose> 
+            <when test='chkRoi != null and chkRoi != "" and chkRoi == "roiWeek"'>
+                 ISNULL(FLOOR( (((SUM(ISNULL(REDCN_TM,0)) ) /365)   * CONVERT(FLOAT, 7)) / 1000),0) AS REDCN_AMT
+            </when>
+            <when test='chkRoi != null and chkRoi != "" and chkRoi == "roiMon"'>
+                 ISNULL(FLOOR(  ((SUM(ISNULL(REDCN_TM,0)) ) /365)  * CONVERT(FLOAT,(DATEDIFF(DAY,@month_start_date,@month_end_date)+1))  / 1000),0)       AS REDCN_AMT
+            </when>
+            <otherwise>
+                 ISNULL(FLOOR(((SUM (ISNULL(REDCN_TM,0)) ) /365)   * CONVERT(FLOAT,(DATEDIFF(DAY,@year_start_date,@year_end_date)+1)) / 1000),0)                            AS REDCN_AMT
+            </otherwise>
+        </choose>
+        
+        FROM TB_TASK_DEVLOP_PROCESS WITH(NOLOCK) 
+        WHERE PROCESS_STTUS IN ('D4','O1')
+                
+                AND  CONVERT(DATETIME, BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME,  @end_date)
+                
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND   CMPNY_CD = #{cmpnyCd}
+            </if>
+    </select>
+
+
+    <!-- 메인(1_1) - 프로세스 -->
+    <select id="selectTaskProcessCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectTaskProcessCount */
+        SELECT COUNT(PROCESS_CD)
+        FROM [dbo].[TB_TASK_DEVLOP_PROCESS] WITH(NOLOCK)
+        WHERE PROCESS_STTUS IN ('D4','O1')
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+              AND CMPNY_CD = #{cmpnyCd}
+          </if>
+    </select>
+
+    <!-- 메인(1_1) - 성공률 -->
+    <select id="selectSuccesRtCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectSuccesRtCount */
+    DECLARE 
+        @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+
+    SET @NOW_DATE   = DATEADD(HH, -9,GETDATE());
+    SET @start_date = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),-7);
+    SET @end_date   = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),0);
+
+	SET @start_date = DATEADD(HH, -9, @start_date);
+    SET @end_date   = DATEADD(HH, -9, @end_date);
+
+--select @start_date, @end_date
+
+-- 성공률
+	WITH AA AS(
+		SELECT 
+			B.CMPNY_CD, C.TenantId, count(CASE WHEN C.State = 5 THEN 1 END) SuccCnt, count(C.id) AS TotCnt
+		FROM 
+			TB_TASK_DEVLOP_PROCESS A INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.PROCESS_CD = B.PROCESS_CD
+			INNER JOIN SY_JOBS C ON B.RELEASES_ID = C.ReleaseId
+		WHERE
+			A.PROCESS_STTUS IN ('D4', 'O1')
+			AND C.StartTime <![CDATA[>=]]> CONVERT(DATETIME, A.BELONGING_DE)
+			AND C.StartTime <![CDATA[>=]]> CONVERT(DATETIME, @start_date) 
+			AND C.StartTime <![CDATA[<]]>  CONVERT(DATETIME, @end_date)
+			AND C.EndTime IS NOT NULL
+			AND C.RobotId IS NOT NULL
+		GROUP BY B.CMPNY_CD, C.TenantId
+	)
+SELECT CASE 
+               WHEN SUM(ISNULL(SuccCnt,0)) = 0 THEN 0
+               WHEN SUM(ISNULL(TotCnt,0)) = 0 THEN 0 
+           ELSE ISNULL(CONVERT(DECIMAL,(CONVERT(FLOAT, SUM(SuccCnt))/CONVERT(FLOAT, SUM(TotCnt))* 100)), 0)  END
+FROM AA
+<if test='cmpnyCd != null and cmpnyCd != ""'>
+WHERE
+	TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+</if>
+    </select>
+
+
+    <!-- 메인(1_1) - 절감률 -->
+    <select id="selectRedcnRtCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectRedcnRtCount */
+<!--      
+        DECLARE 
+            @std_date  DATETIME , @NOW_DATE  DATETIME
+        SET @NOW_DATE = GETDATE();
+        SET @std_date = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+        SET @std_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date)) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date)) + ' 23:59:59');
+        
+        SELECT CASE 
+                    WHEN ISNULL(SUM(ISNULL(REDCN_TM,0)),0) = 0  THEN  0 
+                    WHEN ISNULL(SUM(ISNULL(JOB_TM,0)),0)   = 0  THEN  0 
+                    ELSE CONVERT(DECIMAL,(CONVERT(FLOAT,SUM(ISNULL(REDCN_TM,0)))/CONVERT(FLOAT,SUM(ISNULL(JOB_TM,0)))* 100))
+               END
+        FROM TB_TASK_DEVLOP_PROCESS WITH(NOLOCK)
+        WHERE PROCESS_STTUS IN ('D4','O1')
+
+                 AND  CONVERT(DATETIME, BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+                
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND   CMPNY_CD = #{cmpnyCd}
+            </if>
+-->
+SELECT  
+	CASE WHEN REDCN_TM = 0  OR JOB_TM = 0THEN  0 
+		ELSE
+			FLOOR(REDCN_TM / CONVERT(FLOAT, JOB_TM) * 100 + 0.5)
+		END
+FROM 
+(
+SELECT 
+	(
+		SELECT ISNULL(SUM(ISNULL(JOB_TM,0)),0)  FROM TB_TASK_DEVLOP A_1
+		WHERE A_1.DEVLOP_SN IN
+				(
+					SELECT DEVLOP_SN		FROM TB_TASK_DEVLOP_PROCESS WITH(NOLOCK)
+					WHERE 
+						PROCESS_STTUS IN ('D4','O1')
+<if test='cmpnyCd != null and cmpnyCd != ""'>
+						AND   CMPNY_CD = #{cmpnyCd}
+</if>
+			)
+		) AS JOB_TM
+	, (
+		SELECT 
+			ISNULL(SUM(ISNULL(REDCN_TM,0)),0) 
+		FROM TB_TASK_DEVLOP_PROCESS WITH(NOLOCK)
+		WHERE 
+			PROCESS_STTUS IN ('D4','O1')
+<if test='cmpnyCd != null and cmpnyCd != ""'>
+            AND   CMPNY_CD = #{cmpnyCd}
+            
+</if>
+	) AS REDCN_TM
+) A
+    </select>
+    
+    
+    <!--  메인(1_2) - 부분별 프로세스 현황 -->
+    <select id="selectClsProcessStatusCnt" parameterType="java.util.Map" resultType="camelMap">
+    /* MainMapper.selectClsProcessStatusCnt */
+		SELECT C.CLS_CD AS clsCd, ISNULL(D.CD_NM,'프로세스') AS clsNm, C.CNT AS cnt
+		FROM (
+		    SELECT A.CLS_CD AS CLS_CD  , COUNT(B.PROCESS_CD) AS CNT
+		    FROM TB_TASK_DEVLOP A
+		    INNER JOIN TB_TASK_DEVLOP_PROCESS B WITH(NOLOCK) 
+		    ON A.DEVLOP_SN = B.DEVLOP_SN
+		    WHERE B.PROCESS_STTUS IN ('D4','O1') AND A.CLS_CD IS NOT NULL AND A.CLS_CD != ''
+		      <if test='cmpnyCd != null and cmpnyCd != ""'>
+                AND A.CMPNY_CD = #{cmpnyCd}
+              </if>
+		    GROUP BY A.CLS_CD
+		    WITH ROLLUP
+		) C
+		LEFT OUTER JOIN TB_CMMN_CD D
+		ON (
+		    C.CLS_CD = D.CD
+		    AND D.CLS_CD = '0040'
+		    AND D.USE_AT = 'Y'
+		)
+		
+    </select>
+
+
+    <!-- 메인(2_1) - 나의 프로세스  / 아이디어 개수 -->
+    <select id="selectMyTaskIdeaCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectMyTaskIdeaCount */
+        DECLARE 
+            @std_date  DATETIME , @NOW_DATE  DATETIME
+        SET @NOW_DATE = GETDATE();
+        SET @std_date = DATEADD(YEAR, DATEDIFF(YEAR, 0, @NOW_DATE), 0);
+        
+        SELECT COUNT(IDEA_SN)
+        FROM [dbo].[TB_TASK_IDEA] WITH(NOLOCK)
+        WHERE CONVERT(DATETIME, REGISTER_ID) <![CDATA[>=]]> CONVERT(DATETIME, @std_date) 
+          AND PRGR_STTUS != '02' <!-- 상태코드 등록취소(02)제외 -->
+          AND REGISTER_ID = #{txUserId}
+         <!-- <if test='untenantAuthor != null and untenantAuthor != "" and untenantAuthor == "N"'>
+              AND REGISTER_ID = #{txUserId}
+         </if> -->
+         <if test='cmpnyCd != null and cmpnyCd != ""'>
+              AND CMPNY_CD = #{cmpnyCd}
+         </if>
+    </select>
+    
+    <!-- 메인(2_1) - 나의 프로세스  / 운영(D4:개발완료,O1:운영중), 개발(D1:개발접수,D3:개발중) 개수 -->
+    <select id="selectMyTaskProcessCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectMyTaskProcessCount */
+        DECLARE 
+		    @std_date  DATETIME , @NOW_DATE  DATETIME
+		SET @NOW_DATE = GETDATE();
+		SET @std_date = DATEADD(YEAR, DATEDIFF(YEAR, 0, @NOW_DATE), 0);
+        
+        SELECT COUNT(PROCESS_CD)
+        FROM [dbo].[TB_TASK_DEVLOP_PROCESS] A WITH(NOLOCK)
+        INNER JOIN (
+            SELECT DISTINCT DEVLOP_SN, PROCESS_NO 
+            FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM WITH(NOLOCK)
+            WHERE 1= 1
+                AND USER_ID = #{txUserId}
+            <!-- <if test='untenantAuthor != null and untenantAuthor != "" and untenantAuthor == "N"'>
+              AND USER_ID = #{txUserId}
+            </if> -->
+        ) B 
+        ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+        WHERE CONVERT(DATETIME, BELONGING_DE) <![CDATA[>=]]> CONVERT(DATETIME, @std_date)
+          <if test="sttusList != null and sttusList.size != 0">
+              AND PROCESS_STTUS IN 
+              <foreach collection="sttusList" item="item" index="index" separator="," open="(" close=")">
+                  #{item}
+              </foreach>
+          </if>
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+                 AND CMPNY_CD = #{cmpnyCd}
+          </if>
+    </select>
+    
+
+    <!-- 메인(2_2) - 헬프데스크 -->
+    <select id="selectMainHlpdskList" parameterType="java.util.Map" resultType="camelMap">
+    /* MainMapper.selectMainHlpdskList */
+        SELECT TOP 5
+             REQUST_SN
+            ,REQUST_SJ
+            ,REQUST_CN
+            ,REQUST_CMPNY_CD
+            ,REQUST_USER_ID
+            ,REQUST_FILE_GRP_NO
+            ,PROCESS_STTUS_CD
+            ,PROCESS_DE
+            ,PROCESS_CN
+            ,PROCESS_USER_ID
+            ,PROCESS_FILE_GRP_NO
+            ,REGISTER_ID
+            <!-- ,[REG_DT] -->
+            , CONVERT(VARCHAR,REG_DT,23) AS regDt
+            ,UPDUSR_ID
+            ,UPDT_DT
+            ,REQUST_SE
+        FROM [dbo].[TB_HLPDSK] WITH(NOLOCK)
+        WHERE PROCESS_STTUS_CD != '04'
+          <!-- <if test='untenantAuthor != null and untenantAuthor != "" and untenantAuthor == "N"'>
+              AND REGISTER_ID = #{txUserId}
+          </if> -->
+          <if test='txCmpnyCd != null and txCmpnyCd != ""'>
+              AND REQUST_CMPNY_CD = #{txCmpnyCd}
+          </if>
+        ORDER BY REG_DT DESC  
+    </select>
+    
+    <!-- 메인(2_3) - Automation Index  / 절감시간 -->
+    <select id="selectRedcnTm" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectRedcnTm */
+        DECLARE 
+            @std_date  DATETIME , @NOW_DATE  DATETIME
+        SET @NOW_DATE = GETDATE();
+        SET @std_date = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+        SET @std_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date)) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date)) + ' 23:59:59');
+        
+        SELECT CASE WHEN ISNULL(SUM(ISNULL(B.REDCN_TM,0)),0) = 0 THEN 0
+               ELSE  CONVERT(DECIMAL,SUM(ISNULL(B.REDCN_TM,0))) END AS SUM_REDCN_TM
+               
+        FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+        INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM B WITH(NOLOCK)
+        ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+        
+        WHERE PROCESS_STTUS IN ('D4','O1')
+           AND CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date) 
+           AND B.USER_ID = #{txUserId}
+           <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND   A.CMPNY_CD = #{cmpnyCd}
+           </if>
+    </select>
+    
+    
+    <!-- 메인(2_3) - Automation Index  / 개선지수 -->
+    <select id="selectImprvm" parameterType="java.util.Map" resultType="java.lang.Float">
+    /* MainMapper.selectImprvm */
+        DECLARE 
+            @std_date  DATETIME , @NOW_DATE  DATETIME
+        SET @NOW_DATE = GETDATE();
+        SET @std_date = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+        SET @std_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date)) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date)) + ' 23:59:59');
+        
+        
+        SELECT ((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100
+        FROM 
+        (
+        SELECT 
+                CASE WHEN ISNULL(SUM(ISNULL(B.CONTRIBUTE,0)),0) = 0 THEN 0
+                ELSE  SUM(ISNULL(B.CONTRIBUTE,0)) END AS SUM_CONTRIBUTE
+        FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+        INNER JOIN TB_TASK_DEVLOP_PROCESS_CONTRIBUTE B WITH(NOLOCK)
+        ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+        WHERE PROCESS_STTUS IN ('D4','O1')
+            AND CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+            AND B.USER_ID = #{txUserId}
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND   A.CMPNY_CD = #{cmpnyCd}
+            </if>
+        )A
+        ,(
+        SELECT 
+                CASE WHEN ISNULL(SUM(ISNULL(B.REDCN_TM,0)),0) = 0 THEN 0
+                ELSE  SUM(ISNULL(B.REDCN_TM,0)) END AS SUM_REDCN_TM
+        FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+        INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM B WITH(NOLOCK)
+        ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+        WHERE PROCESS_STTUS IN ('D4','O1')
+            AND CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date) 
+            AND B.USER_ID = #{txUserId}
+            <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND   A.CMPNY_CD = #{cmpnyCd}
+            </if>
+        )B
+                <!-- AND  (CONVERT(DATETIME, REG_DT) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+                AND   CONVERT(DATETIME, REG_DT) <![CDATA[<=]]> CONVERT(DATETIME, @end_date)) -->
+    </select>
+
+
+    <!-- 메인(2_4) - 시스템작업공지 -->
+    <select id="selectSysOpertNoticeList" parameterType="java.util.Map" resultType="camelMap">
+    /* MainMapper.selectSysOpertNoticeList */
+        SELECT TOP 5 *
+        FROM
+        (
+        SELECT
+               [SON_SN]
+              ,[SJ]
+              ,[CN]
+              ,[USE_AT]
+              ,[REGISTER_ID]
+              ,CONVERT(VARCHAR,[REG_DT],23) AS REG_DT
+              ,[UPDUSR_ID]
+              ,[UPDT_DT]
+              , ISNULL(STUFF((
+                    SELECT ',' + C.CMPNY_CD
+                    FROM TB_SYS_OPERT_NOTICE_CNTC_SYS B 
+                    INNER JOIN TB_CNTC_SYS C ON(B.CNTC_SYS_CD = C.CNTC_SYS_CD )
+                    WHERE B.SON_SN = A.SON_SN FOR XML PATH('') 
+                ),1,1,''),'공통') AS CNTC_SYS_CMPNY_CD
+              , ISNULL(STUFF((
+                    SELECT ', ' + D.CD_NM
+                    FROM TB_SYS_OPERT_NOTICE_CNTC_SYS B 
+                    INNER JOIN TB_CNTC_SYS C ON(B.CNTC_SYS_CD = C.CNTC_SYS_CD )
+                    INNER JOIN   TB_CMMN_CD D
+                    ON   (
+                                C.CMPNY_CD = D.CD
+                            AND D.CLS_CD = '0024'
+                            AND D.USE_AT = 'Y'
+                        )
+                    WHERE B.SON_SN = A.SON_SN FOR XML PATH('') 
+                ),1,1,''),'공통') AS CNTC_SYS_CMPNY_NM
+          FROM [dbo].[TB_SYS_OPERT_NOTICE]  A WITH(NOLOCK) 
+          WHERE USE_AT = 'Y'
+          ) A
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+              WHERE (A.CNTC_SYS_CMPNY_CD = '공통'  OR  A.CNTC_SYS_CMPNY_CD LIKE '%' + #{cmpnyCd} + '%')
+          </if>
+        ORDER BY A.REG_DT DESC  
+    </select>
+    
+    
+    
+    <!-- 메인(2_5) - 실행결과 개수 -->
+    <select id="selectJobsCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+    /* MainMapper.selectJobsCount */
+        DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+        SET @NOW_DATE = DATEADD(HH,-9,GETDATE());
+        SET @start_date = @NOW_DATE; 
+        SET @start_date = CONVERT(DATETIME, CONVERT(varchar(10), DATEPART ( yyyy , @start_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @start_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @start_date )));
+        SET @end_date = @NOW_DATE; 
+        SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59')
+    
+        SELECT COUNT(Id)
+        FROM SY_JOBS WITH(NOLOCK)
+        WHERE IsDeleted = '0'
+          AND  (CONVERT(DATETIME, StartTime) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+          AND   CONVERT(DATETIME, StartTime) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+          <if test="stateList != null and stateList.size != 0">
+              AND STATE IN 
+              <foreach collection="stateList" item="item" index="index" separator="," open="(" close=")">
+                  #{item}
+              </foreach>
+          </if>
+          <!-- <if test='untenantAuthor != null and untenantAuthor != "" and untenantAuthor == "N"'>
+              AND REGISTER_ID = #{txUserId}
+          </if> -->
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+              AND   TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+          </if>
+    </select>
+    
+    
+    <!-- 메인(2_6) - 명예의 전당(절감시간) / 메인(2_7) - 명예의 전당(개선지수) -->
+    <select id="selectRankRedcnTmCntrbtList" parameterType="java.util.Map" resultType="camelMap">
+	    /*CntrbtRank.selectRankRedcnTmCntrbtList*/
+	    DECLARE 
+	        @std_date  DATETIME ,@NOW_DATE  DATETIME 
+	    SET @NOW_DATE   = #{cntrbtYear};
+	    SET @std_date   = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+	    SET @std_date   = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date )) + ' 23:59:59')
+	          
+	    
+	    SELECT  TOP 6
+	    
+	            <choose>
+	                <when test="chkRankStd != null and chkRankStd != '' and chkRankStd == 'cntrbtRank'">
+	                    RANK() OVER (ORDER BY ISNULL( ROUND(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,2) ,0) DESC) AS cntrbtRank
+	                </when>
+	                <when test="chkRankStd != null and chkRankStd != '' and chkRankStd == 'sumRedcnTmRank'">
+	                    RANK() OVER (ORDER BY B.SUM_REDCN_TM DESC) AS sumRedcnTmRank
+	                </when>
+	            </choose>
+	    
+	            , ISNULL( ROUND(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,2) ,0) AS cntrbtScore 
+	            , B.SUM_REDCN_TM
+	            , B.USER_ID
+	            , C.CMPNY_CD
+	            , C.CMPNY_NM
+	            , C.DEPT_CD
+	            , C.DEPT_NM
+	            , C.EMP_NM AS userNm
+	    FROM 
+	    (
+	        SELECT 
+	                CASE WHEN ISNULL(SUM(ISNULL(B.CONTRIBUTE,0)),0) = 0 THEN 0
+	                ELSE  SUM(ISNULL(B.CONTRIBUTE,0)) END AS SUM_CONTRIBUTE
+	                ,B.USER_ID
+	        FROM TB_TASK_DEVLOP_PROCESS A 
+	        INNER JOIN TB_TASK_DEVLOP_PROCESS_CONTRIBUTE B
+	        ON A.DEVLOP_SN = B.DEVLOP_SN AND A.PROCESS_NO = B.PROCESS_NO
+	        WHERE  EXISTS (
+	                SELECT USER_ID
+	                FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+	                WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO AND B.USER_ID = C.USER_ID
+	            )   AND PROCESS_STTUS IN ('D4','O1')  
+	                AND CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+	        GROUP BY B.USER_ID
+	    
+	    )A
+	    RIGHT OUTER JOIN(
+	        SELECT 
+	            CASE WHEN ISNULL(SUM(ISNULL(C.REDCN_TM,0)),0) = 0 THEN 0
+	            ELSE  SUM(ISNULL(C.REDCN_TM,0)) END AS SUM_REDCN_TM
+	            ,C.USER_ID
+	        FROM TB_TASK_DEVLOP_PROCESS A 
+	        INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+	        ON A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+	        WHERE EXISTS(
+	                SELECT * 
+	                FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM C 
+	                WHERE A.DEVLOP_SN = C.DEVLOP_SN AND A.PROCESS_NO = C.PROCESS_NO
+	            )   AND PROCESS_STTUS IN ('D4','O1')  
+	                AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date)
+	        GROUP BY C.USER_ID
+	    ) B
+	    ON A.USER_ID = B.USER_ID
+	    INNER JOIN VW_USER_INFO C
+	    ON B.USER_ID = C.USER_ID
+	
+	    <choose>
+	        <when test="chkRankStd != null and chkRankStd != '' and chkRankStd == 'cntrbtRank'">
+	            ORDER BY ISNULL(((A.SUM_CONTRIBUTE + B.SUM_REDCN_TM) / 30) / 100,0) DESC
+	        </when>
+	        <when test="chkRankStd != null and chkRankStd != '' and chkRankStd == 'sumRedcnTmRank'">
+	            ORDER BY B.SUM_REDCN_TM DESC
+	        </when>
+	    </choose>
+
+    </select>
+    
+    
+     <!-- 메인(2_8) - RPA 담당자 -->
+    <select id="selectRpaChargerList" parameterType="java.util.Map" resultType="camelMap">
+    /* MainMapper.selectRpaChargerList */
+		       SELECT   
+		       A.[USER_ID]
+		      ,A.[CMPNY_CD]
+		      ,A.[USE_AT]
+              ,B.EMP_NM AS chargernm
+		      ,B.DEPT_CD
+		      ,C.ROLE_CD
+		      ,D.ROLE_NM
+		      ,E.DEPT_NM
+		FROM TB_USER_BAS A
+		INNER JOIN TB_USER_DETAIL B
+		ON A.USER_ID = B.EMP_NO
+		INNER JOIN TB_USER_ROLE C
+		ON A.USER_ID = C.USER_ID 
+		INNER JOIN TB_ROLE D
+		ON C.ROLE_CD = D.ROLE_CD
+		LEFT JOIN  TB_DEPT E
+		ON  (
+		        B.DEPT_CD = E.DEPT_CD
+		    AND  E.USE_AT = 'Y'
+		    )   
+		WHERE C.ROLE_CD IN ('0003','0002') AND A.USE_AT = 'Y'
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+              AND   A.CMPNY_CD = #{cmpnyCd}
+          </if>
+    </select>
+    
+    
+    
+     <!-- 메인(2_9) - 절감시간 Top3 -->
+    <select id="selectTopRedcnTmList" parameterType="java.util.Map" resultType="camelMap">
+    /* MainMapper.selectTopRedcnTmList */
+        DECLARE 
+            @std_date  DATETIME , @NOW_DATE  DATETIME
+        SET @NOW_DATE = GETDATE();
+        SET @std_date = DATEADD(YEAR, DATEDIFF(YEAR, -1, @NOW_DATE), -1);
+        SET @std_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @std_date)) + '-' + CONVERT(varchar(10), DATEPART( mm , @std_date))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @std_date)) + ' 23:59:59');
+        
+		SELECT C.PROCESS_CD, C.PROCESS_NM, C.CLS_CD AS clsCd, D.CD_NM AS clsNm, ROUND(C.SUM_REDCN_TM,2) AS SUM_REDCN_TM
+		FROM (
+		    SELECT TOP 3 B.PROCESS_CD, B.PROCESS_NM,  A.CLS_CD AS CLS_CD  ,SUM(C.REDCN_TM) AS SUM_REDCN_TM
+		    FROM TB_TASK_DEVLOP A
+		    INNER JOIN TB_TASK_DEVLOP_PROCESS B WITH(NOLOCK) 
+		    ON A.DEVLOP_SN = B.DEVLOP_SN
+		    INNER JOIN TB_TASK_DEVLOP_PROCESS_REDCN_TM C
+		    ON B.DEVLOP_SN = C.DEVLOP_SN AND B.PROCESS_NO = C.PROCESS_NO
+		    WHERE B.PROCESS_STTUS IN ('D4','O1')
+		    
+		     AND CONVERT(DATETIME, B.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @std_date) 
+		     
+		    GROUP BY B.PROCESS_CD, B.PROCESS_NM , A.CLS_CD
+		    ORDER BY SUM(C.REDCN_TM) DESC
+		) C
+		LEFT OUTER JOIN TB_CMMN_CD D
+		ON (
+		    C.CLS_CD = D.CD
+		    AND D.CLS_CD = '0040'
+		    AND D.USE_AT = 'Y'
+		)
+    </select>
+    
+    
+    
+    <!-- 메인(3_1) / 메인(3_2) - 로그인 사용자의 롤 권한 확인 -->
+    <select id="selectTodayProcessUserRoleCd" parameterType="java.util.Map" resultType="java.lang.String">
+        SELECT CASE WHEN ROLE_CD = '0001' THEN '' ELSE 'M' END FROM TB_USER_ROLE WHERE USER_ID = #{txUserId}
+    </select>
+    
+    <!-- 메인(3_1) - 오늘의 프로세스 실행현황 -->
+    <select id="selectTodayProcessList" parameterType="java.util.Map" resultType="java.util.Map">
+    /* MainMapper.selectTodayProcessList */
+       DECLARE 
+            @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME ,@listType  NVARCHAR(1)
+        SET @NOW_DATE   = DATEADD(HH, -9,GETDATE());
+        SET @start_date = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),0);
+        SET @end_date   = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),0);
+        SET @end_date   = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59')
+        
+        SELECT 
+                 A.[Id]
+                ,A.[TenantId]
+                ,A.[Key]
+                ,CONVERT(CHAR(19),DATEADD(HH,9,A.[StartTime]) ,20) AS startTime 
+                ,A.[EndTime]
+                ,A.[State]
+                ,A.[RobotId]
+                ,C.Name AS robotName
+                ,A.[ReleaseId]
+                ,B.ProcessKey AS releaseName
+                ,A.[Source]
+                ,A.[BatchExecutionKey]
+                ,A.[Info]
+                ,A.[IsDeleted]
+                ,A.[DeleterUserId]
+                ,A.[DeletionTime]
+                ,A.[LastModificationTime]
+                ,A.[LastModifierUserId]
+                ,A.[CreationTime]
+                ,A.[CreatorUserId]
+                ,A.[OrganizationUnitId]
+                ,A.[StartingScheduleId]
+                ,A.[Type]
+                ,A.[InputArguments]
+                ,A.[OutputArguments]
+                ,A.[HostMachineName]
+                ,A.[PersistenceId]
+                ,A.[ResumeVersion]
+                ,A.[SuspendBlobType]
+                ,A.[PersistenceLocationVersion]
+                ,A.[StopStrategy]
+                ,A.[ReleaseVersionId]
+        FROM   SY_JOBS A
+        JOIN   SY_RELEASES B
+            ON   A.ReleaseId = B.Id
+        JOIN   SY_ROBOTS C
+            ON   A.RobotId = C.Id
+        
+        JOIN TB_TASK_DEVLOP_PROCESS_MAPPER D
+            ON (A.ReleaseId = D.RELEASES_ID)
+        JOIN TB_TASK_DEVLOP_PROCESS E 
+            ON (D.PROCESS_CD = E.PROCESS_CD)
+        JOIN (
+            SELECT DISTINCT DEVLOP_SN, PROCESS_NO 
+            FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM WITH(NOLOCK)
+            WHERE 1= 1
+                <if test='listType != null and listType != "" and listType == "M"'>
+                  AND USER_ID = #{txUserId}
+                </if>
+        ) F
+        ON E.DEVLOP_SN = F.DEVLOP_SN AND E.PROCESS_NO = F.PROCESS_NO
+        
+        WHERE A.IsDeleted = '0'
+          AND  (CONVERT(DATETIME, A.StartTime) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+          AND   CONVERT(DATETIME, A.StartTime) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+          <!-- <if test='untenantAuthor != null and untenantAuthor != "" and untenantAuthor == "N"'>
+              AND REGISTER_ID = #{txUserId}
+          </if> -->
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+              AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+          </if>
+        ORDER BY   StartTime DESC
+    </select>
+    
+    
+    
+    <!-- 메인(3_2) - 신규등록 프로세스 -->
+    <select id="selectNewProcessList" parameterType="java.util.Map" resultType="camelMap">
+    /* MainMapper.selectNewProcessList */
+		DECLARE 
+		    @start_date  DATETIME ,@end_date  DATETIME ,@NOW_DATE  DATETIME 
+		                
+		SET @NOW_DATE   = GETDATE();
+		
+		SET @end_date   = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),0);
+		SET @end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @end_date )) + ' 23:59:59')
+
+       <if test='listType != null and listType != "" and listType="D"'>
+             SET @start_date = @NOW_DATE;
+       </if>  
+       <if test='listType != null and listType != "" and listType="M"'>
+              SET @start_date = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),-13);
+       </if>
+
+
+	    SELECT [DEVLOP_SN]
+		      ,[PROCESS_NO]
+		      ,[SJ]
+		      ,[PROCESS_CD]
+		      ,[PROCESS_NM]
+		      ,[JOB_DC]
+		      ,[CMPNY_CD]
+		      ,[JOB_CLS_CD]
+		      ,[RPA_CLS_CD]
+		      ,[JOB_TM]
+		      ,[REDCN_TM]
+		      ,[EXPECT_REDCN_AMT]
+		      ,[FQ_CD]
+		      ,[EXECUT_CNT]
+		      ,[EXECUT_TM]
+		      ,[EMRGNCY_CRSPND]
+		      ,[RTO]
+		      ,[DEVLOP_WDCNT]
+		      ,[EXPECT_DEVLOP_CT]
+		      ,[ROI_EVALUATE]
+		      ,[DEVLOP_RESN]
+		      ,[FILE_GRP_NO]
+		      ,[RELATE_DOC]
+		      ,[EXECUT_SE]
+		      ,[PROCESS_FILE_GRP_NO]
+		      ,[PROCESS_STTUS]
+		 <if test='listType != null and listType != "" and listType="D"'>
+		      ,REGISTER_ID
+		      ,B.EMP_NM AS userNm
+		      ,B.DEPT_CD AS REGISTER_DEPT_CD
+		      ,(SELECT D.DEPT_NM FROM TB_DEPT D WHERE DEPT_CD = B.DEPT_CD) AS deptNm
+		      ,CONVERT(CHAR(19),A.[REG_DT],20) AS date 
+		 </if>  
+		 <if test='listType != null and listType != "" and listType="M"'>
+		      ,[UPDUSR_ID]
+		      ,C.EMP_NM AS userNm
+		      ,C.DEPT_CD AS UPDUSR_DEPT_CD
+		      ,(SELECT D.DEPT_NM FROM TB_DEPT D WHERE DEPT_CD = C.DEPT_CD) AS deptNm
+		      ,CONVERT(CHAR(19),A.[UPDT_DT],20) AS date
+		 </if>
+		  FROM [dbo].[TB_TASK_DEVLOP_PROCESS] A
+		  LEFT OUTER JOIN TB_USER_DETAIL B
+		  ON A.REGISTER_ID = B.EMP_NO
+		  LEFT OUTER JOIN TB_USER_DETAIL C
+		  ON A.UPDUSR_ID = C.EMP_NO
+	
+	      WHERE 1 = 1
+	       <if test='listType != null and listType != "" and listType="D"'>
+	            AND (CONVERT(DATETIME, A.REG_DT) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+                AND   CONVERT(DATETIME, A.REG_DT) <![CDATA[<=]]> CONVERT(DATETIME, @end_date)) 
+           </if>    
+	       <if test='listType != null and listType != "" and listType="M"'>
+	           AND (CONVERT(DATETIME, A.UPDT_DT) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+               AND   CONVERT(DATETIME, A.UPDT_DT) <![CDATA[<=]]> CONVERT(DATETIME, @end_date))
+	       </if>
+	       <if test="sttusList != null and sttusList.size != 0">
+              AND PROCESS_STTUS IN 
+              <foreach collection="sttusList" item="item" index="index" separator="," open="(" close=")">
+                  #{item}
+              </foreach>
+          </if>
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+                 AND CMPNY_CD = #{cmpnyCd}
+          </if>
+    </select>
+    
+    
+    
+    <!-- 임원용 대쉬보드 -->
+    <select id="selectOwnerMainList" parameterType="java.util.Map" resultType="java.util.Map">
+    /* MainMapper.selectOwnerMainList */
+        
+        DECLARE 
+              @week_start_date  DATETIME , @week_end_date  DATETIME 
+            , @month_start_date DATETIME , @month_end_date DATETIME   
+            , @year_start_date  DATETIME , @year_end_date  DATETIME  
+            , @total_start_date DATETIME , @total_end_date DATETIME  
+            , @start_date       DATETIME , @end_date       DATETIME
+            , @NOW_DATE         DATETIME 
+        
+        <!-- 오늘날짜 기준 -->
+        SET @NOW_DATE   = GETDATE();        
+        
+        <!-- week     주간  기준) 현재날짜 - 7 ~ 현재날짜 까지          예) 기준날짜 : 2020/11/24 일 경우  11/24 ~ 11/18일 까지 -->
+        SET @week_start_date = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),-6);
+        SET @week_end_date   = DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE),0);
+        SET @week_end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @week_end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @week_end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @week_end_date )) + ' 23:59:59')
+        
+        <!-- month    당월  기준) 현재날짜 월의 1일 ~ 현재날짜 까지        예) 기준날짜 : 2020/11/24 일 경우  11/1 ~ 11/24일 까지 --> 
+        SET @month_start_date = DATEADD(MM, DATEDIFF(MM, 0, @NOW_DATE), 0)
+        SET @month_end_date   = @NOW_DATE
+        SET @month_end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @month_end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @month_end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @month_end_date )) + ' 23:59:59')
+        
+        <!-- year     누계  기준) 현재날짜 년도의 1/1 ~ 현재날짜 까지  예) 기준날짜 : 2020/11/24 일 경우  1/1 ~ 11/24일 까지 -->
+        SET @year_start_date = DATEADD(YEAR, DATEDIFF(YEAR, 0, @NOW_DATE), 0);
+        SET @year_end_date   = @NOW_DATE
+        SET @year_end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @year_end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @year_end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @year_end_date )) + ' 23:59:59')
+        
+        <!-- total    누적  기준) 20190101 ~ 현재날짜 까지              예) 기준날짜 : 2020/11/24 일 경우  20190101 ~ 11/24일 까지 -->
+        SET @total_start_date = CONVERT(DATETIME,'20190101');
+        SET @total_end_date   = @NOW_DATE;
+        SET @total_end_date = CONVERT(DATETIME,CONVERT(varchar(10), DATEPART ( yyyy , @total_end_date )) + '-' + CONVERT(varchar(10), DATEPART( mm , @total_end_date ))  +'-' +  CONVERT(varchar(10), DATEPART( dd , @total_end_date )) + ' 23:59:59')
+   
+        <!-- 그외 -->
+        <choose>
+              <when test='chkDay != null and chkDay != "" and chkDay == "Week" '>
+                 SET @start_date = @week_start_date;
+                 SET @end_date   = @week_end_date;
+              </when>
+              <when test='chkDay != null and chkDay != "" and chkDay == "Month"'>
+                 SET @start_date = @month_start_date;
+                 SET @end_date   = @month_end_date;
+              </when>
+              <when test='chkDay != null and chkDay != "" and chkDay == "Year"'>
+                 SET @start_date = @year_start_date;
+                 SET @end_date   = @year_end_date;
+              </when>
+              <when test='chkDay != null and chkDay != "" and chkDay == "Total"'>
+                 SET @start_date = @total_start_date;
+                 SET @end_date   = @total_end_date;
+              </when>
+              <otherwise></otherwise>
+        </choose>
+        
+        <!-- 절감시간(HR) 누적('19.01.01 ~ 현재) -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X , ISNULL(ROUND(A+C+E+F+H+I+S+T+X,2),0) AS Z
+        FROM (
+	        SELECT 'RT' AS GBN1,'TT' AS GBN2 
+	            ,ISNULL(ROUND(A,2),0) AS A,ISNULL(ROUND(C,2),0) AS C,ISNULL(ROUND(E,2),0) AS E,ISNULL(ROUND(F,2),0) AS F
+                ,ISNULL(ROUND(H,2),0) AS H,ISNULL(ROUND(I,2),0) AS I,ISNULL(ROUND(S,2),0) AS S,ISNULL(ROUND(T,2),0) AS T,ISNULL(ROUND(X,2),0) AS X
+	        FROM (
+	            SELECT 
+                     A.CD AS CMPNY_CD
+                    ,B.SUM_REDCN_TM
+                FROM (
+                    SELECT CD
+                    FROM TB_CMMN_CD
+                    WHERE CLS_CD = '0024' AND USE_AT = 'Y'
+                ) A 
+	           LEFT OUTER JOIN (
+			            SELECT 
+			                  A.CMPNY_CD AS CMPNY_CD
+			                  
+			                , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+			                
+			                  ELSE (SUM(ISNULL(A.REDCN_TM,0)) * ((YEAR(@NOW_DATE) - 2019) +1)) - ((SUM(ISNULL(A.REDCN_TM,0)) /365) * CONVERT(FLOAT,DATEDIFF(DAY,@total_end_date,DATEADD(YEAR, DATEDIFF(YEAR, -1, @total_end_date), -1))))
+			                  
+			                  END AS SUM_REDCN_TM
+			           
+			            FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+			        
+			            WHERE PROCESS_STTUS IN ('D4','O1')  AND A.CMPNY_CD != 'S' <!-- 2020/11/27 팜스제외-->
+			
+			                AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME,  @total_end_date)
+			        
+			            GROUP BY A.CMPNY_CD
+	            ) B 
+                ON A.CD = B.CMPNY_CD
+	        ) C
+	        PIVOT(SUM(SUM_REDCN_TM) FOR CMPNY_CD IN ([A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 절감시간(HR) 누계 -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X ,ISNULL(ROUND(A+C+E+F+H+I+S+T+X,2),0) AS Z
+        FROM (
+	        SELECT 'RT' AS GBN1,'YY' AS GBN2 
+	            ,ISNULL(ROUND(A,2),0) AS A,ISNULL(ROUND(C,2),0) AS C,ISNULL(ROUND(E,2),0) AS E,ISNULL(ROUND(F,2),0) AS F
+                ,ISNULL(ROUND(H,2),0) AS H,ISNULL(ROUND(I,2),0) AS I,ISNULL(ROUND(S,2),0) AS S,ISNULL(ROUND(T,2),0) AS T,ISNULL(ROUND(X,2),0) AS X
+	        FROM (
+	            SELECT 
+                     A.CD AS CMPNY_CD
+                    ,B.SUM_REDCN_TM
+                FROM (
+                    SELECT CD
+                    FROM TB_CMMN_CD
+                    WHERE CLS_CD = '0024' AND USE_AT = 'Y'
+                ) A 
+               LEFT OUTER JOIN (
+		           
+			            SELECT 
+			                  A.CMPNY_CD AS CMPNY_CD
+			                
+			                , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+			                
+			                  ELSE (SUM(ISNULL(A.REDCN_TM,0)) / 365) * CONVERT(FLOAT,(DATEDIFF(DAY,@year_start_date,@year_end_date)+1))  END AS SUM_REDCN_TM
+			                  
+			            FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+			        
+			            WHERE PROCESS_STTUS IN ('D4','O1') AND A.CMPNY_CD != 'S' <!-- 2020/11/27 팜스제외-->
+			                
+			                AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @year_end_date)
+			                
+			            GROUP BY A.CMPNY_CD
+			      ) B 
+                  ON A.CD = B.CMPNY_CD
+	        ) C
+	        PIVOT(SUM(SUM_REDCN_TM) FOR CMPNY_CD IN ([A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 절감시간(HR) 당월 -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X , ISNULL(ROUND(A+C+E+F+H+I+S+T+X,2),0) AS Z
+        FROM (
+	        SELECT 'RT' AS GBN1,'MM' AS GBN2 
+	            ,ISNULL(ROUND(A,2),0) AS A,ISNULL(ROUND(C,2),0) AS C,ISNULL(ROUND(E,2),0) AS E,ISNULL(ROUND(F,2),0) AS F
+	            ,ISNULL(ROUND(H,2),0) AS H,ISNULL(ROUND(I,2),0) AS I,ISNULL(ROUND(S,2),0) AS S,ISNULL(ROUND(T,2),0) AS T,ISNULL(ROUND(X,2),0) AS X
+	        FROM (
+	            SELECT 
+                     A.CD AS CMPNY_CD
+                    ,B.SUM_REDCN_TM
+                FROM (
+                    SELECT CD
+                    FROM TB_CMMN_CD
+                    WHERE CLS_CD = '0024' AND USE_AT = 'Y'
+                ) A 
+               LEFT OUTER JOIN (
+			            SELECT 
+			                  A.CMPNY_CD AS CMPNY_CD
+			
+			                , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+			                
+			                   ELSE  (SUM(ISNULL(A.REDCN_TM,0)) / 365) * CONVERT(FLOAT,(DATEDIFF(DAY,@month_start_date,@month_end_date)+1)) 
+			                  
+			                  END AS SUM_REDCN_TM
+			                  
+			            FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+			        
+			            WHERE PROCESS_STTUS IN ('D4','O1') AND A.CMPNY_CD != 'S' <!-- 2020/11/27 팜스제외-->
+			                AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @month_end_date)
+			            GROUP BY A.CMPNY_CD
+			     ) B 
+                ON A.CD = B.CMPNY_CD
+  
+	        ) C
+	        PIVOT(SUM(SUM_REDCN_TM) FOR CMPNY_CD IN ([A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 절감시간(HR) 주간 -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X ,ISNULL(ROUND(A+C+E+F+H+I+S+T+X,2),0) AS Z
+        FROM (
+			SELECT 'RT' AS GBN1,'WW' AS GBN2 
+			    ,ISNULL(ROUND(A,2),0) AS A,ISNULL(ROUND(C,2),0) AS C,ISNULL(ROUND(E,2),0) AS E,ISNULL(ROUND(F,2),0) AS F
+                ,ISNULL(ROUND(H,2),0) AS H,ISNULL(ROUND(I,2),0) AS I,ISNULL(ROUND(S,2),0) AS S,ISNULL(ROUND(T,2),0) AS T,ISNULL(ROUND(X,2),0) AS X
+			FROM (
+			     SELECT 
+                     A.CD AS CMPNY_CD
+                    ,B.SUM_REDCN_TM
+                FROM (
+                    SELECT CD
+                    FROM TB_CMMN_CD
+                    WHERE CLS_CD = '0024' AND USE_AT = 'Y'
+                ) A 
+               LEFT OUTER JOIN (
+			
+				    SELECT 
+				            A.CMPNY_CD AS CMPNY_CD
+				
+				          , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+				                
+				            ELSE  (SUM(ISNULL(A.REDCN_TM,0)) / 365) * CONVERT(FLOAT, 7) END AS SUM_REDCN_TM
+				
+				    FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+				
+				    WHERE PROCESS_STTUS IN ('D4','O1')  AND A.CMPNY_CD != 'S' <!-- 2020/11/27 팜스제외-->
+				
+				        AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @week_end_date)
+				
+				    GROUP BY A.CMPNY_CD
+			     ) B 
+                ON A.CD = B.CMPNY_CD
+   
+			) C
+			PIVOT(SUM(SUM_REDCN_TM) FOR CMPNY_CD IN ([A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 개발과제(개수) -->
+        
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X ,ISNULL(A+C+E+F+H+I+S+T+X,0) AS Z
+        FROM (
+	        SELECT 'PC' AS GBN1,'PC' AS GBN2 
+	            ,ISNULL(ROUND(A,2),0) AS A,ISNULL(ROUND(C,2),0) AS C,ISNULL(ROUND(E,2),0) AS E,ISNULL(ROUND(F,2),0) AS F
+	            ,ISNULL(ROUND(H,2),0) AS H,ISNULL(ROUND(I,2),0) AS I,ISNULL(ROUND(S,2),0) AS S,ISNULL(ROUND(T,2),0) AS T,ISNULL(ROUND(X,2),0) AS X
+	        FROM (
+	            SELECT 
+			         A.CD AS CMPNY_CD
+			        ,B.PROCESS_CNT
+			    FROM (
+			        SELECT CD
+			        FROM TB_CMMN_CD
+			        WHERE CLS_CD = '0024' AND USE_AT = 'Y'
+			    ) A 
+			    LEFT OUTER JOIN (
+			        SELECT 
+			             A.CMPNY_CD AS CMPNY_CD                    
+			            ,COUNT(PROCESS_CD) AS PROCESS_CNT                 
+			        FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)              
+			        WHERE PROCESS_STTUS IN ('D4','O1') AND A.CMPNY_CD != 'S'
+			            <choose>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Week" '>
+	                             AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+	                          </when>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Month"'>
+	                             AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+	                          </when>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Year"'>
+	                             AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[>=]]> CONVERT(DATETIME, @start_date)
+	                          </when>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Total"'>
+	                             AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @end_date)
+	                          </when>
+	                          <otherwise></otherwise>
+	                    </choose> 
+			        GROUP BY A.CMPNY_CD 
+			    ) B 
+			    ON A.CD = B.CMPNY_CD
+	        ) C 
+	        PIVOT(SUM(PROCESS_CNT) FOR CMPNY_CD IN ([A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 환산인원(명) -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X ,ISNULL(ROUND(A+C+E+F+H+I+S+T+X,2),0) AS Z
+        FROM (
+	        SELECT 'PH' AS GBN1,'PH' AS GBN2 
+	            ,ISNULL(ROUND(A,2),0) AS A,ISNULL(ROUND(C,2),0) AS C,ISNULL(ROUND(E,2),0) AS E,ISNULL(ROUND(F,2),0) AS F
+	            ,ISNULL(ROUND(H,2),0) AS H,ISNULL(ROUND(I,2),0) AS I,ISNULL(ROUND(S,2),0) AS S,ISNULL(ROUND(T,2),0) AS T,ISNULL(ROUND(X,2),0) AS X
+	        FROM (
+	            
+	            SELECT 
+                     A.CD AS CMPNY_CD
+                    ,B.SUM_REDCN_TM
+                FROM (
+                    SELECT CD
+                    FROM TB_CMMN_CD
+                    WHERE CLS_CD = '0024' AND USE_AT = 'Y'
+                ) A 
+                LEFT OUTER JOIN (
+                
+			            SELECT 
+			        
+			                A.CMPNY_CD AS CMPNY_CD
+			                  
+			                <choose>
+					              <when test='chkDay != null and chkDay != "" and chkDay == "Week" '>
+					                 , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+			                         ELSE ((SUM(ISNULL(A.REDCN_TM,0)) / 1570) / 365) * CONVERT(FLOAT,7)  
+			                         END AS SUM_REDCN_TM
+					              </when>
+					              <when test='chkDay != null and chkDay != "" and chkDay == "Month"'>
+					                 , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+			                           ELSE  ((SUM(ISNULL(A.REDCN_TM,0)) /1570) /365) * CONVERT(FLOAT,(DATEDIFF(DAY,@month_start_date,@month_end_date)+1))
+			                           END AS SUM_REDCN_TM
+					              </when>
+					              <when test='chkDay != null and chkDay != "" and chkDay == "Year"'>
+					                 , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+			                           ELSE  ( (SUM(ISNULL(A.REDCN_TM,0)) /1570) /365) * CONVERT(FLOAT,(DATEDIFF(DAY,@year_start_date,@year_end_date)+1))  END AS SUM_REDCN_TM
+					              </when>
+					              <when test='chkDay != null and chkDay != "" and chkDay == "Total"'>
+					                 , CASE WHEN ISNULL(SUM(ISNULL(A.REDCN_TM,0)),0) = 0 THEN 0
+			                           ELSE  ( (SUM(ISNULL(A.REDCN_TM,0)) /1570) * ((YEAR(@NOW_DATE) - 2019) +1)) - (((SUM(ISNULL(A.REDCN_TM,0)) / 1570) / 365) * DATEDIFF(DAY,@total_end_date,DATEADD(YEAR, DATEDIFF(YEAR, -1, @total_end_date), -1)))   
+			                           END AS SUM_REDCN_TM
+					              </when>
+					              <otherwise></otherwise>
+					        </choose> 
+			                  
+			        
+			            FROM TB_TASK_DEVLOP_PROCESS A WITH(NOLOCK)
+			        
+			            WHERE PROCESS_STTUS IN ('D4','O1') AND A.CMPNY_CD != 'S' <!-- 2020/11/27 팜스제외-->
+			        
+		                        AND  CONVERT(DATETIME, A.BELONGING_DE) <![CDATA[<=]]> CONVERT(DATETIME, @end_date)
+			        
+			            GROUP BY A.CMPNY_CD
+                   ) B 
+                   ON A.CD = B.CMPNY_CD
+	        ) C
+	        PIVOT(SUM(SUM_REDCN_TM) FOR CMPNY_CD IN ([Z],[A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 가동률 (%) -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X ,Z
+        FROM (
+	        SELECT 'JT' AS GBN1,'JT' AS GBN2 
+	            ,ISNULL(ROUND(Z,2),0) AS Z,ISNULL(ROUND(A,2),0) AS A,ISNULL(ROUND(C,2),0) AS C,ISNULL(ROUND(E,2),0) AS E,ISNULL(ROUND(F,2),0) AS F
+	            ,ISNULL(ROUND(H,2),0) AS H,ISNULL(ROUND(I,2),0) AS I,ISNULL(ROUND(S,2),0) AS S,ISNULL(ROUND(T,2),0) AS T,ISNULL(ROUND(X,2),0) AS X
+	        FROM (
+	        
+	                SELECT C.CMPNY_CD
+	                
+	                     <choose>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Week" '>
+	                             , (( (C.SUM_JOB_TM / D.ROBOT_CNT)  /  (3600 * 24 * CONVERT(FLOAT,7))) * 100) AS SUM_JOB_TM
+	                          </when>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Month"'>
+	                             , (( (C.SUM_JOB_TM / D.ROBOT_CNT)  /  (3600 * 24 * CONVERT(FLOAT,(DATEDIFF(DAY,@month_start_date,@month_end_date)+1) )) ) * 100) AS SUM_JOB_TM
+	                          </when>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Year"'>
+	                             , ( (C.SUM_JOB_TM / D.ROBOT_CNT)  /  (3600 * 24 * CONVERT(FLOAT,(DATEDIFF(DAY,@year_start_date,@year_end_date)+1))) * 100) AS SUM_JOB_TM
+	                          </when>
+	                          <when test='chkDay != null and chkDay != "" and chkDay == "Total"'>
+	                             , (( (C.SUM_JOB_TM / D.ROBOT_CNT)  /  (3600 * 24 * ((365 * ((YEAR(@NOW_DATE) - 2019) +1)) - DATEDIFF(DAY,@total_end_date,DATEADD(YEAR, DATEDIFF(YEAR, -1, @total_end_date), -1)))) ) * 100) AS SUM_JOB_TM
+	                          </when>
+	                          <otherwise></otherwise>
+	                    </choose>
+	                
+	                FROM (
+	        
+	                    SELECT 
+	                           ISNULL(dbo.UFN_GET_CMPNY_CD(A.TenantId),'Z') AS CMPNY_CD
+	                          ,SUM(CONVERT(float,DATEDIFF(s,A.StartTime,A.EndTime))) AS SUM_JOB_TM
+	                    FROM SY_JOBS A WITH(NOLOCK)
+	        
+	                    WHERE A.IsDeleted = '0' AND A.TenantId != 10  <!-- 2020/11/27 팜스제외-->
+	                        AND  (CONVERT(DATETIME, A.StartTime)  <![CDATA[>=]]>  CONVERT(DATETIME, DATEADD(HH, -9,@start_date))
+	                        AND   CONVERT(DATETIME, A.StartTime)  <![CDATA[<=]]>  CONVERT(DATETIME, DATEADD(HH, -9,@end_date)))
+	        
+	                    GROUP BY dbo.UFN_GET_CMPNY_CD(A.TenantId)
+	                    WITH ROLLUP  
+	                    
+	                ) C
+	                INNER JOIN (
+	                        SELECT ISNULL(dbo.UFN_GET_CMPNY_CD(A.TenantId),'Z') AS CMPNY_CD,COUNT(A.Id) AS ROBOT_CNT
+	                        FROM   SY_ROBOTS A
+	                        JOIN   SY_MACHINES B
+	                        ON   A.MachineId = B.Id
+	                        WHERE   A.IsDeleted = 0
+	                        GROUP BY dbo.UFN_GET_CMPNY_CD(A.TenantId)
+	                        WITH ROLLUP  
+	                )D
+	                ON C.CMPNY_CD = D.CMPNY_CD
+	                
+	        ) E
+	        
+	        PIVOT(SUM(E.SUM_JOB_TM) FOR E.CMPNY_CD IN ([Z],[A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 개발자수(명) 날짜 변화 x -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X ,ISNULL(ROUND(A+C+E+F+H+I+S+T+X,2),0) AS Z
+        FROM (
+	        SELECT 'CR' AS GBN1,'CR' AS GBN2 ,ISNULL(A,0) AS A,ISNULL(C,0) AS C,ISNULL(E,0) AS E,ISNULL(F,0) AS F,ISNULL(H,0) AS H,ISNULL(I,0) AS I,ISNULL(S,0) AS S,ISNULL(T,0) AS T,ISNULL(X,0) AS X
+	        FROM (
+	        
+	            SELECT A.CMPNY_CD AS CMPNY_CD, COUNT(A.USER_ID) AS PROCESS_CNT
+	            FROM TB_USER_BAS A
+	            INNER JOIN TB_USER_ROLE B
+	            ON A.USER_ID = B.USER_ID
+	        
+	            WHERE A.USE_AT = 'Y' AND B.ROLE_CD IN ('0003','0002') AND A.CMPNY_CD != 'S' <!-- 2020/11/27 팜스제외-->
+	            
+	            GROUP BY A.CMPNY_CD
+
+	        ) C 
+	        PIVOT(SUM(PROCESS_CNT) FOR CMPNY_CD IN ([A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+        
+        UNION ALL
+        
+        <!-- 봇수(대수) 날짜 변화 x -->
+        SELECT GBN1, GBN2, A, C, E, F, H, I, S, T, X ,ISNULL(ROUND(A+C+E+F+H+I+S+T+X,2),0) AS Z
+        FROM (
+	        SELECT 'BOT' AS GBN1,'BOT' AS GBN2 ,ISNULL(A,0) AS A,ISNULL(C,0) AS C,ISNULL(E,0) AS E,ISNULL(F,0) AS F,ISNULL(H,0) AS H,ISNULL(I,0) AS I,ISNULL(S,0) AS S,ISNULL(T,0) AS T,ISNULL(X,0) AS X
+	        FROM (
+	                SELECT dbo.UFN_GET_CMPNY_CD(A.TenantId) AS CMPNY_CD, COUNT(A.Id) AS CNT
+	                FROM   SY_ROBOTS A
+	                JOIN   SY_MACHINES B
+	                ON   A.MachineId = B.Id
+	                WHERE   A.IsDeleted = 0 <!-- 2020/11/30 봇수만 팜스포함--> 
+	                GROUP BY dbo.UFN_GET_CMPNY_CD(A.TenantId) 
+	        ) D
+	        PIVOT(SUM(CNT) FOR CMPNY_CD IN ([A],[C],[E],[F],[H],[I],[S],[T],[X])) AS PVT
+        )AA
+    
+    </select>
+    <!--  -->
+    <sql id="searchType2Card1_1_sch1_top">
+DECLARE @V_DATE_CNT INT, @V_SEARCH_TYPE INT, @V_START_DATE DATETIME, @V_END_DATE DATETIME
+
+/*1: 주, 2: 월, 3: 년, 4, 전체, 5:시간설정*/
+SET @V_SEARCH_TYPE = ${searchType}
+SET @V_END_DATE = DATEADD(HH, -9, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE() , 23)))
+/*SET @V_END_DATE = CONVERT(DATETIME, '2020-12-01')*/
+
+IF (@V_SEARCH_TYPE = 1)
+BEGIN
+	SET @V_START_DATE = DATEADD(DAY, -7, @V_END_DATE)
+END
+ELSE IF(@V_SEARCH_TYPE = 2)
+BEGIN
+	SET @V_START_DATE = DATEADD(HH, -9, CONVERT(DATETIME, CONCAT(CONVERT(VARCHAR(8), DATEADD(DAY, -1, @V_END_DATE), 23), '01')))
+END
+ELSE IF(@V_SEARCH_TYPE = 3)
+BEGIN
+	SET @V_START_DATE = DATEADD(HH, -9, CONVERT(DATETIME, CONCAT(CONVERT(VARCHAR(5), DATEADD(DAY, -1, @V_END_DATE), 23), '01-01')))
+END
+ELSE IF(@V_SEARCH_TYPE = 4)
+BEGIN
+	SET @V_START_DATE = DATEADD(HH, -9, CONVERT(DATETIME, '2019-01-01'))
+END
+ELSE IF(@V_SEARCH_TYPE = 5)
+BEGIN
+	SET @V_END_DATE = DATEADD(HH, -9, DATEADD(DAY, 1, CONVERT(DATETIME, #{searchEndDate})))
+	SET @V_START_DATE = DATEADD(HH, -9, CONVERT(DATETIME, #{searchStartDate}))
+END
+
+SET @V_DATE_CNT = DATEDIFF(DAY, @V_START_DATE, @V_END_DATE);
+	</sql>
+
+	<select id="searchType2Card1_1_sch1_1" parameterType="java.util.Map" resultType="camelMap">
+<include refid="searchType2Card1_1_sch1_top" />
+WITH AA AS(
+	SELECT 
+	A.CMPNY_CD, A.PROCESS_CD, C.TenantId
+	, One_redcn_Tm 
+	FROM
+		(
+			SELECT 
+				A_1.CMPNY_CD
+				, A_1.PROCESS_CD
+				, A_1.BELONGING_DE
+				, CASE 
+					WHEN A_1.FQ_CD = '0' OR A_1.FQ_CD = '1'THEN 
+						A_1.redcn_Tm / (A_1.execut_Cnt * 365.0)
+					WHEN A_1.FQ_CD = '2' THEN 
+						A_1.redcn_Tm / (A_1.execut_Cnt  / 7.0 * 365.0)
+					WHEN A_1.FQ_CD = '3' THEN 
+						A_1.redcn_Tm / (A_1.execut_Cnt * 12.0)
+					WHEN A_1.FQ_CD = '4' THEN 
+						A_1.redcn_Tm / CONVERT(FLOAT, A_1.execut_Cnt)
+					END AS One_redcn_Tm
+			FROM [dbo].[TB_TASK_DEVLOP_PROCESS] A_1
+			WHERE A_1.PROCESS_STTUS IN ('D4', 'O1')
+				AND ISNULL(A_1.REDCN_TM, 0) > 0
+				AND ISNULL(A_1.EXECUT_CNT, 0) > 0
+		) A
+		INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS_MAPPER] B ON A.PROCESS_CD = B.PROCESS_CD
+		INNER JOIN [dbo].[SY_JOBS] C ON B.RELEASES_ID = C.ReleaseId
+	WHERE
+		A.BELONGING_DE <![CDATA[<]]> @V_END_DATE
+		AND C.StartTime >= CONVERT(DATETIME, A.BELONGING_DE)
+		AND C.StartTime >= CONVERT(DATETIME, @V_START_DATE) 
+		AND C.StartTime <![CDATA[<]]> CONVERT(DATETIME, @V_END_DATE)
+		AND C.State = 5
+		AND C.EndTime IS NOT NULL
+		AND C.RobotId IS NOT NULL
+)
+SELECT 
+	1 AS VIEW_ORDER
+	, '' AS CMPNY_CD
+	, '그룹' AS CMPNY_NM
+	, 0 AS CMPNY_ORDER
+	, ISNULL(ROUND(SUM(One_redcn_Tm), 0), 0) as redcn_Tm
+	, CASE WHEN ISNULL(ROUND(SUM(One_redcn_Tm), 0), 0) != 0 THEN 
+			ROUND(SUM(One_redcn_Tm) / (1570 / 365 * @V_DATE_CNT), 0)
+		ELSE
+			0
+		END  AS exchange_person
+FROM AA
+UNION ALL
+SELECT 
+	2 AS VIEW_ORDER
+	, A.CD AS CMPNY_CD
+	, MAX(A.CD_NM) AS CMPNY_NM
+	, MAX(A.CD_ORDER) AS CMPNY_ORDER
+	, ISNULL(ROUND(SUM(One_redcn_Tm), 0), 0) as redcn_Tm
+	, CASE WHEN ISNULL(SUM(One_redcn_Tm), 0) != 0 THEN
+			ROUND(SUM(One_redcn_Tm) / (1570 / 365 * @V_DATE_CNT), 0) 
+		ELSE
+			0
+		END AS exchange_person
+FROM [dbo].[TB_CMMN_CD] A 
+	LEFT OUTER JOIN AA ON A.CD = AA.CMPNY_CD
+WHERE A.CLS_CD = '0024'
+	AND A.USE_AT = 'Y'
+	AND A.CD != 'S'
+GROUP BY A.CD
+ORDER BY VIEW_ORDER, CMPNY_ORDER;
+	</select>
+	
+	<select id="searchType2Card1_1_sch1_2" parameterType="java.util.Map" resultType="camelMap">
+<include refid="searchType2Card1_1_sch1_top" />
+WITH AA AS(
+	SELECT 
+		A.CD AS CMPNY_CD
+		, A.CD_NM AS CMPNY_NM
+		, A.CD_ORDER AS CMPNY_ORDER
+		, ISNULL(B.TASK_CNT, 0) AS TASK_CNT
+	FROM [dbo].[TB_CMMN_CD] A 
+		LEFT OUTER JOIN 
+			(	
+				SELECT B_1.CMPNY_CD, COUNT(DISTINCT B_1.DEVLOP_SN) AS TASK_CNT FROM [dbo].[TB_TASK_DEVLOP_PROCESS] B_1
+				WHERE 
+				B_1.PROCESS_STTUS IN ('D4', 'O1')
+				AND B_1.BELONGING_DE >= @V_START_DATE
+				AND B_1.BELONGING_DE <![CDATA[<]]> @V_END_DATE
+				GROUP BY B_1.CMPNY_CD 
+			) B ON A.CD = B.CMPNY_CD
+	WHERE A.CLS_CD = '0024'
+	AND A.USE_AT = 'Y'
+	AND A.CD != 'S'
+)
+SELECT
+	1 AS VIEW_ORDER
+	, '' AS CMPNY_CD
+	, '그룹' as CMPNY_NM
+	, 0 AS CMPNY_ORDER
+	, SUM(TASK_CNT) AS TASK_CNT
+FROM
+	AA
+UNION ALL
+SELECT
+	2 AS VIEW_ORDER
+	, CMPNY_CD
+	, CMPNY_NM
+	, CMPNY_ORDER
+	, TASK_CNT AS TASK_CNT
+FROM
+	AA
+ORDER BY VIEW_ORDER, CMPNY_ORDER;
+	</select>
+	
+
+	
+    <select id="searchType2Card1_1_sch2_1" parameterType="java.util.Map" resultType="camelMap">
+WITH AA AS(
+	SELECT A.CMPNY_CD AS CMPNY_CD, COUNT(A.USER_ID) AS DEV_CNT
+	FROM TB_USER_BAS A
+		INNER JOIN TB_USER_ROLE B ON A.USER_ID = B.USER_ID
+	WHERE A.USE_AT = 'Y' AND B.ROLE_CD IN ('0003','0002') AND A.CMPNY_CD != 'S' 
+	GROUP BY A.CMPNY_CD
+)
+SELECT
+	1 AS VIEW_ORDER
+	, '' AS CMPNY_CD
+	, '그룹' as CMPNY_NM
+	, SUM(DEV_CNT) AS DEV_CNT
+	, '' AS CD_ORDER
+FROM
+	AA
+UNION ALL
+SELECT 
+	2 AS VIEW_ORDER
+	, A.CD AS CMPNY_CD
+	, A.CD_NM AS CMPNY_NM
+	, DEV_CNT
+	, A.CD_ORDER AS CD_ORDER
+FROM [dbo].[TB_CMMN_CD] A 
+	LEFT OUTER JOIN AA ON A.CD = AA.CMPNY_CD
+WHERE A.CLS_CD = '0024'
+	AND A.USE_AT = 'Y'
+	AND A.CD != 'S'
+ORDER BY VIEW_ORDER, CD_ORDER;
+    </select>
+
+    <select id="searchType2Card1_1_sch2_2" parameterType="java.util.Map" resultType="camelMap">
+WITH AA AS(
+	SELECT dbo.UFN_GET_CMPNY_CD(A.TenantId) AS CMPNY_CD, COUNT(A.Id) AS CNT
+	FROM   SY_ROBOTS A
+	JOIN   SY_MACHINES B
+	ON   A.MachineId = B.Id
+		WHERE   A.IsDeleted = 0 
+		GROUP BY A.TenantId
+)
+SELECT
+	1 AS VIEW_ORDER
+	, '' AS CMPNY_CD
+	, '그룹' as CMPNY_NM
+	, SUM(CNT) AS ROBOT_CNT
+	, '' AS CD_ORDER
+FROM
+	AA
+UNION ALL
+SELECT 
+	2 AS VIEW_ORDER
+	, A.CD AS CMPNY_CD
+	, A.CD_NM AS CMPNY_NM
+	, CNT AS ROBOT_CNT
+	, A.CD_ORDER AS CD_ORDER
+FROM [dbo].[TB_CMMN_CD] A 
+	LEFT OUTER JOIN AA ON A.CD = AA.CMPNY_CD
+WHERE A.CLS_CD = '0024'
+	AND A.USE_AT = 'Y'
+	AND A.CD != 'S'
+ORDER BY VIEW_ORDER, CD_ORDER;
+    </select>
+   	 
+    <!--  -->
+    <!-- 임원용 대쉬보드 가동률 리스트 조회 -->
+    <select id="selectOwnerMainOperRateList" parameterType="java.util.Map" resultType="java.util.Map">
+    /* MainMapper.selectOwnerMainOperRateList */
+    <include refid="searchType2Card1_1_sch1_top" />	
+		
+		-- 가동률
+		WITH AA AS(
+			SELECT 
+				B.CMPNY_CD, C.TenantId, SUM(DATEDIFF(SECOND, C.StartTime, C.EndTime)) / CONVERT(FLOAT, (@V_DATE_CNT * 60* 60 * 12)) as RunTime
+				, COUNT(DISTINCT C.RobotId) as robotCnt
+			FROM 
+				TB_TASK_DEVLOP_PROCESS A INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.PROCESS_CD = B.PROCESS_CD
+				INNER JOIN SY_JOBS C ON B.RELEASES_ID = C.ReleaseId
+			WHERE
+				A.PROCESS_STTUS IN ('D4', 'O1')
+				AND A.BELONGING_DE <![CDATA[<]]> @V_END_DATE
+				AND C.StartTime >= CONVERT(DATETIME, A.BELONGING_DE)
+				AND C.StartTime >= CONVERT(DATETIME, @V_START_DATE) 
+				AND C.StartTime <![CDATA[<]]> CONVERT(DATETIME, @V_END_DATE)
+				AND C.EndTime IS NOT NULL
+				AND C.RobotId IS NOT NULL
+			GROUP BY B.CMPNY_CD, C.TenantId
+		)
+		SELECT 
+			1 AS VIEW_ORDER
+			, '' AS CMPNY_CD
+			, '그룹' AS  CMPNY_NM
+			, CASE WHEN SUM(RunTime) != 0 THEN
+					ROUND(SUM(RunTime) / SUM(robotCnt) * 100, 0)
+				ELSE
+					0
+				END AS operating_rate
+			, 0 AS CD_ORDER
+		FROM AA
+		UNION ALL
+		SELECT 
+			2 AS VIEW_ORDER
+			, A.CD AS CMPNY_CD
+			, A.CD_NM AS CMPNY_NM
+			, CASE WHEN RunTime != 0 THEN
+					ROUND(RunTime / robotCnt * 100, 0)
+				ELSE
+					0
+				END AS operating_rate
+			, A.CD_ORDER AS CD_ORDER
+		FROM TB_CMMN_CD A 
+			LEFT OUTER JOIN AA ON A.CD = AA.CMPNY_CD
+		WHERE A.CLS_CD = '0024'
+			AND A.USE_AT = 'Y'
+			AND A.CD != 'S'
+		ORDER BY VIEW_ORDER, CD_ORDER
+    </select>
+    
+    <!--  -->
+	<!-- 임원용 대쉬보드 성공률 리스트 조회 -->
+    <select id="selectOwnerMainSuccRateList" parameterType="java.util.Map" resultType="java.util.Map">
+    /* MainMapper.selectOwnerMainSuccRateList */    
+   <include refid="searchType2Card1_1_sch1_top" />
+	-- 성공률
+	WITH AA AS(
+		SELECT 
+			B.CMPNY_CD, C.TenantId, count(CASE WHEN C.State = 5 THEN 1 END) SuccCnt, count(C.id) AS TotCnt
+		FROM 
+			TB_TASK_DEVLOP_PROCESS A INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.PROCESS_CD = B.PROCESS_CD
+			INNER JOIN SY_JOBS C ON B.RELEASES_ID = C.ReleaseId
+		WHERE
+			A.PROCESS_STTUS IN ('D4', 'O1')
+			AND C.StartTime >= CONVERT(DATETIME, A.BELONGING_DE)
+			AND C.StartTime >= CONVERT(DATETIME, @V_START_DATE) 
+			AND C.StartTime <![CDATA[<]]> CONVERT(DATETIME, @V_END_DATE)
+			AND C.EndTime IS NOT NULL
+			AND C.RobotId IS NOT NULL
+		GROUP BY B.CMPNY_CD, C.TenantId
+	)
+	SELECT
+		1 AS VIEW_ORDER
+		, '' AS CMPNY_CD
+		, '그룹' AS CMPNY_NM
+		, CASE WHEN SUM(SuccCnt) != 0 THEN 
+				ROUND(SUM(SuccCnt) / CONVERT(FLOAT, SUM(TotCnt)) * 100, 0) 
+			ELSE
+				0
+			END as Success_rate
+		, 0 AS CD_ORDER
+	FROM AA
+	UNION ALL
+	SELECT 
+		2 AS VIEW_ORDER
+		, A.CD AS CMPNY_CD
+		, A.CD_NM AS CMPNY_NM
+		, CASE WHEN SuccCnt != 0 THEN
+				ROUND(SuccCnt / CONVERT(FLOAT, TotCnt) * 100, 0)
+			ELSE
+				0
+			END as Success_rate
+		, A.CD_ORDER AS CD_ORDER
+	FROM TB_CMMN_CD A 
+		LEFT OUTER JOIN AA ON A.CD = AA.CMPNY_CD
+	WHERE A.CLS_CD = '0024'
+		AND A.USE_AT = 'Y'
+		AND A.CD != 'S'
+	ORDER BY VIEW_ORDER, CD_ORDER
+    </select>
+
+</mapper>

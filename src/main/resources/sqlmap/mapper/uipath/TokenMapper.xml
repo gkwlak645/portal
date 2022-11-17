@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TokenMapper">
+
+        <select id="selectApiTknList" resultType="camelMap">
+        /* TokenMapper.selectApiTknList */
+            SELECT   SERVER_NO
+                   , USER_NM
+                   , PASSWORD
+                   , TENANT_ID
+                   , TENANT_NM
+                   , SERVER_URL
+              FROM   TB_API_TKN WITH(NOLOCK)
+              WHERE CMPNY_CD IS NOT NULL AND CMPNY_CD != ''
+        </select>
+        
+        <update id="updateApiTkn" parameterType="java.util.Map">
+        /* TokenMapper.updateApiTkn */
+            UPDATE   TB_API_TKN 
+               SET   TKN_VALUE = #{tknValue}
+                   , CREAT_DT = GETDATE()
+             WHERE   SERVER_NO = #{serverNo}
+               AND   USER_NM = #{userNm}
+               AND   TENANT_ID = #{tenantId}
+        </update>
+        
+        <select id="selectApiTkn" parameterType="java.util.Map" resultType="camelMap">
+        /* TokenMapper.selectApiTkn */
+            <!-- SELECT   SERVER_NO
+                   , USER_NM
+                   , SERVER_URL
+                   , TKN_VALUE
+             FROM   TB_API_TKN
+             WHERE   SERVER_NO = #{serverNo}
+               AND   USER_NM = #{userNm}
+               AND   TENANT_ID = #{tenantId} -->
+               SELECT   SERVER_NO
+                   , USER_NM
+                   , SERVER_URL
+                   , TKN_VALUE
+             FROM   TB_API_TKN WITH(NOLOCK)
+             WHERE  CMPNY_CD = #{cmpnyCd}
+        </select>
+        
+</mapper>

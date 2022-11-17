@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="UserRoleMapper">
+       
+    <insert id="insertUserRole" parameterType="kr.co.rpaplatform.dongwon.author.vo.UserRoleVO">
+        /* RoleMapper.insertRoleMng */
+        INSERT INTO TB_USER_ROLE
+             (
+                    USER_ID
+                   ,ROLE_CD
+		           ,REGISTER_ID
+		           ,REG_DT
+             )
+        VALUES
+             (
+		            #{userId}
+		           ,#{roleCd}
+		           ,#{txUserId}
+		           ,GETDATE()
+             );
+    </insert>
+    
+    
+    <update id="updateUserRole" parameterType="kr.co.rpaplatform.dongwon.author.vo.UserRoleVO">
+        /* RoleMapper.updateRoleMng */
+        UPDATE TB_USER_ROLE
+           SET ROLE_CD = #{roleCd}
+         WHERE USER_ID = #{userId}
+    </update>
+    
+    <select id="selectCountUserRole" parameterType="kr.co.rpaplatform.dongwon.author.vo.UserRoleVO" resultType="int">
+    /* RoleMapper.selectCountRoleMng */
+        SELECT   COUNT(USER_ID)
+          FROM   TB_USER_ROLE
+         WHERE   USER_ID = #{userId}
+    </select>
+      
+    <select id="selectUserRole" resultType="kr.co.rpaplatform.dongwon.author.vo.UserRoleVO">
+        /* RoleMapper.selectRoleMng */
+        SELECT  ROLE_CD
+          FROM  TB_USER_ROLE
+         WHERE  USER_ID = #{userId}
+    </select>
+    
+    <delete id="deleteUserRole" parameterType="kr.co.rpaplatform.dongwon.author.vo.UserRoleVO">
+        /* RoleMapper.deleteUserRoleMng */
+        DELETE  
+         FROM TB_USER_ROLE
+         WHERE 1 = 1
+         <if test="userId != null and userId != ''">
+		     AND USER_ID  = #{userId}
+		 </if>
+		 <if test="roleCd != null and roleCd != ''">
+             AND ROLE_CD  = #{roleCd}
+         </if>
+    </delete>
+    
+    
+   <select id="selectDownloadBtnUserRoleCount" parameterType="java.util.Map" resultType="int">
+	/*RoleMapper.selectDownloadBtnRoleCdCount*/
+	SELECT  COUNT(USER_ID)
+	FROM  TB_USER_ROLE
+	WHERE USER_ID = #{txUserId}
+	AND ROLE_CD IN ('0001','0002','0003')
+    </select>
+   
+</mapper>

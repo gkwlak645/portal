@@ -1,0 +1,77 @@
+.panel-body {background:url(/resources/img/sub/flip_count_bg_all.png) no-repeat 0 0; background-size:100%; /* padding-top:1%; */ overflow:hidden;}
+.slotwrapper {clear:both; display:flex; flex-wrap:nowrap; flex-direction:row; justify-content:space-between; padding-top:2%; height:180px; overflow:hidden; }
+.slotwrapper ul {padding: 0;margin: 0; position: relative;}
+.slotwrapper ul {width:100%; font-size: 5vw; line-height:140px; text-align: center; box-sizing:border-box;}
+.slotwrapper ul li {font-family: 'Titillium' !important; font-weight:700; color:#fff; opacity:.7; -webkit-text-shadow: 5px -7px 7px 0px rgba(50, 50, 50, 0.07); text-shadow:5px -7px 7px 0px rgba(50, 50, 50, 0.07);} 
+
+@media screen and (max-width: 1550px) {
+	.panel-body {margin-bottom:20px;}
+    .slotwrapper {height:135px; padding-top:0;}
+    .slotwrapper ul {font-size:5.5vw;}
+}
+
+@media screen and (max-width: 1350px) {
+	.panel-body {margin-bottom:30px;}
+    .slotwrapper {height:175px; padding-top:1.5%;}
+    .slotwrapper ul {font-size:7vw;}
+}
+
+@media screen and (max-width: 1200px) {
+    .slotwrapper {height:155px; padding-top:1%;}
+    .slotwrapper ul {font-size:6.5vw;}
+}
+@media screen and (max-width: 1050px) {
+    .slotwrapper {height:145px; padding-top:0;}
+    .slotwrapper ul {}
+}
+@media screen and (max-width: 900px) {
+    .slotwrapper {height:125px; margin-top:-1%;}
+    .slotwrapper ul {}
+}
+@media screen and (max-width: 768px) {
+    .slotwrapper {height:120px; margin-top:-2%;}
+    .slotwrapper ul {}
+}
+@media screen and (max-width: 640px) {
+    .slotwrapper {height:115px; margin-top:-4%;}
+    .slotwrapper ul {}
+}
+@media screen and (max-width: 560px) {
+    .slotwrapper {height:115px; margin-top:-6%;}
+    .slotwrapper ul {}
+}
+@media screen and (max-width: 480px) {
+    .slotwrapper {height:100px; margin-top:-8%;}
+    .slotwrapper ul {}
+}
+@media screen and (max-width: 400px) {
+    .slotwrapper {height:100px; margin-top:-12%;}
+    .slotwrapper ul {}
+}
+
+
+/* Example 10 override slotwrapper */
+#example10 {
+    height: 150px;
+}
+#example10 ul {
+    width: 150px;
+    height:150px;
+    font-size: 150px;
+    line-height: 150px;
+}
+@media screen and (max-width: 1200px) {
+    #example10 ul {
+        width: 18%;
+    }
+}
+@media screen and (max-width: 768px) {
+    #example10 {
+        height: 100px;
+    }
+    #example10 ul {
+        height:100px;
+        font-size: 100px;
+        line-height: 100px;
+    }
+}

@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="HlpdskMapper">
+    
+    <select id="selectTotalHlpdskListCount" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO" resultType="int">    
+    /*HlpdskMapper.selectTotalHlpdskListCount*/
+      SELECT 
+      COUNT(A.REQUST_SJ) AS requstSj    
+      FROM TB_HLPDSK A
+      JOIN TB_USER_DETAIL B ON A.REGISTER_ID = B.EMP_NO
+      LEFT OUTER JOIN TB_CMMN_CD C 
+      ON 
+      (
+       C.CD = A.REQUST_CMPNY_CD AND
+       C.CLS_CD = '0024' AND
+       C.USE_AT = 'Y'
+      )
+      WHERE 1 = 1
+      
+          <if test = ' requstCmpnyCd != "" and requstCmpnyCd != null '>
+              AND A.REQUST_CMPNY_CD = #{requstCmpnyCd}
+          </if> 
+          <if test = ' processSttusCd != "" and processSttusCd != null '>
+              AND A.PROCESS_STTUS_CD = #{processSttusCd}
+          </if>      
+          <if test = ' requstSe != "" and requstSe != null '>
+              AND A.REQUST_SE = #{requstSe}
+          </if>
+          <if test=' requstUserId != null and requstUserId != ""'>
+               AND B.[EMP_NM] LIKE CONCAT('%', #{requstUserId}, '%')
+          </if>
+          <if test=' startDt != null and startDt != "" and lastDt != null and lastDt != "" '>
+               AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+          </if>
+          
+          
+          
+          <!-- <if test = ' startDt != "all" '>
+                <choose>
+              <when test=' startDt != null and startDt != "" '>
+                  AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+              </when>
+              <when test=' startDt == "" '>
+                  <![CDATA[ AND A.REG_DT > GETDATE()-91 ]]>
+              </when>
+          </choose>
+          </if> -->
+          <choose>
+              <when test=' requstSj != null and requstSj != "" '>
+                  AND A.REQUST_SJ like '%' + #{requstSj} + '%'
+              </when>
+          </choose>
+    </select>    
+    
+    <select id="selectHlpdskList" statementType="CALLABLE" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO" resultType="map">    
+    /*HlpdskMapper.selectHlpdskList*/
+      SELECT REQUST_SN AS requstSn
+      , A.REQUST_SJ AS requstSj
+      , A.REQUST_CN AS requstCn
+      , A.REQUST_SE AS requstSe   
+      , ISNULL(C.CD_NM, '미등록 회사') AS cmpNm
+      , A.REQUST_CMPNY_CD AS requstCmpnyCd
+      , B.EMP_NM AS empNm
+      , A.REGISTER_ID AS requstUserId
+      , CONVERT(VARCHAR,A.REG_DT,120) AS regDt
+      , A.REQUST_FILE_GRP_NO AS requstFileGrpNo
+      , A.PROCESS_STTUS_CD AS processSttusCd
+      , A.PROCESS_DE AS processDe 
+      , A.REGISTER_ID AS registerId
+      , A.REG_DT AS regDt
+      , A.UPDUSR_ID AS updusrId
+      , A.UPDT_DT AS updtDt
+      FROM TB_HLPDSK A
+      JOIN TB_USER_DETAIL B ON A.REGISTER_ID = B.EMP_NO
+      LEFT OUTER JOIN TB_CMMN_CD C 
+      ON 
+      (
+       C.CD = A.REQUST_CMPNY_CD AND
+       C.CLS_CD = '0024' AND
+       C.USE_AT = 'Y'
+      )
+      WHERE 1 = 1
+      
+          <if test = ' requstCmpnyCd != "" and requstCmpnyCd != null '>
+              AND A.REQUST_CMPNY_CD = #{requstCmpnyCd}
+          </if> 
+          <!-- <if test = ' requstCmpnyCd != "" and requstCmpnyCd != null '>
+              AND A.REQUST_CMPNY_CD = #{requstCmpnyCd}
+          </if>  -->
+          <if test = ' processSttusCd != "" and processSttusCd != null '>
+              AND A.PROCESS_STTUS_CD = #{processSttusCd}
+          </if>      
+	      <if test = ' requstSe != "" and requstSe != null '>
+	          AND A.REQUST_SE = #{requstSe}
+	      </if>
+	      <if test=' requstUserId != null and requstUserId != ""'>
+               AND B.[EMP_NM] LIKE CONCAT('%', #{requstUserId}, '%')
+          </if>
+	      <if test=' startDt != null and startDt != "" and lastDt != null and lastDt != "" '>
+               AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+          </if>
+	      
+	      <!-- <if test = ' startDt != "all" '>
+	            <choose>
+	          <when test=' startDt != null and startDt != "" '>
+	              AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+	          </when>
+	          <when test=' startDt == "" '>
+	              <![CDATA[ AND A.REG_DT > GETDATE()-91 ]]>
+	          </when>
+	      </choose>
+	      </if> -->
+	      <choose>
+	          <when test=' requstSj != null and requstSj != "" '>
+	              AND A.REQUST_SJ like '%' + #{requstSj} + '%'
+	          </when>
+	      </choose>
+	      
+
+      ORDER BY A.REQUST_SN DESC
+      OFFSET #{pageInfo.firstRecordIndex} ROWS
+      FETCH NEXT #{pageInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+    <insert id="insertHlpdsk" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO">
+      INSERT
+      INTO TB_HLPDSK (
+            REQUST_SJ	        , REQUST_CN	        , REQUST_SE	        , REQUST_CMPNY_CD	        , REQUST_USER_ID
+	        , REQUST_FILE_GRP_NO	        , PROCESS_STTUS_CD	        , PROCESS_DE	        , PROCESS_CN	        , PROCESS_USER_ID
+	        , PROCESS_FILE_GRP_NO	        , REGISTER_ID	        , REG_DT	        , UPDUSR_ID	        , UPDT_DT  
+	          
+	    ) VALUES (	    
+	        #{requstSj}	        , #{requstCn}	        , #{requstSe}	        , #{requstCmpnyCd}	        , #{txUserId}        
+	        , #{requstFileGrpNo}        	        , '01'	        , ''	        , ''	        , ''
+	        , ''	        , #{txUserId}	        , GETDATE()	        , #{txUserId}	        , GETDATE()
+	    )    
+    </insert>
+    
+    <select id="detailHlpdsk" resultType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO">
+/*HlpdskMapper.detailHlpdsk*/
+      SELECT REQUST_SJ
+      , A.REQUST_SE
+      , A.REQUST_SN
+      , A.REQUST_CN
+      , A.REQUST_CMPNY_CD
+      , A.REQUST_USER_ID
+      , A.REQUST_FILE_GRP_NO
+      , A.PROCESS_STTUS_CD
+      , A.PROCESS_FILE_GRP_NO
+      , A.PROCESS_DE
+      , A.PROCESS_CN
+      , A.PROCESS_TM
+      , A.UPDUSR_ID
+      , A.PROCESS_USER_ID
+      , B.EMP_NM AS USER_NM
+      FROM TB_HLPDSK A JOIN TB_USER_DETAIL B ON A.REGISTER_ID = B.EMP_NO
+      WHERE REQUST_SN = #{requstSn} 
+      <!-- AND A.REGISTER_ID = #{txUserId} -->
+    </select>
+    
+    <delete id="deleteHlpdsk" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO">
+      DELETE 
+      FROM TB_HLPDSK
+      WHERE REQUST_Sn = #{requstSn}
+    </delete>
+    
+    <update id="updateHlpdsk"  parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO">
+      UPDATE TB_HLPDSK SET
+      REQUST_SJ = #{requstSj}
+      , REQUST_SE = #{requstSe}
+      , REQUST_CN = #{requstCn}      
+      , UPDUSR_ID = #{txUserId}
+      , REQUST_FILE_GRP_NO = #{requstFileGrpNo}
+      , UPDT_DT = GETDATE()      
+      WHERE REQUST_SN = #{requstSn}       
+    </update>
+    
+    
+    <!-- 처리요청 끝 -->
+    
+    
+    <select id="getReceiptListCount" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO" resultType="int">
+      SELECT COUNT(REQUST_SJ)
+      FROM TB_HLPDSK A 
+      JOIN TB_USER_BAS B ON A.REGISTER_ID = B.USER_ID
+      <where>
+          <if test = ' requstCmpnyCd != "" and requstCmpnyCd != null '>
+              AND REQUST_CMPNY_CD = #{requstCmpnyCd}
+          </if> 
+          <if test = ' processSttusCd != "" and processSttusCd != null '>
+              AND PROCESS_STTUS_CD = #{processSttusCd}
+          </if>  
+          <if test = ' requstSe != "" and requstSe != null '>
+              AND REQUST_SE = #{requstSe}
+          </if>
+          <if test = ' userNm != "" and userNm != null '>
+              AND USER_NM like '%' + #{userNm} + '%'
+          </if>
+          <choose>
+              <when test=' requstSj != null and requstSj != "" '>
+                  AND REQUST_SJ like '%' + #{requstSj} + '%'
+              </when>
+          </choose>
+          <choose>
+              <when test=' startDt != "all" and startDt != "" '>
+                  AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+              </when>
+              <when test=' startDt == "" '>
+                  <![CDATA[ AND A.REG_DT > GETDATE()-91 ]]>
+              </when>             
+          </choose>
+      </where>
+    </select>    
+    
+    <select id="getReceiptList" statementType="CALLABLE" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO" resultType="map">
+      /*HlpdskMapper.getReceiptList*/
+      SELECT REQUST_SN AS requstSn
+      , A.REQUST_SJ AS requstSj
+      , A.REQUST_CN AS requstCn
+      , A.REQUST_SE AS requstSe                      
+      , A.REQUST_CMPNY_CD AS requstCmpnyCd
+      , A.REGISTER_ID AS requstUserId
+      , CONVERT(VARCHAR,A.REG_DT,120) AS regDt
+      , A.REQUST_FILE_GRP_NO AS requstFileGrpNo
+      , A.PROCESS_STTUS_CD AS processSttusCd      
+      , A.PROCESS_DE AS processDe
+      , A.PROCESS_CN AS processCn
+      , A.REGISTER_ID AS registerId
+      , A.REG_DT AS regDt
+      , A.UPDUSR_ID AS updusrId
+      , A.UPDT_DT AS updtDt
+      , B.EMP_NM AS userNm
+      FROM TB_HLPDSK 
+      A JOIN TB_USER_DETAIL B ON A.REGISTER_ID = B.EMP_NO
+      <where>
+          <if test = ' requstCmpnyCd != "" and requstCmpnyCd != null '>
+              AND REQUST_CMPNY_CD = #{requstCmpnyCd}
+          </if> 
+          <if test = ' processSttusCd != "" and processSttusCd != null '>
+              AND PROCESS_STTUS_CD = #{processSttusCd}
+          </if>      
+          <if test = ' requstSe != "" and requstSe != null '>
+              AND REQUST_SE = #{requstSe}
+          </if>
+          <if test = ' userNm != "" and userNm != null '>
+              AND USER_NM like '%' + #{userNm} + '%'
+          </if>
+          <if test = ' startDt != "all" '>
+                <choose>
+              <when test=' startDt != null and startDt != "" '>
+                  AND CONVERT(VARCHAR,A.REG_DT,112) BETWEEN #{startDt} AND #{lastDt}
+              </when>
+              <when test=' startDt == "" '>
+                  <![CDATA[ AND A.REG_DT > GETDATE()-91 ]]>
+              </when>
+          </choose>
+          </if>
+          <choose>
+              <when test=' requstSj != null and requstSj != "" '>
+                  AND REQUST_SJ like '%' + #{requstSj} + '%'
+              </when>
+          </choose>
+
+      ORDER BY REQUST_SN DESC
+      OFFSET #{pageInfo.firstRecordIndex} ROWS
+      FETCH NEXT #{pageInfo.recordCountPerPage} ROWS ONLY;
+      </where>
+    </select>
+    
+    <select id="detailReceip" resultType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO" parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO">
+      SELECT REQUST_SJ
+      , REQUST_SE
+      , REQUST_SN
+      , REQUST_CN
+      , REQUST_CMPNY_CD
+      , PROCESS_TM
+      , REQUST_USER_ID
+      , REQUST_FILE_GRP_NO
+      , PROCESS_STTUS_CD
+      FROM TB_HLPDSK
+      WHERE REQUST_SN = #{requstSn} 
+      AND REGISTER_ID = #{txUserId}
+    </select>
+    
+    <update id="updateReceip"  parameterType="kr.co.rpaplatform.dongwon.hlpdsk.vo.HlpdskVO">
+/*HlpdskMapper.updateReceip*/
+      UPDATE TB_HLPDSK SET
+      PROCESS_STTUS_CD = #{processSttusCd}
+      , PROCESS_CN = #{processCn}
+      , PROCESS_TM = #{processTm}
+      , UPDUSR_ID = #{txUserId}
+      , PROCESS_USER_ID = #{txUserId}
+      , PROCESS_FILE_GRP_NO = #{processFileGrpNo}
+      , UPDT_DT = GETDATE()
+      , PROCESS_DE = #{processDe}      
+      WHERE REQUST_SN = #{requstSn} 
+    </update> 
+    
+    <select id="selectSendTrgetList" parameterType="java.util.Map" resultType="camelMap">
+	/*HlpdskMapper.selectSendTrgetList*/
+	SELECT A.EMAIL_ADR as EMAIL_ADR
+	FROM [rpa_potal].[dbo].[TB_USER_DETAIL] A
+	INNER JOIN [rpa_potal].[dbo].[TB_USER_ROLE] B
+	ON A.EMP_NO = B.USER_ID
+	WHERE B.ROLE_CD = '0001' <!-- AND A.EMAIL_ADR = 'hspark@dongwon.com' -->
+	</select>
+	
+	
+	<select id="selectRequstSnSj" parameterType="java.util.Map" resultType="camelMap">
+    /*HlpdskMapper.selectRequstSnSj*/
+    SELECT A.REQUST_SN, 
+    (SELECT CD_NM FROM [rpa_potal].[dbo].[TB_CMMN_CD] WHERE CLS_CD = '0036' AND CD = #{requstSe}) AS CD_NM,
+    (SELECT CD_NM FROM [rpa_potal].[dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = #{requstCmpnyCd} ) AS CMP_NM
+    FROM [rpa_potal].[dbo].[TB_HLPDSK] A
+    WHERE A.REQUST_SN = (SELECT MAX(B.REQUST_SN) FROM [rpa_potal].[dbo].[TB_HLPDSK] B);
+    </select>
+
+</mapper>

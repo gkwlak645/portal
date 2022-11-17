@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="SavingTimeIssueMntrngMapper">
+
+    <!-- 절감시간 이슈관리 개수 -->
+    <select id="selectSavingTimeIssueListCount" parameterType="java.util.Map" resultType="Integer">
+        /*SavingTimeIssueMntrngMapper.selectSavingTimeIssueListCount*/
+          SELECT
+          COUNT(*)
+          FROM [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_DATA] A
+          INNER JOIN [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_RESN] B
+          ON A.PROCESS_CD = B.PROCESS_CD
+          <where>
+              1 = 1
+              <if test='yyyymm != null and yyyymm != ""'>
+               AND A.[YYYYMM] = #{yyyymm} AND B.[YYYYMM] = #{yyyymm} 
+              </if>
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+	           AND A.[CMPNY_CD] = #{cmpnyCd}
+	          </if> 
+	          <if test='searchProcessCd != null and searchProcessCd != ""'>
+               AND A.[PROCESS_CD] LIKE CONCAT('%', #{searchProcessCd}, '%')
+              </if> 
+              <if test='searchProcessNm != null and searchProcessNm != ""'>
+               AND A.[PROCESS_NM] LIKE CONCAT('%', #{searchProcessNm}, '%')
+              </if> 
+          </where>     
+    </select>
+  
+    <!-- 절감시간 이슈관리 리스트 -->
+    <select id="selectSavingTimeIssueList" parameterType="java.util.Map" resultType="camelMap">
+		/*SavingTimeIssueMntrngMapper.selectSavingTimeIssueList*/
+		  SELECT
+		  A.[CMPNY_NM]
+		  , A.[CMPNY_CD]
+		  , A.[PROCESS_CD]
+		  , A.[PROCESS_NM]
+		  
+		  , (SELECT CD_NM FROM [rpa_potal].[dbo].[TB_CMMN_CD] WHERE CLS_CD = '0017' AND CD = 
+            (SELECT TOP(1) FQ_CD FROM [rpa_potal].[dbo].[TB_TASK_DEVLOP_PROCESS] WHERE PROCESS_CD = A.[PROCESS_CD]) ) 'PROCESS_FREQ'
+          , (SELECT TOP(1) [EXECUT_CNT] FROM [rpa_potal].[dbo].[TB_TASK_DEVLOP_PROCESS] WHERE PROCESS_CD = A.[PROCESS_CD]) 'PROCESS_EXC'
+		  
+		  , A.[EXPECT_EXC_CNT]
+		  , A.[REAL_EXC_CNT]
+		  , A.[SUCCES_CNT]
+		  , A.[FAILR_CNT]
+		  , A.[SUCCES_RATE] -- 성공률
+		  , (SELECT TOP(1) REDCN_TM FROM [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS] WHERE A.PROCESS_CD = PROCESS_CD) 'REDCN_TM'
+		  , A.[ACHV_RATE] -- 달성률
+		  , A.[NORMAL_AT]
+		  , B.[REGISTER_ID]
+		  , B.[REG_DT]
+		  , B.[UPDUSR_ID]
+		  , B.[UPD_DT]
+		  , B.[RESN]
+		  FROM [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_DATA] A
+		  INNER JOIN [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_RESN] B
+		  ON A.PROCESS_CD = B.PROCESS_CD
+		  <where>
+		      1 = 1
+		      <if test='yyyymm != null and yyyymm != ""'>
+               AND A.[YYYYMM] = #{yyyymm} AND B.[YYYYMM] = #{yyyymm} 
+              </if>
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND A.[CMPNY_CD] = #{cmpnyCd}
+              </if> 
+              <if test='searchProcessCd != null and searchProcessCd != ""'>
+               AND A.[PROCESS_CD] LIKE CONCAT('%', #{searchProcessCd}, '%')
+              </if> 
+              <if test='searchProcessNm != null and searchProcessNm != ""'>
+	           AND A.[PROCESS_NM] LIKE CONCAT('%', #{searchProcessNm}, '%')
+	          </if> 
+          </where>    
+          ORDER BY A.[CMPNY_CD]
+          OFFSET #{paginationInfo.firstRecordIndex} ROWS
+          FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY    
+    </select>
+    
+    <!-- 사유 등록 -->
+    <update id="insertSavingTimeIssueResn" parameterType="java.util.Map">
+        /*SavingTimeIssueMntrngMapper.insertSavingTimeIssueResn*/
+          UPDATE [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_RESN] 
+          SET 
+           [REGISTER_ID] = #{registerId} 
+          ,[REG_DT]      = GETDATE()
+          ,[NORMAL_AT]   = #{normalAt}      
+          ,[RESN]        = #{resn}
+          <where>
+              1 = 1
+              <if test='yyyymm != null and yyyymm != ""'>
+               AND [YYYYMM] = #{yyyymm}
+              </if>
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND [CMPNY_CD] = #{cmpnyCd}
+              </if> 
+              <if test='searchProcessCd != null and searchProcessCd != ""'>
+               AND [PROCESS_CD] = #{searchProcessCd}
+              </if> 
+          </where>    
+    </update>
+    
+    <!-- 사유 수정 -->
+    <update id="updateSavingTimeIssueResn" parameterType="java.util.Map">
+        /*SavingTimeIssueMntrngMapper.insertSavingTimeIssueResn*/
+          UPDATE [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_RESN] 
+          SET 
+           [UPDUSR_ID]  = #{updateId} 
+          ,[UPD_DT]     = GETDATE()
+          ,[NORMAL_AT]  = #{normalAt}      
+          ,[RESN]       = #{resn}
+          <where>
+              1 = 1
+              <if test='yyyymm != null and yyyymm != ""'>
+               AND [YYYYMM] = #{yyyymm}
+              </if>
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND [CMPNY_CD] = #{cmpnyCd}
+              </if> 
+              <if test='searchProcessCd != null and searchProcessCd != ""'>
+               AND [PROCESS_CD] = #{searchProcessCd}
+              </if> 
+          </where>    
+    </update>
+    
+    <!-- 정상여부 수정 -->
+    <update id="updateSavingTimeIssueNormalAt" parameterType="java.util.Map">
+        /*SavingTimeIssueMntrngMapper.updateSavingTimeIssueNormalAt*/
+          UPDATE [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_DATA]
+          SET [NORMAL_AT]  = #{normalAt}      
+          <where>
+              1 = 1
+              <if test='yyyymm != null and yyyymm != ""'>
+               AND [YYYYMM] = #{yyyymm}
+              </if>
+              <if test='cmpnyCd != null and cmpnyCd != ""'>
+               AND [CMPNY_CD] = #{cmpnyCd}
+              </if> 
+              <if test='searchProcessCd != null and searchProcessCd != ""'>
+               AND [PROCESS_CD] = #{searchProcessCd}
+              </if> 
+          </where>    
+    </update>
+</mapper>

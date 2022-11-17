@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="JobErrorMapper">
+	<select id="getJobErrorCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+/*JobErrorMapper.getJobErrorCount*/
+SELECT
+	COUNT(A.ID)
+FROM dbo.SY_JOBS A WITH(NOLOCK)
+INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS_MAPPER] B WITH(NOLOCK) ON A.ReleaseId =  B.RELEASES_ID
+LEFT OUTER JOIN [dbo].[TB_JOB_ERROR] C ON A.Id =  C.SN
+INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS] D WITH (NOLOCK) ON B.PROCESS_CD = D.PROCESS_CD
+        <where>
+            <choose>
+                <when test='searhChkDe != null and searhChkDe == "occrrncDe"'>
+    AND  A.EndTime <![CDATA[>=]]> DATEADD(HH, -9, CONVERT(DATETIME, #{searchStartDe}))
+    AND  A.EndTime <![CDATA[<]]> DATEADD(HH, 15, CONVERT(DATETIME, #{searchEndDe}))
+                </when>
+                <when test='searhChkDe != null and searhChkDe == "managtDe"'>
+    AND  C.MANAGT_DE BETWEEN #{searchStartDe} AND #{searchEndDe}
+                </when>
+            </choose> 
+            
+            <choose>
+                <when test='searchState != null and searchState != ""'>
+                    <choose>
+                        <when test='searchSttusCd != null and searchSttusCd.equals("01")'>
+                        </when>
+                        <otherwise>
+    AND A.State = #{searchState}
+                        </otherwise>
+                    </choose>
+                </when>
+                <otherwise>
+    AND A.State IN (4,5,6)
+                </otherwise>
+            </choose>
+            
+            <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+    AND B.CMPNY_CD = #{searchCmpnyCd}
+            </if>
+            <if test='searchProcessCd != null and searchProcessCd != ""'>
+    AND B.PROCESS_CD = #{searchProcessCd}
+               </if>
+            <if test='searchOccrrncSeCd != null and searchOccrrncSeCd != ""'>
+    AND C.OCCRRNC_SE_CD = #{searchOccrrncSeCd}
+            </if>
+            <if test='searchTyCd != null and searchTyCd != ""'>
+    AND C.TY_CD = #{searchTyCd}
+            </if>
+            <if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+                AND (SELECT NAME FROM SY_ROBOTS WHERE ID = A.[ROBOTID]) = #{searchRobotName}
+            </if> 
+            <choose>
+                <when test='searchSttusCd != null and searchSttusCd.equals("01")'>
+    AND (C.STTUS_CD = #{searchSttusCd} OR (A.State IN (4,6) AND C.STTUS_CD IS NULL))
+                </when>
+                <when test='searchSttusCd != null and searchSttusCd != ""'>
+    AND C.STTUS_CD = #{searchSttusCd}
+                </when>
+            </choose>
+    AND D.PROCESS_STTUS  IN ('D4','O1') -- = 'O1'
+        </where>
+	
+    </select>
+
+
+    <select id="selectJobErrorList" parameterType="java.util.Map" resultType="camelMap">
+/*JobErrorMapper.selectJobErrorList*/
+SELECT
+	A.ID
+	,  CONVERT(CHAR(19), DATEADD(HH, 9, A.EndTime), 21) AS OCCRRNC_DT
+	, B.CMPNY_CD	
+	, (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = B.CMPNY_CD) AS CMPNY_NM
+	, D.PROCESS_CD	
+	, D.PROCESS_NM
+	, (SELECT Name FROM SY_ROBOTS WHERE Id = A.RobotId) 'ROBOT_NAME'
+    , A.RobotId 
+	, A.State as State_CD
+	, (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0015' AND CD = A.State) AS State_NM
+	, A.Info
+	, C.STTUS_CD		/*조치상태 코드*/
+	, CASE WHEN A.State IN (4,6) THEN 
+			(SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0031' AND CD = ISNULL(C.STTUS_CD, '01')) 		/*조치상태 명*/
+		END AS STTUS_NM
+	, CASE 
+		WHEN A.Type = 0 AND A.Source = 1 THEN (SELECT NAME FROM [dbo].[SY_PROCESSSCHEDULES] A_1 WHERE id =  StartingScheduleId) 
+		WHEN A.Type = 0 AND A.Source = 0 THEN '수동'
+		WHEN A.Type = 1 AND A.Source = 0 THEN 'Agent'
+		WHEN A.Type = 0 AND A.Source = 2 THEN '큐'
+		END AS Source_NM
+	, D.BELONGING_DE
+FROM dbo.SY_JOBS A WITH(NOLOCK)
+INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS_MAPPER] B WITH(NOLOCK) ON A.ReleaseId =  B.RELEASES_ID
+LEFT OUTER JOIN [dbo].[TB_JOB_ERROR] C ON A.Id =  C.SN
+INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS] D WITH (NOLOCK) ON B.PROCESS_CD = D.PROCESS_CD
+		<where>
+			<choose>
+			    <when test='searhChkDe != null and searhChkDe == "occrrncDe"'>
+	AND  A.EndTime <![CDATA[>=]]> DATEADD(HH, -9, CONVERT(DATETIME, #{searchStartDe}))
+	AND  A.EndTime <![CDATA[<]]> DATEADD(HH, 15, CONVERT(DATETIME, #{searchEndDe}))
+			    </when>
+			    <when test='searhChkDe != null and searhChkDe == "managtDe"'>
+	AND  C.MANAGT_DE BETWEEN #{searchStartDe} AND #{searchEndDe}
+			    </when>
+			</choose> 
+			
+			<choose>
+			    <when test='searchState != null and searchState != ""'>
+					<choose>
+			    		<when test='searchSttusCd != null and searchSttusCd.equals("01")'>
+					    </when>
+					    <otherwise>
+	AND A.State = #{searchState}
+			    		</otherwise>
+					</choose>
+			    </when>
+			    <otherwise>
+	AND A.State IN (4,5,6)
+			    </otherwise>
+		    </choose>
+		    
+			<if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+	AND B.CMPNY_CD = #{searchCmpnyCd}
+		    </if>
+		    <if test='searchProcessCd != null and searchProcessCd != ""'>
+	AND B.PROCESS_CD = #{searchProcessCd}
+		       </if>
+		    <if test='searchOccrrncSeCd != null and searchOccrrncSeCd != ""'>
+	AND C.OCCRRNC_SE_CD = #{searchOccrrncSeCd}
+		    </if>
+		    <if test='searchTyCd != null and searchTyCd != ""'>
+	AND C.TY_CD = #{searchTyCd}
+		    </if>
+		    <if test='searchRobotName != null and searchRobotName != "" and searchRobotName != "전체" '>
+                AND (SELECT NAME FROM SY_ROBOTS WHERE ID = A.[ROBOTID]) = #{searchRobotName}
+            </if> 
+		    <choose>
+			    <when test='searchSttusCd != null and searchSttusCd.equals("01")'>
+	AND (C.STTUS_CD = #{searchSttusCd} OR (A.State IN (4,6) AND C.STTUS_CD IS NULL))
+			    </when>
+			    <when test='searchSttusCd != null and searchSttusCd != ""'>
+	AND C.STTUS_CD = #{searchSttusCd}
+			    </when>
+			</choose>
+	AND D.PROCESS_STTUS  IN ('D4','O1') --= 'O1'
+		</where>
+ORDER BY A.ID DESC
+
+		<if test='excelDownload != "Y"'> 
+           OFFSET #{paginationInfo.firstRecordIndex} ROWS
+           FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </if>
+    </select>
+
+    
+   <select id="getJobErrorDetail" parameterType="java.util.Map" resultType="camelMap">
+/*JobErrorMapper.getJobErrorDetail*/
+SELECT
+	A.ID
+	, (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = B.CMPNY_CD) AS CMPNY_NM
+	,  CONVERT(CHAR(23), DATEADD(HH, 9, EndTime), 21) AS OCCRRNC_DT
+	, B.PROCESS_CD	
+	, D.PROCESS_NM
+	, A.Info as error_Cn
+
+	, OCCRRNC_SE_CD
+	, TY_CD
+	, ANALS_CN
+	, MANAGT_CN
+
+	, PROCESS_TM
+	, MANAGT_TY_CD
+	, SOURC_UPDT_ID
+	, C.DEVLOP_CHARGER_ID
+	, CASE WHEN  ISNULL(C.DEVLOP_CHARGER_ID, '') = '' THEN
+			''
+		ELSE
+			(SELECT A_1.EMP_NM FROM TB_USER_DETAIL A_1 WITH(NOLOCK) WHERE A_1.EMP_NO = C.DEVLOP_CHARGER_ID)
+		END AS DEVLOP_CHARGER_NM
+	, MANAGT_CHARGER_ID
+	, CASE WHEN  ISNULL(C.MANAGT_CHARGER_ID, '') = '' THEN 
+			'' 
+	  ELSE
+	  		(SELECT A_1.EMP_NM FROM TB_USER_DETAIL A_1 WITH(NOLOCK) WHERE A_1.EMP_NO = C.MANAGT_CHARGER_ID)
+	  END AS MANAGT_CHARGER_NM
+	, MANAGT_DE
+	, MANAGT_HM
+	, C.STTUS_CD		/*상태코드*/
+
+	, A.RobotId
+	, (SELECT TOP 1 A_1.Name FROM [SY_ROBOTS] A_1 WITH (NOLOCK) WHERE  A_1.ID = A.RobotId) AS  robot_Nm
+	, A.State
+FROM dbo.SY_JOBS A WITH(NOLOCK)
+INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS_MAPPER] B WITH(NOLOCK) ON A.ReleaseId =  B.RELEASES_ID
+LEFT OUTER JOIN [dbo].[TB_JOB_ERROR] C ON A.Id =  C.SN
+INNER JOIN [dbo].[TB_TASK_DEVLOP_PROCESS] D WITH (NOLOCK) ON B.PROCESS_CD = D.PROCESS_CD        
+WHERE 
+	A.ID = #{where.id}
+	AND D.PROCESS_STTUS = 'O1'
+    </select>
+    
+    <insert id="updateJobError" parameterType="java.util.Map">
+/*JobErrorMapper.updateJobError*/
+MERGE INTO [dbo].[TB_JOB_ERROR] A
+   USING
+       (
+           SELECT
+               #{occrrncSeCd} AS occrrncSeCd
+				, #{tyCd} AS tyCd
+				, #{analsCn} AS analsCn
+				
+				, #{managtCn} AS managtCn
+<choose>
+	<when test='processTm != null and processTm.equals("")'>
+			, null AS processTm
+	</when>
+	<otherwise>
+			, #{processTm} AS processTm
+	</otherwise>
+</choose>
+				
+				, #{managtTyCd} AS managtTyCd
+				, #{sourcUpdtId} AS sourcUpdtId
+				, #{managtDe} AS managtDe
+				
+				, #{managtHm} AS managtHm
+				, #{devlopChargerId} AS devlopChargerId
+				, #{managtChargerId} AS managtChargerId
+				, #{sttusCd} AS sttusCd
+				, #{where.id} AS sn
+		    	, #{cmpnyCd} AS cmpnyCd
+		    	, #{processCd} AS processCd 
+       ) B ON A.sn = B.sn
+WHEN MATCHED THEN
+    UPDATE SET
+        UPDUSR_ID = #{txUserId} 
+    	, UPDT_DT = GETDATE()
+		, [OCCRRNC_SE_CD] = B.occrrncSeCd
+		, [TY_CD] = B.tyCd
+		, [ANALS_CN] = B.analsCn
+		, [MANAGT_CN] = B.managtCn
+		, [PROCESS_TM] = B.processTm
+		, [MANAGT_TY_CD] = B.managtTyCd
+		, [SOURC_UPDT_ID] = B.sourcUpdtId
+		, [MANAGT_DE] = B.managtDe
+		, [MANAGT_HM] = B.managtHm
+		, [DEVLOP_CHARGER_ID] = B.devlopChargerId
+		, [MANAGT_CHARGER_ID] = B.managtChargerId
+		, [STTUS_CD] = B.sttusCd
+WHEN NOT MATCHED THEN
+    INSERT([SN],	[CMPNY_CD]           ,[PROCESS_CD]           ,[OCCRRNC_SE_CD]           ,[TY_CD]           ,[ANALS_CN]
+           ,[MANAGT_CN]           ,[PROCESS_TM]           ,[MANAGT_TY_CD]           ,[SOURC_UPDT_ID]           ,[MANAGT_DE]
+           ,[MANAGT_HM]           ,[DEVLOP_CHARGER_ID]           ,[MANAGT_CHARGER_ID]           ,[STTUS_CD]           ,[UPDUSR_ID]
+           ,[UPDT_DT]
+		)
+    VALUES(	B.sn,	B.cmpnyCd,	B.processCd,		B.occrrncSeCd,		B.tyCd,			B.analsCn,
+    		B.managtCn,	B.processTm,		B.managtTyCd,		B.sourcUpdtId,	B.managtDe,
+    		B.managtHm,	B.devlopChargerId,	B.managtChargerId,	B.sttusCd,		#{txUserId},
+    		GETDATE()
+    	);
+    </insert>
+    
+    
+    <delete id="delateJobError" parameterType="java.util.Map">
+            /* JobErrorMapper.delateJobError */
+    
+        DELETE FROM
+            TB_JOB_ERROR
+        <where>
+            AND JOB_ERROR_SN = #{jboErrorSn}
+        </where>
+    </delete>
+    
+    
+    
+
+        <select id="selectJobErrorList1" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* JobErrorMapper.selectJobList */
+            SELECT   A.Id
+                   , B.Name AS ProcessName
+                   , C.Name AS RobotName
+                   , C.UserName
+                   , D.Name AS MachineName
+                   , E.Name AS EnvironmentName
+                   , F.CD_NM AS TypeName
+                   , G.CD_NM AS StateName
+                   , H.CD_NM AS JobPriorityName
+                   , CASE WHEN DATEDIFF(YY, A.StartTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, A.StartTime, GETDATE())) + '년전'
+                          WHEN DATEDIFF(MM, A.StartTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, A.StartTime, GETDATE())) + '월전'
+                          WHEN DATEDIFF(DD, A.StartTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(DD, A.StartTime, GETDATE())) + '일전'
+                          WHEN DATEDIFF(HH, A.StartTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, A.StartTime, GETDATE())) + '시간전'
+                          WHEN DATEDIFF(MI, A.StartTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, A.StartTime, GETDATE())) + '분전'
+                          ELSE '1분전'
+                     END AS StartTimeDc
+                   , CASE WHEN DATEDIFF(YY, A.EndTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(YY, A.EndTime, GETDATE())) + '년전'
+                          WHEN DATEDIFF(MM, A.EndTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(MM, A.EndTime, GETDATE())) + '월전'
+                          WHEN DATEDIFF(DD, A.EndTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(DD, A.EndTime, GETDATE())) + '일전'
+                          WHEN DATEDIFF(HH, A.EndTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, A.EndTime, GETDATE())) + '시간전'
+                          WHEN DATEDIFF(MI, A.EndTime, GETDATE()) > 0 THEN CONVERT(VARCHAR, DATEDIFF(HH, A.EndTime, GETDATE())) + '분전'
+                          ELSE '1분전'
+                     END AS EndTimeDc
+                   , I.CD_NM AS SourceName
+              FROM   SY_JOBS A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ROBOTS C
+                ON   (
+                             A.RobotId = C.Id
+                        AND  C.IsDeleted = 0
+                     )
+              JOIN   SY_MACHINES D
+                ON   (
+                             C.MachineId = D.Id
+                        AND  D.IsDeleted = 0
+                     )
+              JOIN   SY_ENVIRONMENTS E
+                ON   B.EnvironmentId = E.Id
+              JOIN   TB_CMMN_CD F
+                ON   (
+                             C.Type = F.CD
+                         AND F.CLS_CD = '0006'
+                         AND F.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD G
+                ON   (
+                             A.State = G.CD
+                         AND G.CLS_CD = '0015'
+                         AND G.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD H
+                ON   (
+                             A.JobPriority = H.CD
+                         AND H.CLS_CD = '0010'
+                         AND H.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD I
+                ON   (
+                             A.Source = I.CD
+                         AND I.CLS_CD = '0016'
+                         AND I.USE_AT = 'Y'
+                     )
+             WHERE   1 = 1
+             <if test='startDe != null and startDe != ""'>
+               AND   A.CreationTime <![CDATA[>=]]> CONVERT(DATETIME, #{startDe} + ' 00:00:00')
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   A.CreationTime <![CDATA[<=]]> CONVERT(DATETIME, #{endDe} + ' 23:59:59')
+             </if>
+             <if test='state != null and state != ""'>
+               AND   A.State = #{state}
+             </if>
+             <if test='jobPriority != null and jobPriority != ""'>
+               AND   A.JobPriority = #{jobPriority}
+             </if>
+             <if test='source != null and source != ""'>
+               AND   A.Source = #{source}
+             </if>
+          ORDER BY   A.CreationTime DESC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectJobCount1" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* JobErrorMapper.selectJobCount */
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_JOBS A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ROBOTS C
+                ON   (
+                             A.RobotId = C.Id
+                        AND  C.IsDeleted = 0
+                     )
+              JOIN   SY_MACHINES D
+                ON   (
+                             C.MachineId = D.Id
+                        AND  D.IsDeleted = 0
+                     )
+              JOIN   SY_ENVIRONMENTS E
+                ON   B.EnvironmentId = E.Id
+              JOIN   TB_CMMN_CD F
+                ON   (
+                             C.Type = F.CD
+                         AND F.CLS_CD = '0006'
+                         AND F.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD G
+                ON   (
+                             A.State = G.CD
+                         AND G.CLS_CD = '0015'
+                         AND G.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD H
+                ON   (
+                             A.JobPriority = H.CD
+                         AND H.CLS_CD = '0010'
+                         AND H.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD I
+                ON   (
+                             A.Source = I.CD
+                         AND I.CLS_CD = '0016'
+                         AND I.USE_AT = 'Y'
+                     )
+             WHERE   1 = 1
+             <if test='startDe != null and startDe != ""'>
+               AND   A.CreationTime <![CDATA[>=]]> CONVERT(DATETIME, #{startDe} + ' 00:00:00')
+             </if>
+             <if test='endDe != null and endDe != ""'>
+               AND   A.CreationTime <![CDATA[<=]]> CONVERT(DATETIME, #{endDe} + ' 23:59:59')
+             </if>
+             <if test='state != null and state != ""'>
+               AND   A.State = #{state}
+             </if>
+             <if test='jobPriority != null and jobPriority != ""'>
+               AND   A.JobPriority = #{jobPriority}
+             </if>
+             <if test='source != null and source != ""'>
+               AND   A.Source = #{source}
+             </if>
+        </select>
+        
+        <select id="selectJobDetail1" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* JobErrorMapper.selectJobDetail */
+            SELECT   A.Id
+                   , B.Name AS ProcessName
+                   , C.Name AS RobotName
+                   , C.UserName
+                   , D.Name AS MachineName
+                   , E.Name AS EnvironmentName
+                   , F.CD_NM AS TypeName
+                   , G.CD_NM AS StateName
+                   , H.CD_NM AS JobPriorityName
+                   , CONVERT(CHAR(19), A.StartTime, 20) AS StartTime
+                   , CONVERT(CHAR(19), A.EndTime, 20) AS EndTime
+                   , I.CD_NM AS SourceName
+                   , A.Info
+              FROM   SY_JOBS A
+              JOIN   SY_RELEASES B
+                ON   A.ReleaseId = B.Id
+              JOIN   SY_ROBOTS C
+                ON   (
+                             A.RobotId = C.Id
+                        AND  C.IsDeleted = 0
+                     )
+              JOIN   SY_MACHINES D
+                ON   (
+                             C.MachineId = D.Id
+                        AND  D.IsDeleted = 0
+                     )
+              JOIN   SY_ENVIRONMENTS E
+                ON   B.EnvironmentId = E.Id
+              JOIN   TB_CMMN_CD F
+                ON   (
+                             C.Type = F.CD
+                         AND F.CLS_CD = '0006'
+                         AND F.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD G
+                ON   (
+                             A.State = G.CD
+                         AND G.CLS_CD = '0015'
+                         AND G.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD H
+                ON   (
+                             A.JobPriority = H.CD
+                         AND H.CLS_CD = '0010'
+                         AND H.USE_AT = 'Y'
+                     )
+              JOIN   TB_CMMN_CD I
+                ON   (
+                             A.Source = I.CD
+                         AND I.CLS_CD = '0016'
+                         AND I.USE_AT = 'Y'
+                     )
+             WHERE   A.Id = #{id}
+        </select>
+        
+        
+        <!-- 현재 로봇과 로봇 현황 List -->
+    <select id="selectBotListForJobError" parameterType="java.util.Map" resultType="camelMap">
+        /*JobErrorMapper.selectBotListForJobError*/
+        SELECT
+              (SELECT b.CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] b WHERE b.[TENANT_ID] = A.[TENANTID]) 'CMPNY_CD'
+              , B.[NAME]
+              , A.[STATE]
+              , A.[ROBOTID] 'ROBOT_ID'
+              , CASE 
+                    WHEN A.[STATE] = 0  AND A.[ISUNRESPONSIVE] = 0 THEN 0 -- Available
+                    WHEN A.[STATE] = 1  AND A.[ISUNRESPONSIVE] = 0 THEN 1 -- Busy
+                    WHEN A.[STATE] = 2  AND A.[ISUNRESPONSIVE] = 0 THEN 2 -- Disconnected
+                    WHEN A.[STATE] != 2 AND A.[ISUNRESPONSIVE] = 1 THEN 3 -- Unresponsive
+                END 'ROBOT_STATE'
+        FROM [RPA_POTAL]. [DBO].[SY_SESSIONS] A
+        INNER JOIN [RPA_POTAL].[DBO].[SY_ROBOTS] B
+        ON A.ROBOTID = B.ID
+
+        <where>
+          A.ISDELETED = 0 AND B.ISDELETED = 0
+          <if test='cmpnyCd != null and cmpnyCd != ""'>
+             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnyCd})
+          </if>                    
+        </where>
+        
+        ORDER BY CMPNY_CD, NAME
+    </select>
+
+</mapper>

@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="RobotMapper">
+
+        <select id="selectRobotList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* RobotMapper.selectRobotList */
+            SELECT   A.Id
+                   , CASE 
+                        WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(A.TenantId),'') = ''   THEN 'Default'
+                        ELSE dbo.UFN_GET_CMPNY_NM(A.TenantId) END  AS CmpnyName
+                   , A.Name
+                   , A.UserName
+                   , A.Type
+                   , D.CD_NM AS TypeName
+                   , A.MachineId
+                   , B.Name AS MachineName
+                   , C.EnvironmentNames
+                   , E.IsUnresponsive
+                   , CASE WHEN (E.State = '0' AND E.IsUnresponsive = 0) THEN '사용가능'
+                          WHEN (E.State = '1' AND E.IsUnresponsive = 0) THEN '사용중'
+                          WHEN (E.State = '2') THEN '연결끊김'
+                          WHEN (E.State <![CDATA[<>]]> '2' AND E.IsUnresponsive = 1) THEN '연결끊김'
+                          ELSE ''
+                     END AS stateName
+              FROM   SY_ROBOTS A
+              JOIN   SY_MACHINES B
+                ON   A.MachineId = B.Id
+         LEFT JOIN   (
+							SELECT  DISTINCT CONVERT(VARCHAR, RobotId) AS RobotId
+							      , STUFF((
+							             SELECT  ',' + CONVERT(NVARCHAR, B.Name)
+							               FROM  (
+							                        SELECT   A.RobotId
+							                               , A.EnvironmentId
+							                               , B.Name
+							                          FROM   SY_ROBOTSXENVIRONMENTS A
+							                          JOIN   SY_ENVIRONMENTS B
+							                            ON   (
+							                                          A.EnvironmentId = B.Id
+							                                    AND   B.IsDeleted = 0
+							                                 )
+							                     ) B
+							              WHERE  B.RobotId = A.RobotId
+							              FOR XML PATH ('')
+							       ), 1, 1, '') AS EnvironmentNames
+							 FROM  SY_ROBOTSXENVIRONMENTS A
+                     ) C
+                ON   A.Id = C.RobotId
+              JOIN   TB_CMMN_CD D
+                ON   (
+                             A.Type = D.CD
+                         AND D.CLS_CD = '0006'
+                         AND D.USE_AT = 'Y'
+<!--                          <if test='cmpnyCd != null and cmpnyCd != ""'> -->
+<!--                          AND D.CD_NM = #{cmpnyCd} -->
+<!--                          </if> -->
+                     )
+         LEFT JOIN   SY_SESSIONS E
+                ON   A.Id = E.RobotId
+         LEFT JOIN   TB_CMMN_CD F
+		        ON   (
+		                CONVERT(VARCHAR(4),A.TenantId) = F.CD
+		                AND F.CLS_CD = '0034'
+		                AND F.USE_AT = 'Y'
+		             )
+             WHERE   A.IsDeleted = 0
+                     <if test='cmpnyCd != null and cmpnyCd != ""'>
+                      AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+                     </if>
+           <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+           </if>
+          ORDER BY  E.IsUnresponsive ASC
+                  , E.State ASC
+                    OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                    FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectRobotCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* RobotMapper.selectRobotCount */
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_ROBOTS A
+              JOIN   SY_MACHINES B
+                ON   A.MachineId = B.Id
+         LEFT JOIN   (
+                            SELECT  DISTINCT CONVERT(VARCHAR, RobotId) AS RobotId
+                                  , STUFF((
+                                         SELECT  ',' + CONVERT(VARCHAR, B.Name)
+                                           FROM  (
+                                                    SELECT   A.RobotId
+                                                           , A.EnvironmentId
+                                                           , B.Name
+                                                      FROM   SY_ROBOTSXENVIRONMENTS A
+                                                      JOIN   SY_ENVIRONMENTS B
+                                                        ON   (
+                                                                      A.EnvironmentId = B.Id
+                                                                AND   B.IsDeleted = 0
+                                                             )
+                                                 ) B
+                                          WHERE  B.RobotId = A.RobotId
+                                          FOR XML PATH ('')
+                                   ), 1, 1, '') AS EnvironmentNames
+                             FROM  SY_ROBOTSXENVIRONMENTS A
+                     ) C
+                ON   A.Id = C.RobotId
+              JOIN   TB_CMMN_CD D
+                ON   (
+                             A.Type = D.CD
+                         AND D.CLS_CD = '0006'
+                         AND D.USE_AT = 'Y'
+<!--                          <if test='cmpnyCd != null and cmpnyCd != ""'> -->
+<!--                          AND D.CD_NM = #{cmpnyCd} -->
+<!--                          </if> --> 
+                     )
+         LEFT JOIN   SY_SESSIONS E
+                ON   A.Id = E.RobotId
+             WHERE   A.IsDeleted = 0
+                     <if test='cmpnyCd != null and cmpnyCd != ""'>
+                      AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+                     </if>
+           <if test='name != null and name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+           </if>
+        </select>
+
+        <select id="selectRobotDetail" parameterType="kr.co.rpaplatform.dongwon.resrce.vo.RobotVO" resultType="kr.co.rpaplatform.dongwon.resrce.vo.RobotVO">
+        /* RobotMapper.selectRobotDetail */
+  <!--            SELECT A.ID AS ROBOT_ID
+                 , A.NAME
+                 , A.USERNAME
+                 , A.ROBOTDESCRIPTION
+                 , A.TYPE
+                 , A.MACHINEID AS DEVICEID
+                 , B.NAME AS DEVICENAME
+             FROM  SY_ROBOTS A
+       INNER JOIN  SY_MACHINES B
+               ON  (
+                    A.MACHINEID = B.ID
+                   )
+          <where>
+                    A.ID = #{robotId} 
+          </where>   -->
+        
+             
+           SELECT *
+           FROM  TB_ROBOT C
+      LEFT JOIN  (SELECT A.ID AS ROBOT_ID
+                 , A.NAME
+                 , A.USERNAME
+                 , A.ROBOTDESCRIPTION
+                 , A.TYPE
+                 , A.MACHINEID AS DEVICEID
+                 , B.NAME AS DEVICENAME
+                 , A.TENANTID
+                 , D.CD_NM AS CMPNYCD
+           FROM  SY_ROBOTS A
+      LEFT JOIN   TB_CMMN_CD D
+             ON   (
+                     CONVERT(VARCHAR(4), A.TENANTID) = D.CD
+                     AND D.CLS_CD = '0034'
+                     AND D.USE_AT = 'Y'
+                  )
+     INNER JOIN  SY_MACHINES B
+             ON  (
+                    A.MACHINEID = B.ID
+                   )
+                 ) B
+             ON C.ROBOT_ID = B.ROBOT_ID
+          WHERE C.ROBOT_ID = #{robotId}  
+        
+        
+              
+            
+                   
+        </select>
+        
+        <select id="selectRobotDetail_more" parameterType="kr.co.rpaplatform.dongwon.resrce.vo.RobotVO" resultType="kr.co.rpaplatform.dongwon.resrce.vo.RobotVO">
+        /* RobotMapper.selectRobotDetail */
+           SELECT ROBOT_IP AS IP
+             FROM TB_ROBOT
+            WHERE ROBOT_ID = #{robotId}
+        
+        
+        </select>
+        
+        
+
+        <select id="idDplctCheck" parameterType="kr.co.rpaplatform.dongwon.resrce.vo.RobotVO" resultType="int">
+            /* RobotMapper.selectRobotDetail */
+            SELECT  COUNT('NAME')
+              FROM  SY_ROBOTS
+             WHERE  NAME = #{name}
+                AND IsDeleted = 0
+        </select>
+        
+          <insert id="insertRobot" parameterType="java.util.Map" >
+         /*RobotMapper.insertRobot*/   
+                     
+            
+            INSERT
+            INTO TB_ROBOT(
+                           ROBOT_ID           
+                          ,ROBOT_IP
+                          ,ROBOT_DC
+                          ,CMPNY_CD
+                          ,REGISTER_ID
+                          ,REG_DT
+                          ,ROBOT_PASSWORD
+       
+                          )
+            VALUES      (                               
+                               
+                              #{Id}
+                             ,#{Ip}
+                             ,#{Dc}
+                             ,#{cmpnyCd}
+                             ,#{txUserId}
+                             ,GETDATE()
+                             ,#{Pw}
+                          )   
+                                                 
+        
+        </insert> 
+        
+        <update id="updateRobot" parameterType="java.util.Map"  >
+        /*RobotMapper.updateRobot*/
+        
+          UPDATE TB_ROBOT
+             SET ROBOT_IP = #{Ip}
+                ,ROBOT_PASSWORD =#{PW}            
+             WHERE ROBOT_ID = #{Id}
+             
+        
+        </update>
+        
+        
+        
+        <select id="selectTenant" parameterType="java.util.Map" resultType="java.util.Map">
+            /* RobotMapper.selectTenant */
+            SELECT TENANT_ID
+            FROM TB_API_TKN
+            WHERE  CMPNY_CD = #{cmpnyCd};
+        </select>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+</mapper>

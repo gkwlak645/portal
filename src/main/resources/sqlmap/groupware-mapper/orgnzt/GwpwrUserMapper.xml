@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="GwpwrUserMapper">
+
+     <select id="selectGwpwrUserList" parameterType="java.util.Map" resultType="camelMap">
+        /* GwpwrUserMapper.selectGwpwrUserList */
+          SELECT   A.LogonID AS GWPWR_ID
+                 , A.DISPLAY_NAME AS USER_NM
+                 , A.MOBILE_TEL AS MBTLNUM
+                 , A.EMAIL
+                 , A.DN_Code AS CMPNY_CD
+                 , B.DN_NAME AS CMPNY_NM
+                 , A.GR_Code AS DEPT_CD
+                 , B.UNIT_NAME AS DEPT_NM
+            FROM   VW_ORG_PERSON_RPA A
+            JOIN   VW_ORG_UNIT_RPA B
+              ON   (
+                           A.DN_Code = B.DN_CODE
+                      AND  A.GR_Code = B.UNIT_CODE
+                   )
+           WHERE   1 = 1
+             <if test='gwpwrId != null and gwpwrId != ""'>
+               AND   A.LogonID like '%' + #{gwpwrId} + '%'
+             </if>
+             <if test='userNm != null and userNm != ""'>
+               AND   A.DISPLAY_NAME LIKE '%'+ #{userNm} + '%'
+             </if>
+        ORDER BY   A.DISPLAY_NAME ASC
+                   OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                   FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+     <select id="selectGwpwrUserCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* GwpwrUserMapper.selectGwpwrUserCount */
+          SELECT   COUNT(A.LogonID) AS CNT
+            FROM   VW_ORG_PERSON_RPA A
+            JOIN   VW_ORG_UNIT_RPA B
+              ON   (
+                           A.DN_Code = B.DN_CODE
+                      AND  A.GR_Code = B.UNIT_CODE
+                   )
+           WHERE   1 = 1
+             <if test='gwpwrId != null and gwpwrId != ""'>
+               AND   A.LogonID like '%' + #{gwpwrId} + '%'
+             </if>
+             <if test='userNm != null and userNm != ""'>
+               AND   A.DISPLAY_NAME LIKE '%'+ #{userNm} + '%'
+             </if>
+    </select>
+    
+    <select id="selectGwpwrUserListV2" parameterType="java.util.Map" resultType="camelMap">
+        /* GwpwrUserMapper.selectGwpwrUserListV2 */
+          SELECT   A.LogonID AS GWPWR_ID
+                 , A.DISPLAY_NAME AS USER_NM
+                 , A.MOBILE_TEL AS MBTLNUM
+                 , A.EMAIL
+                 , A.DN_Code AS CMPNY_CD
+                 , B.DN_NAME AS CMPNY_NM
+                 , A.GR_Code AS DEPT_CD
+                 , B.UNIT_NAME AS DEPT_NM
+            FROM   VW_ORG_PERSON_RPA A
+            JOIN   VW_ORG_UNIT_RPA B
+              ON   (
+                           A.DN_Code = B.DN_CODE
+                      AND  A.GR_Code = B.UNIT_CODE
+                   )
+           WHERE   1 = 1
+            <!-- <if test='gwpwrCmpnyCd != null and gwpwrCmpnyCd != ""'>
+               AND   A.DN_Code like '%' + #{gwpwrCmpnyCd} + '%'
+             </if> -->
+             <if test='gwpwrId != null and gwpwrId != ""'>
+               AND   A.LogonID like '%' + #{gwpwrId} + '%'
+             </if>
+             <if test='userNm != null and userNm != ""'>
+               AND   A.DISPLAY_NAME LIKE '%'+ #{userNm} + '%'
+             </if>
+        ORDER BY   A.DISPLAY_NAME ASC
+                   OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                   FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+     <select id="selectGwpwrUserCountV2" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* GwpwrUserMapper.selectGwpwrUserCountV2 */
+          SELECT   COUNT(A.LogonID) AS CNT
+            FROM   VW_ORG_PERSON_RPA A
+            JOIN   VW_ORG_UNIT_RPA B
+              ON   (
+                           A.DN_Code = B.DN_CODE
+                      AND  A.GR_Code = B.UNIT_CODE
+                   )
+           WHERE   1 = 1
+            <!-- <if test='gwpwrCmpnyCd != null and gwpwrCmpnyCd != ""'>
+               AND   A.DN_Code like '%' + #{gwpwrCmpnyCd} + '%'
+             </if> -->
+             <if test='gwpwrId != null and gwpwrId != ""'>
+               AND   A.LogonID like '%' + #{gwpwrId} + '%'
+             </if>
+             <if test='userNm != null and userNm != ""'>
+               AND   A.DISPLAY_NAME LIKE '%'+ #{userNm} + '%'
+             </if>
+    </select>
+ 
+    <select id="getGwpwrUserMbtlnum" parameterType="String" resultType="String">
+        /* GwpwrUserMapper.getGwpwrUserMbtlnum */
+        select MOBILE_TEL from [dbo].[VW_ORG_PERSON_RPA] WITH(NOLOCK)
+        where LogonID = #{userId}
+    </select>
+    
+    <select id="getDongwonUserList"  parameterType="java.util.List" resultType="camelMap">
+/*GwpwrUserMapper.getDongwonUserList*/    
+SELECT 
+    [LogonID],   [DISPLAY_NAME],   [GR_Code],   [DN_Code],   [EMAIL] FROM [dbo].[VW_ORG_PERSON_RPA]
+WHERE IsUse = 'Y'
+  </select>
+
+</mapper>

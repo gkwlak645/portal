@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="AuthorMapper">
+
+
+    <select id="selectUserAuthorByUrl" parameterType="java.util.Map" resultType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.selectAuthorByUrl */
+        SELECT  A.MENU_CD
+              , CASE WHEN A.REDNG_AUTHOR > 0 THEN 'Y' ELSE 'N' END AS REDNG_AUTHOR
+              , CASE WHEN A.WRTNG_AUTHOR > 0 THEN 'Y' ELSE 'N' END AS WRTNG_AUTHOR
+              , CASE WHEN A.UNTENANT_AUTHOR > 0 THEN 'Y' ELSE 'N' END AS UNTENANT_AUTHOR
+              , CASE WHEN A.RESVE_AUTHOR_2 > 0 THEN 'Y' ELSE 'N' END AS RESVE_AUTHOR_2
+              , CASE WHEN A.RESVE_AUTHOR_3 > 0 THEN 'Y' ELSE 'N' END AS RESVE_AUTHOR_3
+              , CASE WHEN A.RESVE_AUTHOR_4 > 0 THEN 'Y' ELSE 'N' END AS RESVE_AUTHOR_4
+              , CASE WHEN A.RESVE_AUTHOR_5 > 0 THEN 'Y' ELSE 'N' END AS RESVE_AUTHOR_5
+         FROM   (
+		        SELECT  A.MENU_CD
+                      , SUM(CASE WHEN A.REDNG_AUTHOR = 'Y' THEN 1 ELSE 0 END) AS REDNG_AUTHOR
+                      , SUM(CASE WHEN A.WRTNG_AUTHOR = 'Y' THEN 1 ELSE 0 END) AS WRTNG_AUTHOR
+                      , SUM(CASE WHEN A.UNTENANT_AUTHOR = 'Y' THEN 1 ELSE 0 END) AS UNTENANT_AUTHOR
+                      , SUM(CASE WHEN A.RESVE_AUTHOR_2 = 'Y' THEN 1 ELSE 0 END) AS RESVE_AUTHOR_2
+                      , SUM(CASE WHEN A.RESVE_AUTHOR_3 = 'Y' THEN 1 ELSE 0 END) AS RESVE_AUTHOR_3
+                      , SUM(CASE WHEN A.RESVE_AUTHOR_4 = 'Y' THEN 1 ELSE 0 END) AS RESVE_AUTHOR_4
+                      , SUM(CASE WHEN A.RESVE_AUTHOR_5 = 'Y' THEN 1 ELSE 0 END) AS RESVE_AUTHOR_5
+		         FROM   TB_AUTHOR A
+		         JOIN   TB_USER_ROLE B
+		           ON   (
+		                       A.ROLE_CD = B.ROLE_CD
+		                  AND  B.USER_ID = #{txUserId}
+		                )
+		         JOIN   TB_MENU C
+		           ON   A.MENU_CD = C.MENU_CD
+		        WHERE   C.MENU_URL LIKE #{urlPath} + '%'
+		     GROUP BY   A.MENU_CD
+		        ) A
+    </select>
+    <select id="selectRole" resultType="kr.co.rpaplatform.dongwon.author.vo.RoleMngVO">
+        /* AuthorMapper.selectRole */
+        SELECT   ROLE_CD
+               , ROLE_NM
+          FROM   TB_ROLE
+         WHERE   USE_AT = 'Y'
+    </select>
+    
+    <select id="selectAuth" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO" resultType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.selectAuth */
+        SELECT   REDNG_AUTHOR
+               , WRTNG_AUTHOR
+               , UNTENANT_AUTHOR
+               , RESVE_AUTHOR_2
+               , RESVE_AUTHOR_3
+               , RESVE_AUTHOR_4
+               , RESVE_AUTHOR_5
+               , RESVE_AUTHOR_NM_1
+               , RESVE_AUTHOR_NM_2
+               , RESVE_AUTHOR_NM_3
+               , RESVE_AUTHOR_NM_4
+               , RESVE_AUTHOR_NM_5
+          FROM   TB_AUTHOR
+         WHERE   ROLE_CD = #{roleCd}
+           AND   MENU_CD = #{menuCd}   
+    </select>
+    
+    <update id="updateAuth" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.updateAuth */
+        UPDATE   TB_AUTHOR
+           SET   REDNG_AUTHOR = #{redngAuthor}
+               , WRTNG_AUTHOR = #{wrtngAuthor}
+               , UNTENANT_AUTHOR = #{untenantAuthor}
+               , RESVE_AUTHOR_2 = #{resveAuthor2}
+               , RESVE_AUTHOR_3 = #{resveAuthor3}
+               , RESVE_AUTHOR_4 = #{resveAuthor4}
+               , RESVE_AUTHOR_5 = #{resveAuthor5}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+         WHERE   ROLE_CD = #{roleCd}
+           AND   MENU_CD = #{menuCd}
+    </update>
+    
+    <insert id="insertAuth" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.insertAuth */
+        INSERT 
+          INTO TB_AUTHOR(
+                            ROLE_CD
+                          , MENU_CD
+                          , REDNG_AUTHOR
+                          , WRTNG_AUTHOR
+                          , UNTENANT_AUTHOR 
+                          , RESVE_AUTHOR_2 
+                          , RESVE_AUTHOR_3 
+                          , RESVE_AUTHOR_4 
+                          , RESVE_AUTHOR_5
+                          , REGISTER_ID
+                          , REG_DT
+                          , UPDUSR_ID
+                          , UPDT_DT
+                        )
+        VALUES (
+                    #{roleCd}
+                  , #{menuCd}
+                  , #{redngAuthor}
+                  , #{untenantAuthor}
+                  , #{untenantAuthor}
+                  , #{resveAuthor2}
+                  , #{resveAuthor3}
+                  , #{resveAuthor4}
+                  , #{resveAuthor5}
+                  , #{txUserId}
+                  , GETDATE()
+                  , #{txUserId}
+                  , GETDATE()
+               )
+    </insert>
+    
+    <select id="selectParentMenuCd" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO" resultType="String">
+        /* AuthorMapper.selectParentMenuCd */
+        SELECT UP_MENU_CD
+          FROM TB_MENU
+         WHERE MENU_CD = #{menuCd}
+    </select>
+    
+    <select id="selectChildAuthorMenuCd" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO" resultType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.selectChildAuthorMenuCd */
+        SELECT MENU_CD
+          FROM TB_MENU
+         WHERE UP_MENU_CD = #{menuCd}
+    </select>
+    
+     <select id="selectAuthorCheck" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO" resultType="String">
+        /* AuthorMapper.selectAuthorCheck */
+        SELECT MENU_CD
+          FROM TB_AUTHOR
+         WHERE MENU_CD = #{menuCd}
+           AND ROLE_CD = #{roleCd}
+    </select>
+    
+    <update id="updateUpAuth" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.updateUpAuth */
+        UPDATE  TB_AUTHOR
+           SET  <if test='redngAuthor.equals("Y")'>REDNG_AUTHOR = #{redngAuthor}  , </if>
+                <if test='wrtngAuthor.equals("Y")'>WRTNG_AUTHOR = #{wrtngAuthor}   , </if>
+                <if test='untenantAuthor.equals("Y")'>UNTENANT_AUTHOR = #{untenantAuthor} , </if>
+                <if test='resveAuthor2.equals("Y")'>RESVE_AUTHOR_2 = #{resveAuthor2} , </if>
+                <if test='resveAuthor3.equals("Y")'>RESVE_AUTHOR_3 = #{resveAuthor3} , </if>
+                <if test='resveAuthor4.equals("Y")'>RESVE_AUTHOR_4 = #{resveAuthor4} , </if>
+                <if test='resveAuthor5.equals("Y")'>RESVE_AUTHOR_5 = #{resveAuthor5} , </if>
+                UPDUSR_ID = #{txUserId},
+                UPDT_DT = GETDATE()
+         WHERE  ROLE_CD = #{roleCd}
+           AND  MENU_CD = #{menuCd}
+    </update>
+    
+    <update id="updateDownAuth" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.updateDownAuth */
+        UPDATE  TB_AUTHOR
+           SET  <if test='redngAuthor.equals("N")'>REDNG_AUTHOR = #{redngAuthor}  , </if>
+                <if test='wrtngAuthor.equals("N")'>WRTNG_AUTHOR = #{wrtngAuthor} ,</if>
+                <if test='untenantAuthor.equals("N")'>UNTENANT_AUTHOR = #{untenantAuthor} , </if>
+                <if test='resveAuthor2.equals("N")'>RESVE_AUTHOR_2 = #{resveAuthor2} , </if>
+                <if test='resveAuthor3.equals("N")'>RESVE_AUTHOR_3 = #{resveAuthor3} , </if>
+                <if test='resveAuthor4.equals("N")'>RESVE_AUTHOR_4 = #{resveAuthor4} , </if>
+                <if test='resveAuthor5.equals("N")'>RESVE_AUTHOR_5 = #{resveAuthor5} , </if>
+                UPDUSR_ID = #{txUserId},
+                UPDT_DT = GETDATE()
+         WHERE  ROLE_CD = #{roleCd}
+           AND  MENU_CD = #{menuCd}
+    </update>
+    
+    <delete id="deleteAuth" parameterType="kr.co.rpaplatform.dongwon.menu.vo.MenuVO">
+        /* AuthorMapper.deleteAuth */
+        DELETE
+            FROM TB_AUTHOR
+         WHERE MENU_CD = #{menuCd}
+    </delete>
+    
+    <delete id="deleteAuthorRoleCd" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.deleteAuthorRoleCd */
+        DELETE
+            FROM TB_AUTHOR
+        WHERE ROLE_CD = #{roleCd} 
+    </delete>
+    
+    
+    <update id="updateAuthorNm" parameterType="kr.co.rpaplatform.dongwon.author.vo.AuthorVO">
+        /* AuthorMapper.updateAuthorNm */
+        UPDATE TB_AUTHOR
+           SET   RESVE_AUTHOR_NM_1 = #{resveAuthorNm1}
+               , RESVE_AUTHOR_NM_2 = #{resveAuthorNm2}
+               , RESVE_AUTHOR_NM_3 = #{resveAuthorNm3}
+               , RESVE_AUTHOR_NM_4 = #{resveAuthorNm4}
+               , RESVE_AUTHOR_NM_5 = #{resveAuthorNm5}
+        WHERE   ROLE_CD = #{roleCd}
+           AND   MENU_CD = #{menuCd} 
+    </update>
+</mapper>

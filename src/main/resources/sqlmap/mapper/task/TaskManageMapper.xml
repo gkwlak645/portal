@@ -1,0 +1,1537 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="TaskManageMapper">
+
+    <select id="selectTaskManageListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* TaskManageMapper.selectTaskManageListCount */
+
+        SELECT  COUNT(*) AS cnt
+          FROM (
+                SELECT   A.DEVLOP_SN
+                       , TASK_CD
+                       , TASK_NM
+                       , C.CD_NM AS CMPNY_NM
+                       , C.CD AS CMPNY_CD
+                       , B.PROCESS_CD
+                       , B.PROCESS_NM
+                       , D.CD_NM AS PROCESS_STTUS_NM
+                  FROM   TB_TASK_DEVLOP A
+		                 LEFT OUTER JOIN TB_CMMN_CD C ON A.CMPNY_CD = C.CD AND C.CLS_CD = '0024'
+		               , TB_TASK_DEVLOP_PROCESS B
+		                 LEFT OUTER JOIN TB_CMMN_CD D ON B.PROCESS_STTUS = D.CD AND D.CLS_CD = '0037'
+                 WHERE A.USE_AT = 'Y'
+                   AND A.DEVLOP_SN = B.DEVLOP_SN
+                   AND B.PROCESS_STTUS = 'O1'
+                <if test='searchCmpny != null and searchCmpny != ""'>
+                   AND A.CMPNY_CD =  #{searchCmpny}
+                </if>
+                <if test='assetCd != null and assetCd != ""'>
+                   AND B.PROCESS_CD LIKE '%' + #{assetCd} + '%'
+                </if>
+                <if test='assetName != null and assetName != ""'>
+                   AND B.PROCESS_NM LIKE '%' + #{assetName} + '%'
+                </if>
+                ) E
+    </select>
+        
+    <select id="selectTaskManageList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskManageList */
+        SELECT   A.DEVLOP_SN
+               , TASK_CD
+               , TASK_NM
+               , C.CD_NM AS CMPNY_NM
+               , C.CD AS CMPNY_CD
+               , ISNULL(B.PROCESS_CD, '-') AS PROCESS_CD
+               , ISNULL(B.PROCESS_NM,'-') AS PROCESS_NM
+               , ISNULL(D.CD_NM,'-') AS PROCESS_STTUS_NM
+          FROM TB_TASK_DEVLOP A
+                 LEFT OUTER JOIN TB_CMMN_CD C ON A.CMPNY_CD = C.CD AND C.CLS_CD = '0024'
+               , TB_TASK_DEVLOP_PROCESS B
+                 LEFT OUTER JOIN TB_CMMN_CD D ON B.PROCESS_STTUS = D.CD AND D.CLS_CD = '0037'
+         WHERE A.USE_AT = 'Y'
+           AND A.DEVLOP_SN = B.DEVLOP_SN
+           AND B.PROCESS_STTUS = 'O1'
+        <if test='searchCmpny != null and searchCmpny != ""'>
+           AND A.CMPNY_CD =  #{searchCmpny}
+        </if>
+        <if test='assetCd != null and assetCd != ""'>
+            AND B.PROCESS_CD LIKE '%' + #{assetCd} + '%'
+         </if>
+         <if test='assetName != null and assetName != ""'>
+            AND B.PROCESS_NM LIKE '%' + #{assetName} + '%'
+         </if>
+         ORDER BY A.TASK_CD DESC, B.PROCESS_CD ASC
+         OFFSET #{paginationInfo.firstRecordIndex} ROWS
+         FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY  
+    </select>
+        
+
+    <select id="getTaskManageDetail" parameterType="java.util.Map" resultType="camelMap">
+        /*TaskManageMapper.getTaskManageDetail*/
+        SELECT   DEVLOP_SN
+               , TASK_CD
+               , TASK_NM
+               , TASK_DC
+               , CMPNY_CD
+               , CLS_CD
+               , JOB_CHRG_DEPT_CD
+               , JOB_CHRG_DEPT_NM
+               , JOB_CHARGER_ID
+               , JOB_CHARGER_NM
+               , JOB_TM
+               , FQ_CD
+               , EXECUT_CNT
+               , USE_AT
+               , REGISTER_ID
+               , REG_DT
+               , (
+                  SELECT COUNT(B.PROCESS_NO) 
+                    FROM TB_TASK_DEVLOP_PROCESS B 
+                   WHERE B.DEVLOP_SN = A.DEVLOP_SN
+                 ) AS PROCESS_CNT
+          FROM TB_TASK_DEVLOP A
+         WHERE DEVLOP_SN = #{devlopSn} 
+           AND USE_AT = 'Y'
+    </select>
+
+
+    <select id="getTaskManageProcessDetail" parameterType="java.util.Map" resultType="camelMap">
+        /*TaskManageMapper.getTaskManageProcessDetail*/
+        SELECT   A.TASK_CD
+               , A.TASK_NM
+               , A.TASK_DC
+               , A.CMPNY_CD
+               , A.CMPNY_NM
+               , A.CLS_CD
+               , A.JOB_CHRG_DEPT_NM
+               , A.JOB_CHARGER_ID
+               , A.JOB_CHARGER_NM
+               , A.JOB_TM
+               , ISNULL(A.FQ_CD,0) AS FQ_CD
+               , A.EXECUT_CNT
+               , A.REGISTER_ID
+               , B.PROCESS_NO
+               , B.SJ
+               , B.PROCESS_CD
+               , B.PROCESS_NM
+               , B.JOB_DC
+               , B.CMPNY_CD AS CMPNY_CD_PRC
+               , (
+                  SELECT CD_NM
+                    FROM TB_CMMN_CD
+                   WHERE CLS_CD = '0024'
+                     AND USE_AT = 'Y'
+                     AND CD = B.CMPNY_CD
+                 ) AS CMPNY_NM_PRC
+               , B.JOB_CLS_CD
+               , (
+                  SELECT CD_NM
+                    FROM TB_CMMN_CD
+                   WHERE CLS_CD = '0040'
+                     AND USE_AT = 'Y'
+                     AND CD = B.JOB_CLS_CD
+                 ) AS JOB_CLS_NM
+               , B.RPA_CLS_CD
+               , B.JOB_TM AS JOB_TM_PRC
+               , B.REDCN_TM
+               , B.EXPECT_REDCN_AMT
+               , FORMAT(B.EXPECT_REDCN_AMT, '#,#') AS EXPECT_REDCN_AMT_FORMAT
+               , B.FQ_CD AS FQ_CD_PRC
+               , B.EXECUT_CNT AS EXECUT_CNT_PRC
+               , B.EXECUT_TM
+               , B.EMRGNCY_CRSPND
+               , B.RTO
+               , B.DEVLOP_WDCNT
+               , B.EXPECT_DEVLOP_CT
+               , B.ROI_EVALUATE
+               , B.DEVLOP_RESN
+               , B.FILE_GRP_NO
+               , B.RELATE_DOC
+               , ISNULL(B.EXECUT_SE, '') AS EXECUT_SE
+               , B.PROCESS_FILE_GRP_NO
+               , B.PROCESS_STTUS
+               , B.REGISTER_ID AS REGISTER_ID_PRC
+               , B.DEVLOP_SN
+               , B.DEVLOP_CHARGER_ID  
+			   , CASE WHEN ISNULL(B.DEVLOP_CHARGER_ID, '') = '' THEN 
+			            ''
+			        ELSE 
+			            (
+			                SELECT [EMP_NM] FROM [dbo].[TB_USER_DETAIL] WHERE [EMP_NO] = B.DEVLOP_CHARGER_ID 
+			            ) 
+			        END AS DEVLOP_CHARGER_NM
+               , B.BELONGING_DE
+               , B.INSIDE_DEVLOP_AT
+               , C.SCHDULE_TEXT
+               , (
+                  SELECT TOP 1 CONVERT(VARCHAR(16), DATE_YMSHM, 120) 
+                    FROM TB_TEMP_RESRVE_BOT
+                   WHERE PROCESS_CD = #{processCd}
+                     AND DATE_YMSHM &gt; GETDATE()
+                     AND REG_GBN = 'B'
+                   ORDER BY DATE_YMSHM
+                 ) AS RSV_DT
+          FROM   TB_TASK_DEVLOP A
+               , TB_TASK_DEVLOP_PROCESS B
+                 LEFT OUTER JOIN TB_TASK_DEVLOP_PROCESS_SCHDULE C ON B.PROCESS_CD = C.PROCESS_CD
+                                                                  AND C.SCHDULE_NO = (
+                                                                                      SELECT MAX(SCHDULE_NO)
+                                                                                        FROM TB_TASK_DEVLOP_PROCESS_SCHDULE
+                                                                                       WHERE PROCESS_CD = #{processCd}
+                                                                                      )
+         WHERE A.DEVLOP_SN = B.DEVLOP_SN
+           AND B.PROCESS_CD = #{processCd}
+           AND A.USE_AT = 'Y'
+    </select>
+
+    <select id="selectPrcChargerList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectPrcChargerList */
+        SELECT   A.CHARGER_ID
+               , A.CHRG_DEPT_CD
+               , A.CHRG_DEPT_NM
+               , B.EMP_NM
+               , B.DEPT_CD
+          FROM TB_TASK_DEVLOP_PROCESS_CHARGER A
+               LEFT OUTER JOIN TB_USER_DETAIL B ON A.CHARGER_ID = B.EMP_NO
+               , TB_TASK_DEVLOP_PROCESS C
+         WHERE A.PROCESS_NO = C.PROCESS_NO
+           AND C.PROCESS_CD = #{processCd}
+           AND A.DEVLOP_SN = C.DEVLOP_SN
+         ORDER BY A.CHARGER_NO
+    </select>
+
+    <select id="selectPrcRedcnTmList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectPrcRedcnTmList */
+        SELECT   A.DEVLOP_SN
+               , A.PROCESS_NO
+               , A.REDCN_NO
+               , A.DEPT_CD
+               , A.DEPT_NM
+               , A.USER_ID
+               , B.EMP_NM AS USER_NM
+               , A.REDCN_TM
+          FROM TB_TASK_DEVLOP_PROCESS_REDCN_TM A
+               LEFT OUTER JOIN TB_USER_DETAIL B ON A.USER_ID = B.EMP_NO
+               , TB_TASK_DEVLOP_PROCESS C
+         WHERE C.PROCESS_CD = #{processCd}
+           AND A.DEVLOP_SN = C.DEVLOP_SN
+           AND A.PROCESS_NO = C.PROCESS_NO
+         ORDER BY A.REDCN_NO
+    </select>
+
+    <select id="selectTaskPrcContribute" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskPrcContribute */
+        SELECT   A.DEVLOP_SN
+               , A.PROCESS_NO
+               , A.CONTRIBUTE_NO
+               , A.DEPT_CD
+               , A.DEPT_NM
+               , A.USER_ID
+               , B.EMP_NM AS USER_NM
+               , A.CONTRIBUTE
+          FROM TB_TASK_DEVLOP_PROCESS_CONTRIBUTE A
+               LEFT OUTER JOIN TB_USER_DETAIL B ON A.USER_ID = B.EMP_NO
+               , TB_TASK_DEVLOP_PROCESS C
+         WHERE C.PROCESS_CD = #{processCd}
+           AND A.DEVLOP_SN = C.DEVLOP_SN
+           AND A.PROCESS_NO = C.PROCESS_NO
+         ORDER BY A.CONTRIBUTE_NO
+    </select>
+
+    <select id="selectTaskPrcCntcList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskPrcCntcList */
+        SELECT   CASE B.CMPNY_CD WHEN NULL THEN '공통'
+                                 ELSE '회사별'
+                 END AS GBN
+               , ISNULL(C.CD_NM,'-') AS CMPNY_NM
+               , A.CNTC_SYS_CD
+               , B.CNTC_SYS_NM
+          FROM   TB_TASK_DEVLOP_PROCESS_CNTC_SYS A
+               , TB_TASK_DEVLOP_PROCESS D
+               , TB_CNTC_SYS B
+                 LEFT OUTER JOIN TB_CMMN_CD C ON B.CMPNY_CD = C.CD AND C.CLS_CD = '0024' AND C.USE_AT = 'Y'
+         WHERE D.PROCESS_CD = #{processCd}
+           AND A.DEVLOP_SN = D.DEVLOP_SN
+           AND A.PROCESS_NO = D.PROCESS_NO
+           AND A.CNTC_SYS_CD = B.CNTC_SYS_CD
+         ORDER BY A.CNTC_SYS_NO
+    </select>
+    
+    <select id="selectRoutineScheduleTextList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectRoutineScheduleTextList */
+        SELECT   PROCESS_CD
+               , SCHDULE_NO
+               , SCHDULE_TEXT
+               , BOT_NO
+          FROM TB_TASK_DEVLOP_PROCESS_SCHDULE
+         WHERE PROCESS_CD = #{processCd}
+         ORDER BY SCHDULE_NO
+    </select>
+    
+    <select id="selectTaskPrcSchlist" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskPrcSchlist */
+SELECT [PROCESS_CD]      ,[SCHDULE_NO]      ,CONVERT(VARCHAR(10), [START_DE], 23) as START_DE      ,CONVERT(VARCHAR(10), [END_DE], 23) as END_DE      ,[SCHDULE_TYPE1]
+      ,[SCHDULE_TYPE2]      ,[EVERY_MINUTE]      ,[EVERY_HOUR]      ,[EVERY_HOUR_MINUTE]      ,[EVERY_WEEK_MON_AT]
+      ,[EVERY_WEEK_TUE_AT]      ,[EVERY_WEEK_WED_AT]      ,[EVERY_WEEK_THU_AT]      ,[EVERY_WEEK_FRI_AT]      ,[EVERY_WEEK_SAT_AT]
+      ,[EVERY_WEEK_SUN_AT]      ,[EVERY_MONTH_WEEK_ORDER]      ,[EVERY_MONTH_DOW]      ,[EXECUT_DAY]      ,[EXECUT_HOUR]
+      ,[EXECUT_MINUTE]      ,[SCHDULE_CRONTAB]      ,[SCHDULE_TEXT]
+FROM [dbo].[TB_TASK_DEVLOP_PROCESS_SCHDULE] A
+WHERE A.PROCESS_CD = #{processCd}
+ORDER BY A.SCHDULE_NO
+    </select>
+    
+    <insert id="saveRoutinePlan" parameterType="java.util.Map">
+/*TaskManageMapper.saveRoutinePlan */
+MERGE INTO TB_TASK_DEVLOP_PROCESS_SCHDULE A
+   USING
+       (
+           SELECT
+               #{processCd}    as processCd 
+               ,   #{schduleNo}    as schduleNo
+       ) B ON A.PROCESS_CD = B.processCd and A.SCHDULE_NO = B.schduleNo
+WHEN MATCHED THEN
+    UPDATE SET
+        START_DE = #{startDe1},
+<choose>
+    <when test='endDe != null and endDe != ""'>
+        END_DE = #{endDe},
+    </when>
+    <otherwise>
+        END_DE = null,
+    </otherwise>
+</choose>
+        SCHDULE_TYPE1 = #{schduleType1},
+        SCHDULE_TYPE2 = #{schduleType2},
+<choose>
+    <when test='everyMinute != null and everyMinute != ""'>
+        EVERY_MINUTE =  #{everyMinute},
+    </when>
+    <otherwise>
+        EVERY_MINUTE = null,
+    </otherwise>
+</choose>
+
+<choose>
+    <when test='everyHour != null and everyHour != ""'>
+        EVERY_HOUR =  #{everyHour},
+    </when>
+    <otherwise>
+        EVERY_HOUR = null,
+    </otherwise>
+</choose>
+<choose>
+    <when test='everyHourMinute != null and everyHourMinute != ""'>
+        EVERY_HOUR_MINUTE =  #{everyHourMinute},
+    </when>
+    <otherwise>
+        EVERY_HOUR_MINUTE = null,
+    </otherwise>
+</choose>
+        
+        
+        EVERY_WEEK_MON_AT = #{everyWeekMonAt},
+        EVERY_WEEK_TUE_AT = #{everyWeekTueAt},
+        EVERY_WEEK_WED_AT = #{everyWeekWedAt},
+        EVERY_WEEK_THU_AT = #{everyWeekThuAt},
+        EVERY_WEEK_FRI_AT = #{everyWeekFriAt},
+        EVERY_WEEK_SAT_AT = #{everyWeekSatAt},
+        EVERY_WEEK_SUN_AT = #{everyWeekSunAt},
+
+<choose>
+    <when test='everyMonthWeekOrder != null and everyMonthWeekOrder != ""'>
+        EVERY_MONTH_WEEK_ORDER =  #{everyMonthWeekOrder},
+    </when>
+    <otherwise>
+        EVERY_MONTH_WEEK_ORDER = null,
+    </otherwise>
+</choose>
+<choose>
+    <when test='everyMonthDow != null and everyMonthDow != ""'>
+        EVERY_MONTH_DOW =  #{everyMonthDow},
+    </when>
+    <otherwise>
+        EVERY_MONTH_DOW = null,
+    </otherwise>
+</choose>
+<choose>
+    <when test='executDay != null and executDay != ""'>
+        EXECUT_DAY =  #{executDay},
+    </when>
+    <otherwise>
+        EXECUT_DAY = null,
+    </otherwise>
+</choose>
+<choose>
+    <when test='executHour != null and executHour != ""'>
+        EXECUT_HOUR =  #{executHour},
+    </when>
+    <otherwise>
+        EXECUT_HOUR = null,
+    </otherwise>
+</choose>
+<choose>
+    <when test='executMinute != null and executMinute != ""'>
+        EXECUT_MINUTE =  #{executMinute},
+    </when>
+    <otherwise>
+        EXECUT_MINUTE = null,
+    </otherwise>
+</choose>
+        
+        SCHDULE_CRONTAB = #{schduleCrontab},
+        SCHDULE_TEXT = #{schduleText},
+        UPDUSR_ID = '',
+        UPDT_DT = getdate()
+WHEN NOT MATCHED THEN
+    INSERT(
+        [PROCESS_CD]       ,[SCHDULE_NO], START_DE,
+<if test='endDe != null and endDe != ""'>
+        END_DE,
+</if>
+        SCHDULE_TYPE1,
+        SCHDULE_TYPE2,
+<if test='everyMinute != null and everyMinute != ""'>
+        EVERY_MINUTE,
+
+</if>
+<if test='everyHour != null and everyHour != ""'>
+        EVERY_HOUR,
+</if>
+<if test='everyHourMinute != null and everyHourMinute != ""'>
+        EVERY_HOUR_MINUTE,
+</if>
+        EVERY_WEEK_MON_AT,
+        EVERY_WEEK_TUE_AT,
+        EVERY_WEEK_WED_AT,
+        EVERY_WEEK_THU_AT,
+        EVERY_WEEK_FRI_AT,
+        EVERY_WEEK_SAT_AT,
+        EVERY_WEEK_SUN_AT,
+<if test='everyMonthWeekOrder != null and everyMonthWeekOrder != ""'>
+        EVERY_MONTH_WEEK_ORDER,
+</if>
+<if test='everyMonthDow != null and everyMonthDow != ""'>
+        EVERY_MONTH_DOW,
+</if>
+<if test='executDay != null and executDay != ""'>
+        EXECUT_DAY,
+</if>
+<if  test='executHour != null and executHour != ""'>
+        EXECUT_HOUR,
+</if>
+<if test='executMinute != null and executMinute != ""'>
+        EXECUT_MINUTE,
+</if>
+    SCHDULE_CRONTAB,
+    SCHDULE_TEXT,
+    REGISTER_ID,
+    REG_DT
+    )
+    VALUES(
+        B.processCd        ,B.schduleNo, #{startDe1},
+<if test='endDe != null and endDe != ""'>
+        #{endDe},
+</if>
+        #{schduleType1},
+        #{schduleType2},
+<if test='everyMinute != null and everyMinute != ""'>
+        #{everyMinute},
+
+</if>
+<if test='everyHour != null and everyHour != ""'>
+        #{everyHour},
+</if>
+<if test='everyHourMinute != null and everyHourMinute != ""'>
+        #{everyHourMinute},
+</if>
+        #{everyWeekMonAt},
+        #{everyWeekTueAt},
+        #{everyWeekWedAt},
+        #{everyWeekThuAt},
+        #{everyWeekFriAt},
+        #{everyWeekSatAt},
+        #{everyWeekSunAt},
+<if test='everyMonthWeekOrder != null and everyMonthWeekOrder != ""'>
+        #{everyMonthWeekOrder},
+</if>
+<if test='everyMonthDow != null and everyMonthDow != ""'>
+        #{everyMonthDow},
+</if>
+<if test='executDay != null and executDay != ""'>
+        #{executDay},
+</if>
+<if  test='executHour != null and executHour != ""'>
+        #{executHour},
+</if>
+<if test='executMinute != null and executMinute != ""'>
+        #{executMinute},
+</if>
+    #{schduleCrontab},
+    #{schduleText},
+    #{registerId},
+    GETDATE()
+        
+    );
+    </insert>
+
+    <insert id="insertTaskManageProcHist" parameterType="java.util.Map">
+        /*TaskManageMapper.insertTaskManageProcHist */
+        INSERT INTO TB_TASK_DEVLOP_PROCESS_CHANGE_HIST
+        (
+          DEVLOP_SN
+        , PROCESS_NO
+        , PROCESS_HIST_NO
+        , PROCESS_STTUS
+        , CHANGE_CN
+        , REGISTER_ID
+        , REG_DT
+        , MERGE_TARGET
+        , PROCE_MATTER
+        )
+        VALUES
+        (
+            #{devlopSn}
+          , #{processNo}
+          , (
+             SELECT ISNULL(MAX(PROCESS_HIST_NO),0) +1
+               FROM TB_TASK_DEVLOP_PROCESS_CHANGE_HIST
+              WHERE DEVLOP_SN = #{devlopSn}
+                AND PROCESS_NO = #{processNo}
+             )
+          , #{statusCh}
+          , #{reason}
+          , #{logInId}
+          , GETDATE()
+          , #{mergeTarget}
+          , #{proceMatter}
+        )
+    </insert>
+
+    <update id="updateTaskManageProcUpdate" parameterType="java.util.Map">
+        /* TaskManageMapper.updateTaskManageProcUpdate */
+        UPDATE TB_TASK_DEVLOP_PROCESS
+           SET   PROCESS_STTUS = #{statusCh}
+               , UPDUSR_ID     = #{logInId}
+               , UPDT_DT       = GETDATE()
+         WHERE DEVLOP_SN  = #{devlopSn}
+           AND PROCESS_NO = #{processNo}
+    </update>
+
+    <select id="selectTaskTimeList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskPrcCntcList */
+        SELECT   TIME_NO
+               , CONCAT(TIME_SET, ' : ', MINUT_SET) AS TIME_LINE
+          FROM TB_TEMP_RESRVE
+         WHERE 1 = 1
+         ORDER BY TIME_NO
+    </select>
+
+
+    <select id="selectTaskBotReservList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskBotReservList */
+        SELECT   DATE_YMD
+               , DATE_YMSHM
+               , BOT_NO
+               , TIME_NO
+               , PROCESS_CD
+               , CASE PROCESS_CD WHEN #{processCd} THEN 'Y'
+                                 ELSE 'N'
+                 END AS CHK_DEL
+          FROM TB_TEMP_RESRVE_BOT
+         WHERE 1 = 1
+           AND DATE_YMD = #{startDe} 
+         ORDER BY BOT_NO, TIME_NO
+    </select>
+
+    <select id="selectTaskBotCountList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskBotCountList */
+        SELECT   A.CMPNY_CD
+               , A.PROCESS_CD
+               , A.RELEASES_ID 
+               , C.RobotId AS BOT_NO
+               , ISNULL(D.Type,0) AS BOT_TYPE
+               , A.RELEASES_KEY
+               , A.INPUTARGUMENTS
+               , A.RELEASES_NAME
+               , A.PROCESS_KEY
+          FROM   TB_TASK_DEVLOP_PROCESS_MAPPER A
+               , SY_RELEASES B
+               , SY_ROBOTSXENVIRONMENTS C
+                 LEFT OUTER JOIN SY_ROBOTS D ON C.RobotId = D.Id
+         WHERE A.RELEASES_ID = B.ID
+           AND A.USE_AT = 'Y'
+           AND B.ENVIRONMENTID = C.ENVIRONMENTID
+           AND A.PROCESS_CD = #{processCd}
+         GROUP BY A.CMPNY_CD, A.PROCESS_CD, A.RELEASES_ID, C.RobotId, ISNULL(D.Type,0), A.RELEASES_KEY, A.INPUTARGUMENTS, A.RELEASES_NAME, A.PROCESS_KEY
+         ORDER BY A.CMPNY_CD, A.PROCESS_CD, A.RELEASES_ID, C.RobotId
+    </select>
+
+
+    <insert id="insertTaskManageProcessPlan" parameterType="java.util.Map">
+        /*TaskManageMapper.insertTaskManageProcessPlan */
+        
+<if test='schduleType1 == "1" and schduleType2 == "1"'>
+        INSERT INTO TB_TEMP_RESRVE_BOT([DATE_YMD]           ,[DATE_YMSHM]           ,[BOT_NO]           ,[TIME_NO]           ,[PROCESS_CD]
+           ,[REGISTER_ID]           ,[REG_DT]           ,[REG_GBN]           ,[SEND_YN]           ,[CMPNY_CD]
+           ,[BOT_TYPE]           ,[INPUTARGUMENTS]           ,[RELEASES_ID]           ,[RELEASES_KEY]           ,[RELEASES_NAME]
+           ,[PROCESS_KEY]           ,[SCHDULE_NO], [DISABLE_AT])
+        SELECT   Z.DATE_YMD
+               , Z.YMD_HMS
+               , #{botNo}
+               , Z.TIME_NO
+               , #{processCd}
+               , #{logInId}
+               , GETDATE()
+               , 'A'
+               , 'N'
+               , #{cmpnyCd}
+               , #{botType}
+               , ISNULL(#{inputArguments},'{}')
+               , CONVERT(INT, #{releasesId})
+               , #{releasesKey}
+               , #{releasesName}
+               , #{processKey}
+               , #{schduleNo}
+               , 0
+          FROM (
+                SELECT  Y.DATE_YMD
+                      , Y.YMD_HMS
+                      , X.TIME_SET_GRP AS TIME_NO
+                      , X.TIME_SET
+                      , X.MINUT_SET
+                 FROM TB_TEMP_RESRVE_DETAIL X
+                      , (
+                         SELECT   T.DATE_YMD
+                                , T.YMD_HMS
+                                , DATEPART(HH,YMD_HMS ) AS DATE_HH
+                                , DATEPART("MI",YMD_HMS ) AS DATE_MM
+                           FROM (
+                                 SELECT   QUARTER AS S_NO
+                                        , DATE_YMD
+                                        , START AS YMD_HMS
+                                        , DATEPART(DW,START) AS DAY_NM
+                                        , DATEPART(WW,START) AS WEEK_NM
+                                   FROM (
+                                         SELECT   DT.NUMBER+1 DAYNO
+                                                , TT.NUMBER+1 HOURNO
+                                                , MT.NUMBER+1 QUARTER
+                                                , CONVERT(CHAR(8), DATEADD(MI,(#{everyMinute}*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','') ))), 112) AS DATE_YMD
+                                                , DATEADD(MI,(#{everyMinute}*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')))) AS START
+                                           FROM   MASTER..SPT_VALUES DT
+                                                , MASTER..SPT_VALUES TT
+                                                , MASTER..SPT_VALUES MT
+                                          WHERE DT.TYPE = 'P'
+                                            AND TT.TYPE = 'P'
+                                            AND MT.TYPE = 'P'
+                                            AND DT.NUMBER &lt; 730
+                                            AND TT.NUMBER BETWEEN 0 AND 23
+                                            AND DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')) &lt;= REPLACE(#{endDe},'-','')
+                                        ) A
+                                  WHERE HOURNO = 1
+                                    AND DATE_YMD  &lt;=  REPLACE(#{endDe},'-','')
+                                ) T
+                         ) Y
+                   WHERE X.TIME_SET = Y.DATE_HH
+                     AND X.MINUT_SET = Y.DATE_MM
+                   GROUP BY Y.DATE_YMD, Y.YMD_HMS, X.TIME_SET_GRP, X.TIME_SET, X.MINUT_SET
+               ) Z
+         WHERE 1 = 1
+         AND YMD_HMS > GETDATE()
+         ORDER BY Z.YMD_HMS
+
+</if>
+
+<if test='schduleType1 == "2" and schduleType2 == "1"'>
+        INSERT INTO TB_TEMP_RESRVE_BOT([DATE_YMD]           ,[DATE_YMSHM]           ,[BOT_NO]           ,[TIME_NO]           ,[PROCESS_CD]
+           ,[REGISTER_ID]           ,[REG_DT]           ,[REG_GBN]           ,[SEND_YN]           ,[CMPNY_CD]
+           ,[BOT_TYPE]           ,[INPUTARGUMENTS]           ,[RELEASES_ID]           ,[RELEASES_KEY]           ,[RELEASES_NAME]
+           ,[PROCESS_KEY]           ,[SCHDULE_NO], [DISABLE_AT])
+        SELECT   Y.DATE_YMD
+               , Y.YMD_HMS            
+               , #{botNo}
+               , X.TIME_SET_GRP AS TIME_NO
+               , #{processCd}
+               , #{logInId}
+               , GETDATE()
+               , 'A'
+               , 'N'
+               , #{cmpnyCd}
+               , #{botType}
+               , ISNULL(#{inputArguments},'{}')
+               , CONVERT(INT, #{releasesId})
+               , #{releasesKey}
+               , #{releasesName}
+               , #{processKey}
+               , #{schduleNo}
+               , 0
+          FROM TB_TEMP_RESRVE_DETAIL X
+               , (
+                  SELECT   T.DATE_YMD
+                             , T.YMD_HMS
+                             , DATEPART(HH,YMD_HMS ) AS DATE_HH
+                             , DATEPART("MI",YMD_HMS ) AS DATE_MM
+                    FROM (
+                          SELECT   QUARTER AS S_NO
+                                 , DATE_YMD
+                                 , START AS YMD_HMS
+                            FROM (
+                                  SELECT   DT.NUMBER+1 DAYNO
+                                         , TT.NUMBER+1 HOURNO
+                                         , MT.NUMBER+1 QUARTER
+                                         , CONVERT(CHAR(8), DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER, REPLACE(#{startDe1},'-','') ))), 112) AS DATE_YMD
+                                         , DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')))) AS START
+                                    FROM   MASTER..SPT_VALUES DT
+                                         , MASTER..SPT_VALUES TT
+                                         , MASTER..SPT_VALUES MT
+                                   WHERE DT.TYPE = 'P'
+                                     AND TT.TYPE = 'P'
+                                     AND MT.TYPE = 'P'
+                                     AND DT.NUMBER &lt; 730
+                                     AND TT.NUMBER BETWEEN 0 AND 23
+                                     AND DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')) &lt;= REPLACE(#{endDe},'-','')
+                                 ) A
+                           WHERE HOURNO = 1
+                             AND DATE_YMD  &lt;=  REPLACE(#{endDe},'-','')
+                         ) T
+                ) Y
+         WHERE X.TIME_SET = Y.DATE_HH
+           AND X.MINUT_SET = Y.DATE_MM
+           AND X.MINUT_SET = #{executMinute}
+          
+       <if test='everyHour == "2"'>
+           AND X.TIME_SET IN ( '00','02','04','06','08','10','12','14','16','18','20','22','24')
+       </if> 
+       <if test='everyHour == "3"'>
+           AND X.TIME_SET IN ( '00','03','06','09','12','15','18','21','24')
+       </if>  
+       <if test='everyHour == "4"'>
+           AND X.TIME_SET IN ( '00','04','08','12','16','20','24')
+       </if>  
+       <if test='everyHour == "5"'>
+           AND X.TIME_SET IN ( '00','05','10','15','20')
+       </if>  
+       <if test='everyHour == "6"'>
+           AND X.TIME_SET IN ( '00','06','12','18','24')
+       </if>
+       <if test='everyHour == "7"'>
+           AND X.TIME_SET IN ( '00','07','14','21')
+       </if>
+       <if test='everyHour == "8"'>
+           AND X.TIME_SET IN ( '00','08','16','24')
+       </if>
+       <if test='everyHour == "9"'>
+           AND X.TIME_SET IN ( '00', '09', '18')
+       </if>
+       <if test='everyHour == "10"'>
+           AND X.TIME_SET IN ( '00', '10', '20')
+       </if>
+       <if test='everyHour == "11"'>
+           AND X.TIME_SET IN ( '00', '11', '22')
+       </if>
+       <if test='everyHour == "12"'>
+           AND X.TIME_SET IN ( '00', '12', '24')
+       </if>
+       <if test='everyHour == "13"'>
+           AND X.TIME_SET IN ( '00', '13' )
+       </if>
+       <if test='everyHour == "14"'>
+           AND X.TIME_SET IN ( '00', '14' )
+       </if>
+       <if test='everyHour == "15"'>
+           AND X.TIME_SET IN ( '00', '15' )
+       </if>
+       <if test='everyHour == "16"'>
+           AND X.TIME_SET IN ( '00', '16' )
+       </if>
+       <if test='everyHour == "17"'>
+           AND X.TIME_SET IN ( '00', '17' )
+       </if>
+       <if test='everyHour == "18"'>
+           AND X.TIME_SET IN ( '00', '18' )
+       </if>
+       <if test='everyHour == "19"'>
+           AND X.TIME_SET IN ( '00', '19' )
+       </if>
+       <if test='everyHour == "20"'>
+           AND X.TIME_SET IN ( '00', '20' )
+       </if>
+       <if test='everyHour == "21"'>
+           AND X.TIME_SET IN ( '00', '21' )
+       </if>
+       <if test='everyHour == "22"'>
+           AND X.TIME_SET IN ( '00', '22' )
+       </if>
+       <if test='everyHour == "23"'>
+           AND X.TIME_SET IN ( '00', '23' )
+       </if>
+       <if test='everyHour == "00"'>
+           AND X.TIME_SET = '00'
+       </if>
+       AND YMD_HMS > GETDATE()
+         GROUP BY Y.DATE_YMD, Y.YMD_HMS, X.TIME_SET_GRP
+         ORDER BY Y.YMD_HMS
+</if>
+<if test='schduleType1 == "3" and schduleType2 == "1"'>
+        INSERT INTO TB_TEMP_RESRVE_BOT([DATE_YMD]           ,[DATE_YMSHM]           ,[BOT_NO]           ,[TIME_NO]           ,[PROCESS_CD]
+           ,[REGISTER_ID]           ,[REG_DT]           ,[REG_GBN]           ,[SEND_YN]           ,[CMPNY_CD]
+           ,[BOT_TYPE]           ,[INPUTARGUMENTS]           ,[RELEASES_ID]           ,[RELEASES_KEY]           ,[RELEASES_NAME]
+           ,[PROCESS_KEY]           ,[SCHDULE_NO], [DISABLE_AT])
+        SELECT   Z.DATE_YMD
+               , Z.YMD_HMS
+               , #{botNo}
+               , Z.TIME_NO
+               , #{processCd}
+               , #{logInId}
+               , GETDATE()
+               , 'A'
+               , 'N'
+               , #{cmpnyCd}
+               , #{botType}
+               , ISNULL(#{inputArguments},'{}')
+               , CONVERT(INT, #{releasesId})
+               , #{releasesKey}
+               , #{releasesName}
+               , #{processKey}
+               , #{schduleNo}
+               , 0
+          FROM (
+                SELECT  Y.DATE_YMD
+                      , Y.YMD_HMS
+                      , X.TIME_SET_GRP AS TIME_NO
+                      , X.TIME_SET
+                      , X.MINUT_SET
+                 FROM TB_TEMP_RESRVE_DETAIL X
+                      , (
+                         SELECT   T.DATE_YMD
+                                , T.YMD_HMS
+                                , DATEPART(HH,YMD_HMS ) AS DATE_HH
+                                , DATEPART("MI",YMD_HMS ) AS DATE_MM
+                           FROM (
+                                 SELECT   QUARTER AS S_NO
+                                        , DATE_YMD
+                                        , START AS YMD_HMS
+                                        , DATEPART(DW,START) AS DAY_NM
+                                        , DATEPART(WW,START) AS WEEK_NM
+                                   FROM (
+                                         SELECT   DT.NUMBER+1 DAYNO
+                                                , TT.NUMBER+1 HOURNO
+                                                , MT.NUMBER+1 QUARTER
+                                                , CONVERT(CHAR(8), DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','') ))), 112) AS DATE_YMD
+                                                , DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')))) AS START
+                                           FROM   MASTER..SPT_VALUES DT
+                                                , MASTER..SPT_VALUES TT
+                                                , MASTER..SPT_VALUES MT
+                                          WHERE DT.TYPE = 'P'
+                                            AND TT.TYPE = 'P'
+                                            AND MT.TYPE = 'P'
+                                            AND DT.NUMBER &lt; 730
+                                            AND TT.NUMBER BETWEEN 0 AND 23
+                                            AND DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')) &lt;= REPLACE(#{endDe},'-','')
+                                        ) A
+                                  WHERE HOURNO = 1
+                                    AND DATE_YMD  &lt;=  REPLACE(#{endDe},'-','')
+                                ) T
+                         ) Y
+                   WHERE X.TIME_SET = Y.DATE_HH
+                     AND X.MINUT_SET = Y.DATE_MM
+                     AND X.TIME_SET =  FORMAT(CONVERT(INT, #{executHour}), 'D2')
+                     AND X.MINUT_SET = #{executMinute}
+                   GROUP BY Y.DATE_YMD, Y.YMD_HMS, X.TIME_SET_GRP, X.TIME_SET, X.MINUT_SET
+               ) Z
+         WHERE 1 = 1
+         AND YMD_HMS > GETDATE()
+         ORDER BY Z.YMD_HMS
+</if>
+<if test='schduleType1 == "4" and schduleType2 == "1"'>
+            INSERT INTO TB_TEMP_RESRVE_BOT([DATE_YMD]           ,[DATE_YMSHM]           ,[BOT_NO]           ,[TIME_NO]           ,[PROCESS_CD]
+           ,[REGISTER_ID]           ,[REG_DT]           ,[REG_GBN]           ,[SEND_YN]           ,[CMPNY_CD]
+           ,[BOT_TYPE]           ,[INPUTARGUMENTS]           ,[RELEASES_ID]           ,[RELEASES_KEY]           ,[RELEASES_NAME]
+           ,[PROCESS_KEY]           ,[SCHDULE_NO], [DISABLE_AT])
+            SELECT   Z.DATE_YMD
+                   , Z.YMD_HMS
+                   , #{botNo}
+                   , Z.TIME_NO
+                   , #{processCd}
+                   , #{logInId}
+                   , GETDATE()
+                   , 'A'
+                   , 'N'
+	               , #{cmpnyCd}
+	               , #{botType}
+	               , ISNULL(#{inputArguments},'{}')
+	               , CONVERT(INT, #{releasesId})
+	               , #{releasesKey}
+	               , #{releasesName}
+	               , #{processKey}
+	               , #{schduleNo}
+	               , 0
+              FROM (
+                    SELECT  Y.DATE_YMD
+                          , Y.YMD_HMS
+                          , X.TIME_SET_GRP AS TIME_NO
+                          , X.TIME_SET
+                          , X.MINUT_SET
+                          , DAY_NM
+                          , WEEK_NM
+                     FROM TB_TEMP_RESRVE_DETAIL X
+                          , (
+                             SELECT   T.DATE_YMD
+                                    , T.YMD_HMS
+                                    , DATEPART(HH,YMD_HMS ) AS DATE_HH
+                                    , DATEPART("MI",YMD_HMS ) AS DATE_MM
+                                    , DAY_NM
+                                    , WEEK_NM
+                               FROM (
+                                     SELECT   QUARTER AS S_NO
+                                            , DATE_YMD
+                                            , START AS YMD_HMS
+                                            , DATEPART(DW,START) AS DAY_NM
+                                            , DATEPART(WW,START) AS WEEK_NM
+                                       FROM (
+                                             SELECT   DT.NUMBER+1 DAYNO
+                                                    , TT.NUMBER+1 HOURNO
+                                                    , MT.NUMBER+1 QUARTER
+                                                    , CONVERT(CHAR(8), DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','') ))), 112) AS DATE_YMD
+                                                    , DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')))) AS START
+                                               FROM   MASTER..SPT_VALUES DT
+                                                    , MASTER..SPT_VALUES TT
+                                                    , MASTER..SPT_VALUES MT
+                                              WHERE DT.TYPE = 'P'
+                                                AND TT.TYPE = 'P'
+                                                AND MT.TYPE = 'P'
+                                                AND DT.NUMBER &lt; 730
+                                                AND TT.NUMBER BETWEEN 0 AND 23
+                                                AND DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')) &lt;= REPLACE(#{endDe},'-','')
+                                            ) A
+                                      WHERE HOURNO = 1
+                                        AND DATE_YMD  &lt;=  REPLACE(#{endDe},'-','')
+                                    ) T
+                             ) Y
+                       WHERE X.TIME_SET = Y.DATE_HH
+                         AND X.MINUT_SET = Y.DATE_MM
+                         AND X.TIME_SET = FORMAT(CONVERT(INT, #{executHour}), 'D2')
+                         AND X.MINUT_SET = #{executMinute}
+                       GROUP BY Y.DATE_YMD, Y.YMD_HMS, X.TIME_SET_GRP, X.TIME_SET, X.MINUT_SET, Y.DAY_NM, Y.WEEK_NM
+                   ) Z
+             WHERE 1 = 1
+            AND YMD_HMS > GETDATE()
+<if test='everyWeekSunAt != "N" or everyWeekMonAt != "N" or everyWeekTueAt != "N" or everyWeekWedAt != "N" or everyWeekThuAt != "N" or everyWeekFriAt != "N" or everyWeekSatAt != "N"'>
+               AND DAY_NM IN ( 0
+                <if test='everyWeekSunAt.equals("Y")'>
+                    , 1 
+                </if>
+                <if test='everyWeekMonAt.equals("Y")'>
+                    , 2 
+                </if>
+                <if test='everyWeekTueAt.equals("Y")'>
+                    , 3 
+                </if>
+                <if test='everyWeekWedAt.equals("Y")'>
+                    , 4 
+                </if>
+                <if test='everyWeekThuAt.equals("Y")'>
+                    , 5 
+                </if>
+                <if test='everyWeekFriAt.equals("Y")'>
+                    , 6 
+                </if>
+                <if test='everyWeekSatAt.equals("Y")'>
+                    , 7 
+                </if>
+                           )
+</if>
+             ORDER BY Z.YMD_HMS
+</if>
+<if test='schduleType1 == "5" and schduleType2 == "1"'>
+        INSERT INTO TB_TEMP_RESRVE_BOT([DATE_YMD]           ,[DATE_YMSHM]           ,[BOT_NO]           ,[TIME_NO]           ,[PROCESS_CD]
+           ,[REGISTER_ID]           ,[REG_DT]           ,[REG_GBN]           ,[SEND_YN]           ,[CMPNY_CD]
+           ,[BOT_TYPE]           ,[INPUTARGUMENTS]           ,[RELEASES_ID]           ,[RELEASES_KEY]           ,[RELEASES_NAME]
+           ,[PROCESS_KEY]           ,[SCHDULE_NO], [DISABLE_AT])
+        SELECT   Z.DATE_YMD
+               , Z.YMD_HMS
+               , #{botNo}
+               , Z.TIME_NO
+               , #{processCd}
+               , #{logInId}
+               , GETDATE()
+               , 'A'
+               , 'N'
+               , #{cmpnyCd}
+               , #{botType}
+               , ISNULL(#{inputArguments},'{}')
+               , CONVERT(INT, #{releasesId})
+               , #{releasesKey}
+               , #{releasesName}
+               , #{processKey}
+               , #{schduleNo}
+               , 0
+          FROM (
+                SELECT  Y.DATE_YMD
+                      , Y.YMD_HMS
+                      , X.TIME_SET_GRP AS TIME_NO
+                      , X.TIME_SET
+                      , X.MINUT_SET
+                      , DATEADD(D,-DAY(DATEADD(M,1,Y.YMD_HMS)), DATEADD(M,1,Y.YMD_HMS)) AS MONTH_LAST
+                      , DATEPART("dd",YMD_HMS ) AS DATE_DD
+                 FROM TB_TEMP_RESRVE_DETAIL X
+                      , (
+                         SELECT   T.DATE_YMD
+                                , T.YMD_HMS
+                                , DATEPART(HH,YMD_HMS ) AS DATE_HH
+                                , DATEPART("MI",YMD_HMS ) AS DATE_MM
+                           FROM (
+                                 SELECT   QUARTER AS S_NO
+                                        , DATE_YMD
+                                        , START AS YMD_HMS
+                                        , DATEPART(DW,START) AS DAY_NM
+                                        , DATEPART(WW,START) AS WEEK_NM
+                                   FROM (
+                                         SELECT   DT.NUMBER+1 DAYNO
+                                                , TT.NUMBER+1 HOURNO
+                                                , MT.NUMBER+1 QUARTER
+                                                , CONVERT(CHAR(8), DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','') ))), 112) AS DATE_YMD
+                                                , DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')))) AS START
+                                           FROM   MASTER..SPT_VALUES DT
+                                                , MASTER..SPT_VALUES TT
+                                                , MASTER..SPT_VALUES MT
+                                          WHERE DT.TYPE = 'P'
+                                            AND TT.TYPE = 'P'
+                                            AND MT.TYPE = 'P'
+                                            AND DT.NUMBER &lt; 730
+                                            AND TT.NUMBER BETWEEN 0 AND 23
+                                            AND DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')) &lt;= REPLACE(#{endDe},'-','')
+                                        ) A
+                                  WHERE HOURNO = 1
+                                    AND DATE_YMD  &lt;=  REPLACE(#{endDe},'-','')
+                                ) T
+                         ) Y
+                   WHERE X.TIME_SET = Y.DATE_HH
+                     AND X.MINUT_SET = Y.DATE_MM
+                     AND X.TIME_SET = FORMAT(CONVERT(INT, #{executHour}), 'D2')
+                     AND X.MINUT_SET = #{executMinute}
+                   GROUP BY Y.DATE_YMD, Y.YMD_HMS, X.TIME_SET_GRP, X.TIME_SET, X.MINUT_SET
+               ) Z
+         WHERE 1 = 1
+         AND YMD_HMS > GETDATE()
+    <if test='executDay == "0"'>
+           AND YMD_HMS = MONTH_LAST
+    </if>
+    <if test='executDay != "0"'>
+           AND DATE_DD = #{executDay}
+    </if>
+           AND YMD_HMS &gt; GETDATE()
+         ORDER BY Z.YMD_HMS
+</if>
+
+<if test='schduleType1 == "5" and schduleType2 == "2"'>
+
+    <if test='everyMonthWeekOrder == "0"'>
+        INSERT INTO TB_TEMP_RESRVE_BOT
+        SELECT   Z.DATE_YMD
+               , Z.YMD_HMS
+               , #{botNo}
+               , Z.TIME_NO
+               , #{processCd}
+               , #{logInId}
+               , GETDATE()
+               , 'A'
+               , 'N'
+               , #{cmpnyCd}
+               , #{botType}
+               , ISNULL(#{inputArguments},'{}')
+               , CONVERT(INT, #{releasesId})
+               , #{releasesKey}
+               , #{releasesName}
+               , #{processKey}
+               , #{schduleNo}
+               , 0
+               , null
+               , null
+               , 0
+          FROM (
+                SELECT   MAX(W.DATE_YMD) AS DATE_YMD
+                       , MAX(W.YMD_HMS) AS YMD_HMS
+                       , MAX(W.TIME_NO) AS TIME_NO
+                       , W.YYMM
+                  FROM (
+                        SELECT   Y.DATE_YMD
+                               , Y.YMD_HMS
+                               , X.TIME_SET_GRP AS TIME_NO
+                               , X.TIME_SET
+                               , X.MINUT_SET
+                               , DATEPART(WW,Y.YMD_HMS) AS WEEK_NM
+                               , ( DATEPART( DAY, DATEADD( DAY, ( ( 7 - DATEPART( WEEKDAY, Y.YMD_HMS ) ) % 7 ) - 1, Y.YMD_HMS ) ) - 1 ) / 7 + 1 AS WEEK_NO
+                               , Y.DAY_NM
+                               , MAX(Y.YYYMM) AS YYMM
+                          FROM TB_TEMP_RESRVE_DETAIL X
+                            , (
+                               SELECT   T.DATE_YMD
+                                      , T.YMD_HMS
+                                      , DATEPART(HH,T.YMD_HMS ) AS DATE_HH
+                                      , DATEPART("MI",T.YMD_HMS ) AS DATE_MM
+                                      , T.DAY_NM
+                                      , T.YYYMM
+                                 FROM (
+                                       SELECT   QUARTER AS S_NO
+                                              , DATE_YMD
+                                              , START AS YMD_HMS
+                                              , DATEPART(DW,START) AS DAY_NM
+                                              , SUBSTRING(CONVERT(VARCHAR,DATE_YMD,112),1,6) AS YYYMM
+                                         FROM (
+                                               SELECT   DT.NUMBER+1 DAYNO
+                                                      , TT.NUMBER+1 HOURNO
+                                                      , MT.NUMBER+1 QUARTER
+                                                      , CONVERT(CHAR(8), DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','') ))), 112) AS DATE_YMD
+                                                      , DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')))) AS START
+                                                 FROM   MASTER..SPT_VALUES DT
+                                                      , MASTER..SPT_VALUES TT
+                                                      , MASTER..SPT_VALUES MT
+                                                WHERE DT.TYPE = 'P'
+                                                  AND TT.TYPE = 'P'
+                                                  AND MT.TYPE = 'P'
+                                                  AND DT.NUMBER  &lt; 730
+                                                  AND TT.NUMBER BETWEEN 0 AND 23
+                                                  AND DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')) &lt;= REPLACE(#{endDe},'-','')
+                                              ) A
+                                        WHERE HOURNO = 1
+                                        AND DATE_YMD  &lt;=  REPLACE(#{endDe},'-','')
+                                        AND DATEPART(DW,START) = #{everyMonthDow}
+                                      ) T
+                            ) Y
+                      WHERE X.TIME_SET = Y.DATE_HH
+                        AND X.MINUT_SET = Y.DATE_MM
+                        AND X.TIME_SET = FORMAT(CONVERT(INT, #{executHour}), 'D2')
+                        AND X.MINUT_SET = #{executMinute}
+                      GROUP BY Y.DATE_YMD, Y.YMD_HMS, X.TIME_SET_GRP, X.TIME_SET, X.MINUT_SET, Y.DAY_NM
+                       ) W
+                 WHERE 1 =1 
+                   AND W.WEEK_NO IN ('4','5')
+                 GROUP BY W.YYMM
+               ) Z
+         WHERE 1 = 1
+         AND YMD_HMS > GETDATE()
+         -- ORDER BY MAX(Z.YMD_HMS) -- 2021/04/29에 수정함.. 매월 주차 마지막주 토 13시 14분으로 입력했었음.
+         ORDER BY Z.DATE_YMD       
+    </if>
+    <if test='everyMonthWeekOrder != "0"'>
+        INSERT INTO TB_TEMP_RESRVE_BOT
+        SELECT   Z.DATE_YMD
+               , Z.YMD_HMS
+               , #{botNo}
+               , Z.TIME_NO
+               , #{processCd}
+               , #{logInId}
+               , GETDATE()
+               , 'A'
+               , 'N'
+               , #{cmpnyCd}
+               , #{botType}
+               , ISNULL(#{inputArguments},'{}')
+               , CONVERT(INT, #{releasesId})
+               , #{releasesKey}
+               , #{releasesName}
+               , #{processKey}
+               , #{schduleNo}
+               , 0
+               , null
+               , null
+               , 0
+          FROM (
+                SELECT  Y.DATE_YMD
+                      , Y.YMD_HMS
+                      , X.TIME_SET_GRP AS TIME_NO
+                      , X.TIME_SET
+                      , X.MINUT_SET
+                      , DATEPART(DW,Y.YMD_HMS) AS DAY_NM
+                      , DATEPART(WW,Y.YMD_HMS) AS WEEK_NM
+                                          , ( DATEPART( DAY, DATEADD( DAY, ( ( 7 - DATEPART( WEEKDAY, Y.YMD_HMS ) ) % 7 ) - 1, Y.YMD_HMS ) ) - 1 ) / 7 + 1 AS WEEK_NO
+                                          , DATEADD(D,-DAY(DATEADD(M,1,Y.YMD_HMS)), DATEADD(M,1,Y.YMD_HMS)) AS MONTH_LAST
+                 FROM TB_TEMP_RESRVE_DETAIL X
+                      , (
+                         SELECT   T.DATE_YMD
+                                , T.YMD_HMS
+                                , DATEPART(HH,YMD_HMS ) AS DATE_HH
+                                , DATEPART("MI",YMD_HMS ) AS DATE_MM
+                           FROM (
+                                 SELECT   QUARTER AS S_NO
+                                        , DATE_YMD
+                                        , START AS YMD_HMS
+                                   FROM (
+                                         SELECT   DT.NUMBER+1 DAYNO
+                                                , TT.NUMBER+1 HOURNO
+                                                , MT.NUMBER+1 QUARTER
+                                                , CONVERT(CHAR(8), DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','') ))), 112) AS DATE_YMD
+                                                , DATEADD(MI,(1*MT.NUMBER),DATEADD(HH,TT.NUMBER,DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')))) AS START
+                                           FROM   MASTER..SPT_VALUES DT
+                                                , MASTER..SPT_VALUES TT
+                                                , MASTER..SPT_VALUES MT
+                                          WHERE DT.TYPE = 'P'
+                                            AND TT.TYPE = 'P'
+                                            AND MT.TYPE = 'P'
+                                            AND DT.NUMBER &lt; 730
+                                            AND TT.NUMBER BETWEEN 0 AND 23
+                                            AND DATEADD(DD,DT.NUMBER,REPLACE(#{startDe1},'-','')) &lt;= REPLACE(#{endDe},'-','')
+                                        ) A
+                                  WHERE HOURNO = 1
+                                    AND DATE_YMD  &lt;=  REPLACE(#{endDe},'-','')
+                                ) T
+                         ) Y
+                   WHERE X.TIME_SET = Y.DATE_HH
+                     AND X.MINUT_SET = Y.DATE_MM
+                     AND X.TIME_SET = FORMAT(CONVERT(INT, #{executHour}), 'D2')
+                     AND X.MINUT_SET = #{executMinute}
+                   GROUP BY Y.DATE_YMD, Y.YMD_HMS, X.TIME_SET_GRP, X.TIME_SET, X.MINUT_SET
+               ) Z
+         WHERE 1 = 1
+         AND YMD_HMS > GETDATE()
+           AND Z.WEEK_NO = #{everyMonthWeekOrder}
+           AND Z.DAY_NM = #{everyMonthDow}
+         ORDER BY Z.DATE_YMD
+    </if>
+
+</if>
+    </insert>
+
+    <delete id="deleteTaskManageProcessPlan" parameterType="java.util.Map">
+        /*TaskManageMapper.deleteTaskManageProcessPlan*/
+        DELETE FROM TB_TEMP_RESRVE_BOT
+         WHERE BOT_NO     =  #{botNo}
+           AND PROCESS_CD = #{processCd}
+           AND SCHDULE_NO = #{schduleNo}
+           AND REG_GBN = 'A'
+    </delete>
+    
+    <delete id="deleteTaskManageProcessSchdule" parameterType="java.util.Map">
+        /*TaskManageMapper.deleteTaskManageProcessSchdule*/
+        DELETE FROM TB_TASK_DEVLOP_PROCESS_SCHDULE
+         WHERE BOT_NO     =  #{botNo}
+           AND PROCESS_CD = #{processCd}
+           AND SCHDULE_NO = #{schduleNo}
+    </delete>
+    
+    <update id="updateTaskManageProcessSchdule" parameterType="java.util.Map">
+        /*TaskManageMapper.updateTaskManageProcessSchdule*/
+        UPDATE FROM TB_TASK_DEVLOP_PROCESS_SCHDULE
+        SET DELETE_AT = 1
+         WHERE BOT_NO     =  #{botNo}
+           AND PROCESS_CD = #{processCd}
+           AND SCHDULE_NO = #{schduleNo}
+    </update>
+
+    <select id="selectTaskManageProcessReserveCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* TaskManageMapper.selectTaskManageProcessReserveCount */
+        SELECT COUNT(*) AS CNT
+          FROM TB_TEMP_RESRVE_BOT A,
+               (
+                SELECT   DATEADD(MINUTE, - (CONVERT(FLOAT,#{executTm})* 60), K.TM) AS FR_DAT
+                       , DATEADD(MINUTE,  CONVERT(FLOAT,#{executTm}) * 60, K.TM)  AS TO_DAT
+                  FROM (
+                        SELECT DATEADD(MINUTE, CONVERT(INT,MINUT_SET), DATEADD(HOUR, CONVERT(INT,TIME_SET), #{startDe})) AS TM
+                          FROM TB_TEMP_RESRVE
+                         WHERE TIME_NO = CONVERT(INT,#{timeNo})
+                        ) K
+               ) B
+         WHERE A.BOT_NO = CONVERT(INT,#{botNo})
+           AND A.DATE_YMSHM BETWEEN B.FR_DAT AND B.TO_DAT
+    </select>
+
+
+    <insert id="insertTaskManageProcessReserve" parameterType="java.util.Map">
+        /*TaskManageMapper.insertTaskManageProcessReserve */
+        INSERT INTO TB_TEMP_RESRVE_BOT
+                   (
+                     DATE_YMD
+                   , DATE_YMSHM
+                   , BOT_NO
+                   , TIME_NO
+                   , PROCESS_CD
+                   , REGISTER_ID
+                   , REG_DT
+                   , REG_GBN
+                   , SEND_YN
+                   , CMPNY_CD
+                   , BOT_TYPE
+                   , INPUTARGUMENTS
+                   , RELEASES_ID
+                   , RELEASES_KEY
+                   , RELEASES_NAME
+                   , PROCESS_KEY
+                   )
+             VALUES
+                   (
+                     #{startDe}
+                   , (
+                      SELECT DATEADD(MINUTE, CONVERT(INT,MINUT_SET), DATEADD(HOUR, CONVERT(INT,TIME_SET), #{startDe}))
+                        FROM TB_TEMP_RESRVE
+                       WHERE TIME_NO =  CONVERT(INT,#{timeNo})
+                      ) 
+                   ,  CONVERT(INT,#{botNo})
+                   ,  CONVERT(INT,#{timeNo})
+                   , #{processCd}
+                   , #{logInId}
+                   , GETDATE()
+                   , 'B'
+                   , 'N'
+                   , #{cmpnyCd}
+                   , #{botType}
+                   , #{inputArguments}
+                   , #{releasesId}
+                   , #{releasesKey}
+                   , #{releasesName}
+                   , #{processKey}
+                   )
+    </insert>        
+
+    <delete id="deleteTaskManageProcessReserve" parameterType="java.util.Map">
+        /*TaskManageMapper.deleteTaskManageProcessReserve*/
+        DELETE FROM TB_TEMP_RESRVE_BOT
+         WHERE DATE_YMD = #{startDe}
+           AND BOT_NO = CONVERT(INT,#{botNo})
+           AND TIME_NO = CONVERT(INT,#{timeNo})
+           AND PROCESS_CD = #{processCd}
+           AND REG_GBN = 'B'
+    </delete>
+
+    <select id="selectTaskManageProcessReserveDelChk" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* TaskManageMapper.selectTaskManageProcessReserveDelChk */
+        SELECT COUNT(*) AS CNT
+          FROM TB_TEMP_RESRVE_BOT 
+         WHERE DATE_YMD = #{startDe}
+           AND BOT_NO = CONVERT(INT,#{botNo})
+           AND TIME_NO = CONVERT(INT,#{timeNo})
+           AND PROCESS_CD = #{processCd}
+           AND REG_GBN = 'A'
+    </select>
+
+    <insert id="insertTaskAttendedReserve" parameterType="java.util.Map">
+        /*TaskManageMapper.insertTaskAttendedReserve */
+			INSERT INTO TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE
+						(
+						  CMPNY_CD
+						, PROCESS_CD
+						, ROBOT_ID
+						, INPUT_ARGUMENTS
+						, PROCESS_NAME
+						, PROCESS_KEY
+						, STTUS
+						, CREAT_DT
+						, RESV_NO
+						)
+						VALUES
+						(
+						  #{cmpnyCd}
+						, #{processCd}
+						, CONVERT(int, #{botNo})
+						, ISNULL(#{inputArguments},'{}')
+						, #{releasesName}
+						, #{processKey}
+						, 'WAIT'
+						, GETDATE()
+						, #{resvNo}
+						)
+    </insert>    
+
+    <insert id="insertTaskSendHistory" parameterType="java.util.Map">
+        /*TaskManageMapper.insertTaskSendHistory */
+			INSERT INTO dbo.TB_SEND_JOBS_HIST
+			           (
+			             CMPNY_CD
+			           , PROCESS_CD
+			           , BOT_NO
+			           , BOT_TYPE
+			           , INPUTARGUMENTS
+			           , RELEASES_ID
+			           , RELEASES_KEY
+			           , RELEASES_NAME
+			           , PROCESS_KEY
+			           , RESPONSE
+			           , REG_DT
+			           )
+			     VALUES
+			           (
+			             #{cmpnyCd}
+			           , #{processCd}
+			           , CONVERT(INT, #{botNo})
+			           , #{botType}
+			           , ISNULL(#{inputArguments},'{}')
+			           , CONVERT(INT, #{releasesId})
+			           , #{releasesKey}
+			           , #{releasesName}
+			           , #{processKey}
+			           , #{response}
+			           , GETDATE()
+			           )
+    </insert>
+
+
+
+    <insert id="insertTaskRoutinePlan" parameterType="java.util.Map">
+        /*TaskManageMapper.insertTaskRoutinePlan */
+            INSERT INTO dbo.TB_TASK_DEVLOP_PROCESS_SCHDULE
+                       (
+                          PROCESS_CD
+                        , SCHDULE_NO
+                        , START_DE
+<if test='endDe != null and endDe != ""'>
+					    , END_DE
+</if>					    
+                        , SCHDULE_TYPE1
+                        , SCHDULE_TYPE2
+<if test='everyMinute != null and everyMinute != ""'>                        
+					    , EVERY_MINUTE
+</if>
+<if test='everyHour != null and everyHour != ""'>
+					    , EVERY_HOUR
+</if>
+<if test='everyHourMinute != null and everyHourMinute != ""'>
+					    , EVERY_HOUR_MINUTE
+</if>
+                        , EVERY_WEEK_MON_AT
+                        , EVERY_WEEK_TUE_AT
+                        , EVERY_WEEK_WED_AT
+                        , EVERY_WEEK_THU_AT
+                        , EVERY_WEEK_FRI_AT
+                        , EVERY_WEEK_SAT_AT
+                        , EVERY_WEEK_SUN_AT
+<if test='everyMonthWeekOrder != null and everyMonthWeekOrder != ""'>
+				        , EVERY_MONTH_WEEK_ORDER
+</if>
+<if test='everyMonthDow != null and everyMonthDow != ""'>
+				        , EVERY_MONTH_DOW
+</if>
+<if test='executDay != null and executDay != ""'>
+				        , EXECUT_DAY
+</if>
+<if  test='executHour != null and executHour != ""'>
+				        , EXECUT_HOUR
+</if>
+<if test='executMinute != null and executMinute != ""'>
+				        , EXECUT_MINUTE
+</if>
+				        , SCHDULE_CRONTAB
+				        , SCHDULE_TEXT
+				        , REGISTER_ID
+				        , REG_DT
+				        , CMPNY_CD
+				        , BOT_TYPE
+				        , INPUT_ARGUMENTS
+				        , RELEASES_ID
+				        , RELEASES_KEY
+				        , RELEASES_NAME
+				        , PROCESS_KEY
+				        , BOT_NO
+                       ) VALUES (
+                          #{processCd}
+                        , #{schduleNo}
+                        , #{startDe1}
+<if test='endDe != null and endDe != ""'>                        
+                        , #{endDe}
+</if>                        
+                        , #{schduleType1}
+                        , #{schduleType2}
+<if test='everyMinute != null and everyMinute != ""'>                        
+                        , #{everyMinute}
+</if>
+<if test='everyHour != null and everyHour != ""'>
+                        , #{everyHour}
+</if>
+<if test='everyHourMinute != null and everyHourMinute != ""'>
+                        , #{everyHourMinute}
+</if>
+                        , #{everyWeekMonAt}
+                        , #{everyWeekTueAt}
+                        , #{everyWeekWedAt}
+                        , #{everyWeekThuAt}
+                        , #{everyWeekFriAt}
+                        , #{everyWeekSatAt}
+                        , #{everyWeekSunAt}
+<if test='everyMonthWeekOrder != null and everyMonthWeekOrder != ""'>
+                        , #{everyMonthWeekOrder}
+</if>
+<if test='everyMonthDow != null and everyMonthDow != ""'>
+                        , #{everyMonthDow}
+</if>
+<if test='executDay != null and executDay != ""'>
+                        , #{executDay}
+</if>
+<if  test='executHour != null and executHour != ""'>
+                        , #{executHour}
+</if>
+<if test='executMinute != null and executMinute != ""'>
+                        , #{executMinute}
+</if>
+                        , #{schduleCrontab}
+                        , #{schduleText}
+                        , #{logInId}
+                        , GETDATE()
+                        , #{cmpnyCd}
+                        , #{botType}
+                        , ISNULL(#{inputArguments},'{}')
+                        , CONVERT(INT, #{releasesId})
+                        , #{releasesKey}
+                        , #{releasesName}
+                        , #{processKey}
+                        , CONVERT(INT, #{botNo})
+                       )
+    </insert>
+
+    <select id="getTaskManageschduleNo" parameterType="java.util.Map" resultType="camelMap">
+        /*TaskManageMapper.getTaskManageschduleNo*/
+        SELECT ISNULL(MAX(SCHDULE_NO),0) + 1 AS SCHDULE_NO
+          FROM TB_TASK_DEVLOP_PROCESS_SCHDULE
+         WHERE PROCESS_CD = #{processCd}
+           AND RELEASES_NAME = #{releasesName}
+    </select>
+
+    <select id="selectTaskManageCalendarList" parameterType="java.util.Map" resultType="camelMap">
+        /* TaskManageMapper.selectTaskManageCalendarList */
+		SELECT   A.ID AS CALENDAR_ID
+		       , A.NAME AS CALENDAR_NM
+		       , ISNULL(B.CALENDAR_SET,'N') AS CALENDAR_SET
+		  FROM TB_CALENDARS A
+		       LEFT OUTER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON  A.CMPNY_CD = B.CMPNY_CD
+		                                                       AND B.PROCESS_CD = #{processCd}
+		 WHERE A.CMPNY_CD = (
+                             SELECT CMPNY_CD
+                               FROM TB_TASK_DEVLOP_PROCESS_MAPPER
+                              WHERE PROCESS_CD = #{processCd}
+                              GROUP BY CMPNY_CD
+		                     )
+		 GROUP BY A.ID, A.NAME, ISNULL(B.CALENDAR_SET,'N')
+    </select>
+
+    <update id="updateCalendarPlan" parameterType="java.util.Map">
+        /* TaskManageMapper.updateCalendarPlan */
+        UPDATE TB_TASK_DEVLOP_PROCESS_MAPPER
+           SET CALENDAR_SET = #{chkVal}
+         WHERE CMPNY_CD  = #{cmpnyCd}
+           AND PROCESS_CD = #{processCd}
+           AND USE_AT = 'Y'
+    </update>
+
+
+    <insert id="insertTriggerArSched" parameterType="java.util.Map">
+        /* NOT_SQL_LOG */
+        insert into [dbo].[TB_TEMP_RESRVE_BOT]
+		(
+			[DATE_YMD], [DATE_YMSHM], [BOT_NO], [TIME_NO]
+			, [PROCESS_CD] ,[REGISTER_ID], [REG_DT], [REG_GBN]
+			, [SEND_YN], [CMPNY_CD], [BOT_TYPE], [INPUTARGUMENTS]
+			, [RELEASES_ID], [RELEASES_KEY], [RELEASES_NAME], [PROCESS_KEY]
+			, [SCHDULE_NO], [DELETE_AT], [UPDUSR_ID], [UPDT_DT]
+		)
+		values
+		<foreach collection="list" item="i" separator=",">
+			(
+				  #{i.dateYmd},    #{i.dateYmshm},   #{i.botNo},        #{i.timeNo}
+				, #{i.processCd},  #{i.logInId},     GETDATE(),         'A'
+				, 'N',             #{i.cmpnyCd},     #{i.botType},      #{i.inputArguments}
+				, #{i.releasesId}, #{i.releasesKey}, #{i.releasesName}, #{i.processKey}
+				, #{i.schduleNo},  0,             NULL,              NULL
+			)
+		</foreach>
+    </insert>
+
+
+        
+</mapper>

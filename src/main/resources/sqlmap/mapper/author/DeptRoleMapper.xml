@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="DeptRoleMapper">
+
+    <select id="selectDeptRole" parameterType="kr.co.rpaplatform.dongwon.author.vo.DeptRoleVO" resultType="kr.co.rpaplatform.dongwon.author.vo.DeptRoleVO">
+        /* DeptRoleMapper.selectDeptRole */
+        SELECT ROLE_CD
+          FROM TB_DEPT_ROLE
+         WHERE DEPT_CD = #{deptCd}
+    </select>
+    
+    <insert id="insertDeptRole" parameterType="kr.co.rpaplatform.dongwon.author.vo.DeptRoleVO">
+        /* DeptRoleMapper."insertDeptRole" */
+        INSERT INTO TB_DEPT_ROLE
+             (
+                    DEPT_CD
+                   ,ROLE_CD
+                   ,REGISTER_ID
+                   ,REG_DT
+             )
+        VALUES
+             (
+                   #{deptCd}
+                  ,#{roleCd}
+                  ,#{txUserId}
+                  ,GETDATE()
+             )
+    </insert>
+    
+    <delete id="deleteDeptRole" parameterType="kr.co.rpaplatform.dongwon.author.vo.DeptRoleVO">
+        /* DeptRoleMapper.deleteDeptRole */
+        DELETE 
+          FROM TB_DEPT_ROLE
+         WHERE DEPT_CD = #{deptCd}
+    </delete>
+    
+</mapper>

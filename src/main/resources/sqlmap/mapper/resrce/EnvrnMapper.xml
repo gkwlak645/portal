@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="EnvrnMapper">
+
+        <select id="selectEnvrnList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* EnvrnMapper.selectEnvrnList */
+            SELECT   A.Id
+                   , CASE 
+                        WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(A.TenantId),'') = ''   THEN 'Default'
+                        ELSE dbo.UFN_GET_CMPNY_NM(A.TenantId) END  AS CmpnyName
+                   , A.Name
+                   , A.Description
+                   , A.Type
+              FROM   SY_ENVIRONMENTS A
+        INNER JOIN   TB_CMMN_CD B
+                ON   (
+                             A.Type = B.CD
+                         AND B.CLS_CD = '0005'
+                         AND B.USE_AT = 'Y'
+                     )
+<!--         LEFT JOIN   TB_CMMN_CD C -->
+<!--                 ON   ( -->
+<!--                         CONVERT(VARCHAR(4),A.TenantId) = C.CD -->
+<!--                         AND C.CLS_CD = '0034' -->
+<!--                         AND C.USE_AT = 'Y' -->
+<!--                      ) -->
+             WHERE   A.IsDeleted = 0
+                     <if test='cmpnyCd != null and cmpnyCd != ""'>
+                      AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+                     </if>
+          <if test='name != null and name != ""'>
+              AND    A.Name LIKE '%' + #{name} + '%'
+          </if>
+          <if test='cmpny != null and cmpny != ""'>
+            AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpny})
+          </if>
+          ORDER BY   A.Name ASC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+                
+        <select id="selectEnvrnCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* EnvrnMapper.selectEnvrnCount */
+            SELECT   COUNT(A.Id) AS cnt
+              FROM   SY_ENVIRONMENTS A
+        INNER JOIN   TB_CMMN_CD B
+                ON   (
+                             A.Type = B.CD
+                         AND B.CLS_CD = '0005'
+                         AND B.USE_AT = 'Y'
+                     )
+             WHERE   A.IsDeleted = 0
+                     <if test='cmpnyCd != null and cmpnyCd != ""'>
+                      AND  A.TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+                     </if>
+          <if test='name != null and name != ""'>
+              AND    A.Name LIKE '%' + #{name} + '%'
+          </if>
+          <if test='cmpny != null and cmpny != ""'>
+            AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpny})
+          </if>
+        </select>
+
+        <select id="getRobotList" parameterType="java.util.Map" resultType="java.util.Map">
+        /* EnvrnMapper.getRobotList */
+         SELECT id
+              , name
+              , CASE type WHEN 0 THEN 'NonProduction'
+                          WHEN 1 THEN 'Attended'
+                          WHEN 2 THEN 'Unattended'
+                          WHEN 3 THEN 'Studio'
+                          ELSE '' END type
+              , robotDescription
+           FROM SY_ROBOTS
+           <where>
+            ISDELETED = 0
+           </where>
+           <if test='cmpnyCd != null and cmpnyCd != ""'>
+            AND  TenantId= dbo.UFN_GET_TENANT_ID(#{cmpnyCd})
+           </if>
+        </select>
+        
+        <select id="envrnDetailSelectPage" parameterType="java.util.Map" resultType="java.util.Map">
+        /* EnvrnMapper.envrnDetailSelectPage */
+           SELECT A.id
+                , A.name
+                , A.description
+                , B.CD_NM AS cmpnyCd
+		     FROM SY_ENVIRONMENTS A
+		     LEFT JOIN   TB_CMMN_CD B
+             ON   (
+                     CONVERT(VARCHAR(4), A.TENANTID) = B.CD
+                     AND B.CLS_CD = '0034'
+                     AND B.USE_AT = 'Y'
+                  )
+           <where>
+		      ID = #{id}
+           </where>
+        </select>
+        
+        <select id="getEnvrnRobotList" parameterType="java.util.Map" resultType="java.util.Map">
+        /* EnvrnMapper.getEnvrnRobotList */
+           SELECT RobotId
+		     FROM SY_ROBOTSXENVIRONMENTS A
+           <where>
+		      ENVIRONMENTID = #{id}
+           </where>
+        </select>
+</mapper>

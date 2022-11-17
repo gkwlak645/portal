@@ -1,0 +1,1100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="CronSchedulMapper">
+<!-- 사용 안함
+    <select id="selectSendScheduleCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* CronSchedulMapper.selectSendScheduleCount */
+        SELECT COUNT(*) AS cnt
+          FROM TB_TEMP_RESRVE_BOT A
+         WHERE DATE_YMSHM BETWEEN GETDATE() AND DATEADD(MINUTE, 10 , GETDATE())
+           AND SEND_YN = 'N'
+    </select>
+-->    
+    <select id="selectResveExecutListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* CronSchedulMapper.selectResveExecutListCount */
+        SELECT COUNT(*) AS cnt
+          FROM TB_TEMP_RESRVE_BOT A
+         WHERE DATE_YMSHM BETWEEN DATEADD(MINUTE, -10 , GETDATE()) AND GETDATE()
+           AND SEND_YN = 'N'
+           AND DELETE_AT = 0
+           AND DISABLE_AT = 0
+    </select>
+<!-- 사용 안함
+    <select id="selectSendScheduleList" parameterType="java.util.Map" resultType="camelMap">
+        /* CronSchedulMapper.selectSendScheduleList */
+        SELECT   RESV_NO
+               , DATE_YMD
+               , DATE_YMSHM
+               , BOT_NO
+               , TIME_NO
+               , PROCESS_CD
+               , REG_GBN
+               , SEND_YN
+               , CMPNY_CD
+               , BOT_TYPE
+               , ISNULL(INPUTARGUMENTS,'{}') AS INPUT_ARGUMENTS
+               , RELEASES_ID
+               , RELEASES_KEY
+               , RELEASES_NAME
+               , PROCESS_KEY
+          FROM TB_TEMP_RESRVE_BOT A
+         WHERE DATE_YMSHM BETWEEN GETDATE() AND DATEADD(MINUTE, 10 , GETDATE())
+           AND SEND_YN = 'N'
+    </select>
+ -->
+    <select id="selectResveExecutList" parameterType="java.util.Map" resultType="camelMap">
+        /* CronSchedulMapper.selectResveExecutList */
+        SELECT   RESV_NO
+               , DATE_YMD
+               , DATE_YMSHM
+               , BOT_NO
+               , TIME_NO
+               , PROCESS_CD
+               , REG_GBN
+               , SEND_YN
+               , CMPNY_CD
+               , BOT_TYPE
+               , ISNULL(INPUTARGUMENTS,'{}') AS INPUT_ARGUMENTS
+               , RELEASES_ID
+               , RELEASES_KEY
+               , RELEASES_NAME
+               , PROCESS_KEY
+          FROM TB_TEMP_RESRVE_BOT A
+          -- 기존 : -60
+         WHERE DATE_YMSHM BETWEEN DATEADD(MINUTE, -15 , GETDATE()) AND GETDATE()
+           AND SEND_YN = 'N'
+           AND DELETE_AT = 0
+           AND DISABLE_AT = 0
+    </select>
+
+    <update id="updateCronSchedul" parameterType="java.util.Map">
+        /* CronSchedulMapper.updateCronSchedulUpdate */
+        UPDATE TB_TEMP_RESRVE_BOT
+           SET SEND_YN = 'Y'
+         WHERE RESV_NO  = convert(INT,#{resvNo})
+    </update>
+
+    <select id="selectCalendarCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* CronSchedulMapper.selectCalendarCount */
+		SELECT COUNT(*) AS cnt
+		  FROM (
+		        SELECT   ID
+		               , NAME
+		               , TENANTID
+		               , CMPNY_CD
+		               , EXCLUDEDDATE
+		               , CONVERT(CHAR(10), EXCLUDEDDATE, 23) AS YMD
+		          FROM TB_CALENDARS
+		         WHERE CMPNY_CD = #{cmpnyCd}
+		           AND ID IN (  
+		                      SELECT * 
+		                        FROM FN_SPLIT( #{chkVal} ,',') 
+		                      )
+		       ) T
+		 WHERE YMD = CONVERT(CHAR(10), GETDATE(), 23)
+    </select>
+    
+    <select id="getCalendarChkVal" parameterType="java.util.Map" resultType="camelMap">
+        /*CronSchedulMapper.getCalendarChkVal*/
+		SELECT TOP 1 CALENDAR_SET AS CHK_VAL
+		  FROM [DBO].[TB_TASK_DEVLOP_PROCESS_MAPPER]
+		 WHERE CMPNY_CD = #{cmpnyCd}
+		   AND PROCESS_CD = #{processCd}
+		   AND USE_AT = 'Y'
+		 GROUP BY CALENDAR_SET
+    </select>
+
+    <insert id="insertDailyStsTotLog" parameterType="java.util.Map">
+        /* CronSchedulMapper.insertDailyStsTotLog */
+        INSERT [dbo].[TB_STS_TOT]           
+			(
+				[YMD]           ,[START_TIME]           ,[TENANT_ID]           ,[COMP_CD]           ,[COMP_NM]
+        		,[PROCESS_CD]   ,[PROCESS_NM]           ,[STATE_CD]           ,[STATUS_NM]           ,[ROBOT_ID]
+        		,[BOT_NM]           ,[SUESS_CNT]           ,[FAIL_CNT]           ,[REG_ID]           ,[REG_DT]
+        		,[END_DT]
+        	)
+		SELECT   YMD
+		       , T.STARTTIME
+		       , T.TENANTID
+		       , CI.COMP_CD
+		       , CI.COMP_NM
+		       , T.PROCESS_CD
+		       , T.PROCESS_NM
+		       , T.STATE
+		       , ST.STATUS_NM
+		       , CASE WHEN R.IsDeleted = 1 THEN 
+						(
+							SELECT MAX(R_1.ID) FROM SY_ROBOTS R_1
+							WHERE R_1.NAME = (SELECT R_2.NAME FROM SY_ROBOTS R_2 WHERE R_2.ID = T.ROBOTID)
+						)
+				 	ELSE
+						T.ROBOTID
+					END AS ROBOTID
+		       , ISNULL(R.NAME,'NO_NAME') AS BOT_NM
+		       , CASE WHEN T.STATE = '5' THEN 1 ELSE 0 END AS SUESS_CNT
+		       , CASE WHEN T.STATE = '5' THEN 0 ELSE 1 END AS FAIL_CNT
+		       , 'GWTEST13'
+		       , GETDATE()
+		       , T.END_TIME
+		  FROM (
+		        SELECT   A.TENANTID
+		               , CONVERT(CHAR(10), DATEADD(HH, 9,A.STARTTIME), 23)   AS YMD
+		               , DATEADD(HH, 9,A.STARTTIME) AS STARTTIME
+		               , A.ENDTIME
+		               , A.STATE
+		               , A.ROBOTID
+		               , A.INFO
+		               , ISNULL(B.PROCESS_CD,'NO_MAT') AS PROCESS_CD
+		               , ISNULL(C.PROCESS_NM,'NO_MAT') AS PROCESS_NM
+		               , DATEADD(HH, 9, A.EndTime) AS END_TIME
+		          FROM SY_JOBS A
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.RELEASEID = B.RELEASES_ID
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS C ON B.PROCESS_CD = C.PROCESS_CD
+		         WHERE 1 = 1
+		           AND DATEADD(HH, 9, A.STARTTIME)  &gt; (
+		                                                  SELECT ISNULL(MAX(A_1.END_DT), CONVERT(DATETIME, '2019-01-01'))
+		                                                    FROM TB_STS_TOT A_1
+		                                                 )
+		        ) T
+		        INNER JOIN  SY_ROBOTS R ON T.ROBOTID = R.ID
+		        , (
+		           SELECT   A.CD AS TENNANT_CD
+		                  , A.CD_NM AS COMP_CD
+		                  , B.CD_NM AS COMP_NM
+		             FROM (
+		                   SELECT CD, CD_NM
+		                     FROM TB_CMMN_CD
+		                    WHERE CLS_CD = '0034'
+		                   ) A
+		                  ,(
+		                    SELECT CD, CD_NM
+		                      FROM TB_CMMN_CD
+		                     WHERE CLS_CD = '0024'
+		                   ) B
+		             WHERE B.CD = A.CD_NM
+		           ) CI
+		        , (
+		           SELECT CD AS STATUS_CD, CD_NM AS STATUS_NM
+		             FROM TB_CMMN_CD
+		            WHERE CLS_CD = '0011'
+		          ) ST
+		 WHERE 1 = 1
+		   AND T.TENANTID = CI.TENNANT_CD
+		   AND T.STATE = ST.STATUS_CD
+		 ORDER BY T.STARTTIME
+    </insert>
+
+    
+    <insert id="insertOrUpdateBotMntrng" parameterType="java.util.Map">
+       /*CronSchedulMapper."insertOrUpdateBotMntrng"*/
+       DECLARE @BATCH_START_DATE  DATETIME, @BATCH_END_DATE  DATETIME, @NOW_DATE DATETIME , @BATCH_PIVOT_DATE DATETIME 
+
+		SET @NOW_DATE   = DATEADD(HH, -9, GETDATE());
+		
+		SET @BATCH_PIVOT_DATE    = DATEADD(D, -5, GETDATE());
+        SET @BATCH_START_DATE    = DATEADD(HOUR, -9, DATEADD(DAY, DATEDIFF(DAY, 0, @BATCH_PIVOT_DATE), 0));
+        SET @BATCH_END_DATE      = DATEADD(HH, -9, CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEADD(dd, 1, GETDATE()) , 23)))
+		
+		MERGE INTO [dbo].[TB_TASK_DEVLOP_PROCESS_EXECUT_MTR] AS A
+		USING 
+		(
+	        SELECT
+	        CONVERT(VARCHAR(8), GETDATE(), 112) + REPLACE(CONVERT(VARCHAR(8), GETDATE(), 108), ':', '' ) 'SN'
+	        , A.[KEY] JOB_KEY
+	        , A.ID JOBS_ID
+
+	        , CASE WHEN DATEPART(MINUTE, DATEADD(HH, 9, A.STARTTIME)) <![CDATA[>=]]>  30 
+            THEN DATEPART(HOUR, DATEADD(HH, 9,  A.STARTTIME)) * 2 + 2
+            ELSE DATEPART(HOUR, DATEADD(HH, 9,  A.STARTTIME)) * 2 + 1 
+            END 'START_LC'
+  
+            ,CASE WHEN DATEPART(MINUTE, DATEADD(HH, 9,  ISNULL(A.ENDTIME, @NOW_DATE))) >=  30 
+            THEN DATEPART(HOUR, DATEADD(HH, 9,  ISNULL(A.ENDTIME, @NOW_DATE))) * 2 + 2
+            ELSE DATEPART(HOUR, DATEADD(HH, 9,  ISNULL(A.ENDTIME, @NOW_DATE))) * 2 + 1 
+            END 'END_LC'
+            
+	        --, DATEDIFF(SS, '1970-01-01 09:00:00', A.ENDTIME) - DATEDIFF(SS, '1970-01-01 09:00:00', A.STARTTIME) 'TEST'
+	        --, CONVERT(CHAR(19), DATEADD(HH, 9, A.ENDTIME), 21) AS OCCRRNC_DT
+	        , A.TENANTID 'TENANT_ID'
+	        , (SELECT TEMP01.CMPNY_CD FROM [rpa_potal].[dbo].[TB_API_TKN] TEMP01 WHERE A.TENANTID = TEMP01.TENANT_ID) 'CMPNY_CD'
+	        , (SELECT CD_NM FROM [DBO].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = 
+            (SELECT TEMP01.CMPNY_CD FROM [rpa_potal].[dbo].[TB_API_TKN] TEMP01 WHERE A.TENANTID = TEMP01.TENANT_ID)
+            ) AS CMPNY_NM
+	        , B.PROCESS_CD
+	        , CASE WHEN B.PROCESS_KEY IS NULL THEN D.NAME
+            ELSE B.PROCESS_KEY 
+            END 'PROCESS_NM'
+	        , A.ROBOTID 'BOT_ID'
+	        , (SELECT NAME FROM [DBO].[SY_ROBOTS] WHERE ID = A.ROBOTID) 'BOT_NM'
+	        , E.Id 'ENVRN_ID'
+	        , E.Name 'ENVRN_NM'	        
+	        , CASE 
+              WHEN A.STATE = 4 THEN 1 -- 실패 
+              WHEN A.STATE = 1 THEN 2 -- 실행중
+              WHEN A.STATE = 5 THEN 3 -- 성공
+              ELSE 4                  -- 기타      
+              END 'STTUS'         
+	        , A.STATE 'ORC_STATE'
+	        , DATEADD(HH, 9,  A.STARTTIME) 'START_DT'
+	        , CASE WHEN A.ENDTIME IS NULL THEN DATEADD(HH, 9, @NOW_DATE)
+	          ELSE DATEADD(HH, 9, A.ENDTIME) END 'END_DT' 
+	        , DATEDIFF(SS, A.STARTTIME, ISNULL(A.ENDTIME, @NOW_DATE)) 'EXECUT_TM'
+	         FROM DBO.SY_JOBS A WITH(NOLOCK)
+	
+	         LEFT OUTER JOIN [DBO].[TB_TASK_DEVLOP_PROCESS_MAPPER] B WITH(NOLOCK) ON A.RELEASEID =  B.RELEASES_ID
+		     INNER JOIN [SY_TENANTS] C WITH(NOLOCK) ON C.ID = A.TENANTID
+		     LEFT OUTER JOIN [DBO].[SY_RELEASES] D WITH(NOLOCK) ON A.ReleaseId = D.Id
+		     LEFT OUTER JOIN [DBO].[SY_ENVIRONMENTS] E ON E.Id = D.EnvironmentId
+	
+	         WHERE
+	         (
+	             A.ENDTIME IS NULL    
+	             OR
+		         (A.[STARTTIME] <![CDATA[>=]]> CONVERT(DATETIME, @BATCH_START_DATE)  AND A.[STARTTIME] <![CDATA[<=]]> CONVERT(DATETIME, @BATCH_END_DATE))
+		         OR
+		         (A.[ENDTIME]   <![CDATA[>=]]> CONVERT(DATETIME, @BATCH_START_DATE)  AND A.[ENDTIME]   <![CDATA[<=]]> CONVERT(DATETIME, @BATCH_END_DATE))
+	         )
+	         
+	         AND A.State != 0 -- Pending 제외
+	         AND A.ROBOTID IS NOT NULL
+
+		) AS B 
+		ON (A.JOBS_ID = B.JOBS_ID)
+		WHEN MATCHED THEN
+		   UPDATE
+		   SET 
+		    SN            = B.SN
+		    , JOBS_ID     = B.JOBS_ID
+			, START_LC    = B.START_LC
+			, END_LC       = B.END_LC
+
+			, TENANT_ID    = B.TENANT_ID
+			, CMPNY_CD    = B.CMPNY_CD
+
+			, CMPNY_NM    = B.CMPNY_NM
+			, PROCESS_CD  = B.PROCESS_CD
+			, PROCESS_NM  = B.PROCESS_NM
+			
+			, BOT_ID      = B.BOT_ID
+			, BOT_NM      = B.BOT_NM
+			, ENVRN_ID    = B.ENVRN_ID
+			, ENVRN_NM    = B.ENVRN_NM
+		   , JOB_KEY      = B.JOB_KEY   
+		   , STTUS        = B.STTUS
+		   , ORC_STATE    = B.ORC_STATE
+		   , END_DT       = B.END_DT
+		   , EXECUT_TM    = B.EXECUT_TM
+		WHEN NOT MATCHED THEN
+		    INSERT (SN, JOB_KEY, JOBS_ID, START_LC, END_LC, TENANT_ID, CMPNY_CD, CMPNY_NM, PROCESS_CD, PROCESS_NM, BOT_ID, BOT_NM, ENVRN_ID, ENVRN_NM, STTUS, ORC_STATE, START_DT, END_DT, EXECUT_TM)
+		    VALUES (B.SN, B.JOB_KEY, B.JOBS_ID, B.START_LC, B.END_LC, B.TENANT_ID, B.CMPNY_CD, B.CMPNY_NM, B.PROCESS_CD, B.PROCESS_NM, B.BOT_ID, B.BOT_NM, B.ENVRN_ID, B.ENVRN_NM, B.STTUS, B.ORC_STATE, B.START_DT, B.END_DT, B.EXECUT_TM);
+    </insert>
+    
+    <insert id="botMntrngBatchResult" parameterType="java.util.Map">
+       /*CronSchedulMapper.botMntrngBatchResult*/
+        INSERT INTO [RPA_POTAL].[DBO].[TB_BATCH_EXECUT_RESULT] 
+        SELECT MAX(SN), 'BOT별동작현황', 1 FROM [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_EXECUT_MTR]
+    </insert>
+
+    <select id="selectSchduleInfo" parameterType="java.util.Map" resultType="camelMap">
+        /* CronSchedulMapper.selectSchduleInfo */
+        SELECT SN
+        	, CMPNY_CD
+        	, PROCESS_CD
+        	, ROBOT_ID
+        	, INPUT_ARGUMENTS
+        	, PROCESS_NAME
+        	, PROCESS_KEY
+        	, STTUS
+        	, CREAT_DT
+        	, START_DT
+        	, END_DT
+        	, EXCEPTION_MSSAGE
+        	, UPDUSR_ID
+        	, RESV_NO
+        	, RETRY_TRGET_ID
+        	, RETRY_APPLY_AT        		
+          FROM TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE 
+         WHERE RETRY_APPLY_AT = 0
+         AND RETRY_TRGET_ID IS NOT NULL
+    </select>
+    
+    <insert id="insertDailyReExecutLog" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="JOBS_ID">
+        /* CronSchedulMapper.insertDailyReExecutLog */
+        INSERT [dbo].[TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST]           
+			(
+				[JOBS_ID]          ,[CMPNY_CD]         ,[CMPNY_NM]           ,[PROCESS_CD]         ,[PROCESS_NM]
+        		,[BOT_ID]          ,[BOT_NM]           ,[ENVRN_ID]           ,[ENVRN_NM]           ,[STTUS]
+        		,[SOURC]           ,[TRGET_AT]         ,[RETRY_TRGET_ID]     ,[ORIGINAL_AT]        ,[START_DT]
+        		,[END_DT]          ,[EXECUT_TM]
+        	) 
+		SELECT   A.ID AS JOBS_ID
+				, B.CMPNY_CD
+				, (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = B.CMPNY_CD) AS CMPNY_NM
+				, C.PROCESS_CD
+				, C.PROCESS_NM
+				, D.Id AS BOT_ID
+				, D.Name AS BOT_NM
+				, F.Id AS ENVRN_ID
+				, F.Name AS ENVRN_NM
+				, A.State AS STTUS
+				, CASE
+					WHEN A.Type = 0 AND A.Source = 0 THEN 0 -- 수동
+					WHEN A.Type = 0 AND A.Source = 1 THEN 1 -- 시간 트리거
+					WHEN A.Type = 1 AND A.Source = 0 THEN 2 -- 에이전트
+					WHEN A.Type = 0 AND A.Source = 2 THEN 3 -- 큐 트리거
+				END AS SOURC
+				, CASE WHEN A.State = 4 OR A.State = 6 THEN 1
+					ELSE 0 
+				END AS TARGET_AT
+				, (SELECT ISNULL(MAX(RETRY_TRGET_ID) , 0) FROM TB_TASK_DEVLOP_PROCESS_OPER_RETRY WHERE A.ID = JOB_ID ) AS RETRY_TRGET_ID
+				, 1 AS ORIGINAL_AT
+				, CONVERT(CHAR(19), DATEADD(HH, 9, A.StartTime), 21) AS START_DT
+				, CONVERT(CHAR(19), DATEADD(HH, 9, A.EndTime), 21) AS END_DT
+				, (SELECT DATEDIFF(SECOND, A.StartTime, A.EndTime)) AS EXECUT_TM
+			FROM SY_JOBS A WITH(NOLOCK)
+				INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B WITH(NOLOCK) ON A.ReleaseId =  B.RELEASES_ID
+				INNER JOIN TB_TASK_DEVLOP_PROCESS C WITH (NOLOCK) ON B.PROCESS_CD = C.PROCESS_CD
+				INNER JOIN SY_ROBOTS D WITH(NOLOCK) ON A.RobotId = D.Id
+				INNER JOIN SY_RELEASES E WITH(NOLOCK) ON A.ReleaseId = E.Id
+				INNER JOIN SY_ENVIRONMENTS F WITH(NOLOCK) ON E.EnvironmentId = F.Id
+			WHERE C.PROCESS_STTUS IN ('O1','O3')
+				AND C.EXECUT_SE = 1 
+				AND A.EndTime IS NOT NULL
+				AND DATEADD(HH, 9 ,CONVERT(CHAR(19),A.EndTime ,20)) &gt; 
+					( SELECT ISNULL(MAX(G.END_DT) , CONVERT(DATETIME, '2019-01-01')) FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST G)
+    </insert>
+    
+    <select id="selectReExecutInfo" parameterType="java.util.Map" resultType="camelMap">
+        /* CronSchedulMapper.selectReExecutInfo */
+        
+        DECLARE 
+	    	@dataCnt  INT
+		SET @dataCnt = #{cnt};
+		
+		SELECT TOP (@dataCnt) JOBS_ID
+				, CMPNY_CD
+				, CMPNY_NM
+				, PROCESS_CD
+				, PROCESS_NM
+				, BOT_ID
+				, BOT_NM
+				, ENVRN_ID
+				, ENVRN_NM
+				, STTUS
+				, SOURC
+				, TRGET_AT
+				, RETRY_TRGET_ID
+				, ORIGINAL_AT
+				, START_DT
+				, END_DT
+				, EXECUT_TM
+		  FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+		  ORDER BY JOBS_ID DESC
+    </select>
+    
+    <select id="selectArSchedulInfo" parameterType="java.util.Map" resultType="camelMap">
+        /* CronSchedulMapper.selectArSchedulInfo */
+		SELECT TOP 1 RETRY_TRGET_ID 
+		  FROM TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE
+		 WHERE CMPNY_CD = #{cmpnyCd}
+		   AND PROCESS_CD = #{processCd}
+		   AND USE_AT = 'Y'
+		 GROUP BY CALENDAR_SET
+    </select>
+    
+    <update id="updateOriginTrgetAt" parameterType="java.util.Map">
+        /* CronSchedulMapper.updateOriginTrgetAt */
+        UPDATE TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+           SET TRGET_AT = 0 , ORIGINAL_AT = 0
+         WHERE JOBS_ID = #{jobsId}
+    </update>
+    
+    <select id="getTargetId" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* CronSchedulMapper.getTargetId */
+		SELECT TOP 1 JOBS_ID
+		FROM TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST 
+		WHERE PROCESS_CD = #{processCd}
+		AND BOT_ID = #{robotId}
+		AND START_DT &lt; #{startDt} 
+		ORDER BY START_DT DESC
+    </select>
+    
+    <update id="updateTargetId" parameterType="java.util.Map">
+        /* CronSchedulMapper.updateTargetId */
+        UPDATE TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+           SET RETRY_TRGET_ID = #{retryTrgetId}
+         WHERE JOBS_ID = #{jobid}
+    </update>
+    
+    <insert id="insertArReExcInfo" parameterType="java.util.Map" >
+        /* CronSchedulMapper.insertArReExcInfo */
+		INSERT INTO TB_TASK_DEVLOP_PROCESS_OPER_RETRY
+		(
+			RETRY_TRGET_ID
+			, JOB_ID
+			, REGISTER_ID
+			, REG_DT
+			, APPLY_AT
+		)
+		VALUES
+			(
+			 #{retryTrgetId}
+			, #{jobid}
+			, 'BATCH'
+			, GETDATE()
+			, 1
+			)
+    </insert>
+   
+    <update id="updateSchApplyAt" parameterType="java.util.Map">
+        /* CronSchedulMapper.updateSchApplyAt */
+        UPDATE TB_TASK_DEVLOP_PROCESS_ATTENDED_SCHDULE
+           SET RETRY_APPLY_AT = 1
+         WHERE SN = #{sn}
+    </update>
+    
+    <update id="updateRetryTrgetAt" parameterType="java.util.Map">
+        /* CronSchedulMapper.updateRetryTrgetAt */
+        UPDATE TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST
+           SET TRGET_AT = 0
+         WHERE JOBS_ID = #{retryTrgetId}
+    </update>
+    
+    <update id="updateRetryApplyAt" parameterType="java.util.Map">
+        /* CronSchedulMapper.updateRetryApplyAt */
+        UPDATE TB_TASK_DEVLOP_PROCESS_OPER_RETRY
+           SET APPLY_AT = 1
+         WHERE JOB_ID = #{jobsId}
+    </update>
+
+    <select id="isExistDevTableName" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* CronSchedulMapper.isExistDevTableName */
+
+        DECLARE @COMPARE NVARCHAR(100)
+        SET @COMPARE = 'SY_DEV_%';
+        SELECT COUNT(*) FROM SYSOBJECTS WHERE NAME LIKE @COMPARE
+    </select>
+    
+	<insert id="insertPoUserExecutHist" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="JOBS_ID">
+    /* CronSchedulMapper.insertPoUserExecutHist */
+      INSERT TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+	(
+		[JOBS_ID]          ,[CMPNY_CD]         ,[CMPNY_NM]           ,[PROCESS_CD]         ,[PROCESS_NM]
+      		,[BOT_ID]          ,[BOT_NM]           ,[ENVRN_ID]           ,[ENVRN_NM]           ,[STTUS]
+      		,[SOURC]           ,[TRGET_AT]         ,[RETRY_TRGET_ID]     ,[ORIGINAL_AT]        ,[START_DT]
+      		,[END_DT]          ,[EXECUT_TM]
+      	)
+	SELECT   A.ID AS JOBS_ID
+			, B.CMPNY_CD
+			, (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = B.CMPNY_CD) AS CMPNY_NM
+			, C.PROCESS_CD
+			, C.PROCESS_NM
+			, D.Id AS BOT_ID
+			, D.Name AS BOT_NM
+			, F.Id AS ENVRN_ID
+			, F.Name AS ENVRN_NM
+			, A.State AS STTUS
+			, CASE
+				WHEN A.Type = 0 AND A.Source = 0 THEN 0 -- 수동
+				WHEN A.Type = 0 AND A.Source = 1 THEN 1 -- 시간 트리거
+				WHEN A.Type = 1 AND A.Source = 0 THEN 2 -- 에이전트
+				WHEN A.Type = 0 AND A.Source = 2 THEN 3 -- 큐 트리거
+			END AS SOURC
+			, 1 TARGET_AT
+			, 0 AS RETRY_TRGET_ID 
+			, 1 AS ORIGINAL_AT
+			, CONVERT(CHAR(19), DATEADD(HH, 9, A.StartTime), 21) AS START_DT
+			, CONVERT(CHAR(19), DATEADD(HH, 9, A.EndTime), 21) AS END_DT
+			, (SELECT DATEDIFF(SECOND, A.StartTime, A.EndTime)) AS EXECUT_TM
+		FROM SY_DEV_JOBS A WITH(NOLOCK)
+			INNER JOIN TB_TASK_DEVLOP_PROCESS_DEV_MAPPER B WITH(NOLOCK) ON A.ReleaseId =  B.ORC_RELEASES_ID
+			INNER JOIN TB_TASK_DEVLOP_PROCESS C WITH (NOLOCK) ON B.PROCESS_CD = C.PROCESS_CD
+			INNER JOIN SY_DEV_ROBOTS D WITH(NOLOCK) ON A.RobotId = D.Id
+			INNER JOIN SY_DEV_RELEASES E WITH(NOLOCK) ON A.ReleaseId = E.Id
+			INNER JOIN SY_DEV_ENVIRONMENTS F WITH(NOLOCK) ON E.EnvironmentId = F.Id
+		WHERE C.PROCESS_STTUS IN ('O1','O3')
+			AND C.EXECUT_SE = 02
+			AND A.EndTime IS NOT NULL
+			AND DATEADD(HH, 9 ,CONVERT(CHAR(19),A.EndTime ,20)) &gt; 
+				( SELECT ISNULL(MAX(G.END_DT) , CONVERT(DATETIME, '2019-01-01')) FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST G)
+    </insert>
+    
+    
+    
+    
+    <insert id="insertPoUserExecutHistForDevServer" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="JOBS_ID">
+    /* CronSchedulMapper.insertPoUserExecutHistForDevServer */
+      INSERT TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST
+    (
+        [JOBS_ID]          ,[CMPNY_CD]         ,[CMPNY_NM]           ,[PROCESS_CD]         ,[PROCESS_NM]
+            ,[BOT_ID]          ,[BOT_NM]           ,[ENVRN_ID]           ,[ENVRN_NM]           ,[STTUS]
+            ,[SOURC]           ,[TRGET_AT]         ,[RETRY_TRGET_ID]     ,[ORIGINAL_AT]        ,[START_DT]
+            ,[END_DT]          ,[EXECUT_TM]
+        )
+    SELECT   A.ID AS JOBS_ID
+            , B.CMPNY_CD
+            , (SELECT CD_NM FROM [dbo].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = B.CMPNY_CD) AS CMPNY_NM
+            , C.PROCESS_CD
+            , C.PROCESS_NM
+            , D.Id AS BOT_ID
+            , D.Name AS BOT_NM
+            , F.Id AS ENVRN_ID
+            , F.Name AS ENVRN_NM
+            , A.State AS STTUS
+            , CASE
+                WHEN A.Type = 0 AND A.Source = 0 THEN 0 -- 수동
+                WHEN A.Type = 0 AND A.Source = 1 THEN 1 -- 시간 트리거
+                WHEN A.Type = 1 AND A.Source = 0 THEN 2 -- 에이전트
+                WHEN A.Type = 0 AND A.Source = 2 THEN 3 -- 큐 트리거
+            END AS SOURC
+            , 1 TARGET_AT
+            , 0 AS RETRY_TRGET_ID 
+            , 1 AS ORIGINAL_AT
+            , CONVERT(CHAR(19), DATEADD(HH, 9, A.StartTime), 21) AS START_DT
+            , CONVERT(CHAR(19), DATEADD(HH, 9, A.EndTime), 21) AS END_DT
+            , (SELECT DATEDIFF(SECOND, A.StartTime, A.EndTime)) AS EXECUT_TM
+        FROM SY_JOBS A WITH(NOLOCK)
+            INNER JOIN TB_TASK_DEVLOP_PROCESS_DEV_MAPPER B WITH(NOLOCK) ON A.ReleaseId =  B.ORC_RELEASES_ID
+            INNER JOIN TB_TASK_DEVLOP_PROCESS C WITH (NOLOCK) ON B.PROCESS_CD = C.PROCESS_CD
+            INNER JOIN SY_ROBOTS D WITH(NOLOCK) ON A.RobotId = D.Id
+            INNER JOIN SY_RELEASES E WITH(NOLOCK) ON A.ReleaseId = E.Id
+            INNER JOIN SY_ENVIRONMENTS F WITH(NOLOCK) ON E.EnvironmentId = F.Id
+        WHERE C.PROCESS_STTUS IN ('O1','O3')
+            AND C.EXECUT_SE = 02
+            AND A.EndTime IS NOT NULL
+            AND DATEADD(HH, 9 ,CONVERT(CHAR(19),A.EndTime ,20)) &gt; 
+                ( SELECT ISNULL(MAX(G.END_DT) , CONVERT(DATETIME, '2019-01-01')) FROM TB_TASK_DEVLOP_PROCESS_DEV_EXECUT_HIST G)
+    </insert>
+    
+    
+    
+    
+
+    <insert id="insertSavingTimeIssueMng" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="YYYYMM">
+    /* CronSchedulMapper.insertSavingTimeIssueMng */
+	    DECLARE @MONTH_DAY_COUNT INT, @MONTH_AGO DATETIME, @MONTH_AGO_YYYYMM_LIKE VARCHAR(100)
+	    DECLARE @START_DATE DATETIME, @END_DATE DATETIME, @DAY_DIFF INT
+
+		SET @START_DATE = DATEADD(YEAR, DATEDIFF(YEAR, 0, GETDATE()), 0);
+		SET @END_DATE = DATEADD(YEAR, DATEDIFF(YEAR, -1, GETDATE()), -1);
+		SET @DAY_DIFF = DATEDIFF(DD, @START_DATE, @END_DATE) + 1;
+	    
+		SET @MONTH_AGO = CONVERT(VARCHAR(10),DATEADD(S,-1,DATEADD(MM, DATEDIFF(M,0,GETDATE()),0)),23);
+		SET @MONTH_DAY_COUNT = DAY(@MONTH_AGO);
+		SET @MONTH_AGO_YYYYMM_LIKE = CONVERT(NVARCHAR(6), @MONTH_AGO, 112) + '%'
+		
+		;WITH TEMP_TABLE AS (
+		SELECT 
+		   CONVERT(VARCHAR(8), GETDATE(), 112) + REPLACE(CONVERT(VARCHAR(8), GETDATE(), 108), ':', '' ) 'SN'
+          , CONVERT(VARCHAR(6), MAX(C.ENDTIME), 112) 'YYYYMM'
+        , B.CMPNY_CD
+        , CASE 
+        WHEN MAX(A.FQ_CD) = 0 THEN CONVERT(DECIMAL(12,2),MAX(A.EXECUT_CNT) * CONVERT(DECIMAL(12,2),@MONTH_DAY_COUNT))  -- 수시 : 횟수 * 해달월의 일수
+        WHEN MAX(A.FQ_CD) = 1 THEN CONVERT(DECIMAL(12,2),MAX(A.EXECUT_CNT) * CONVERT(DECIMAL(12,2),@MONTH_DAY_COUNT)) -- 매일 : 횟수 * 해달월의 일수
+        WHEN MAX(A.FQ_CD) = 2 THEN CONVERT(DECIMAL(12,2),(MAX(A.EXECUT_CNT) /  7) * CONVERT(DECIMAL(12,2),@MONTH_DAY_COUNT)) -- 매주 : (횟수 / 7일) * 해당월의 일수
+        WHEN MAX(A.FQ_CD) = 3 THEN CONVERT(DECIMAL(12,2),MAX(A.EXECUT_CNT))                                 -- 매월 : 횟수
+        WHEN MAX(A.FQ_CD) = 4 THEN CONVERT(DECIMAL(12,2),(MAX(A.EXECUT_CNT) / CONVERT(DECIMAL(12,2),@DAY_DIFF)) * @MONTH_DAY_COUNT) -- 매년 :  (횟수 / 해당년의 일수) * 해당월의 일수
+        END 'EXPECT_EXC_CNT'
+        , A.PROCESS_CD
+        , COUNT(C.ID) 'REAL_EXC_CNT'
+        , COUNT(CASE WHEN C.STATE = 5 THEN 1 END) 'SUCCES_CNT'
+        , COUNT(CASE WHEN C.STATE = 4 THEN 1 END) 'FAILR_CNT'
+		FROM TB_TASK_DEVLOP_PROCESS A 
+		INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.PROCESS_CD = B.PROCESS_CD
+		INNER JOIN SY_JOBS C ON B.RELEASES_ID = C.RELEASEID
+		WHERE A.PROCESS_STTUS = 'O1' -- 현재 운영 중인 프로세스만 집계
+		AND C.STARTTIME <![CDATA[>=]]> CONVERT(DATETIME, A.BELONGING_DE)
+		            AND A.FQ_CD IN (0, 1, 2, 3, 4) -- 실행주기를 선택한 프로세스(과제)
+		            AND C.ENDTIME IS NOT NULL -- 지금 실행 중인 JOB은 제외
+		            AND C.ROBOTID IS NOT NULL -- Pending 제외
+		            AND A.EXECUT_CNT IS NOT NULL -- 실행주기 '회'에 입력되지 않은 프로세스 제외
+                    AND A.EXECUT_CNT <![CDATA[>]]> 0
+		            AND B.USE_AT = 'Y' -- 삭제되지 않은 프로세스만 집계
+		            AND CONVERT(VARCHAR(8), C.ENDTIME, 112) LIKE @MONTH_AGO_YYYYMM_LIKE -- 현재 날짜 기준 한 달 전 꺼만 수행
+		GROUP BY A.PROCESS_CD, B.CMPNY_CD
+		)
+		
+		INSERT INTO [DBO].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_DATA]
+        SELECT 
+        A.SN
+        , A.YYYYMM
+        , A.CMPNY_CD
+        , (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = A.CMPNY_CD) 'CMPNY_NM'
+        , A.PROCESS_CD
+        , B.PROCESS_NM
+        , A.EXPECT_EXC_CNT
+        , A.REAL_EXC_CNT
+        , A.SUCCES_CNT
+        , A.FAILR_CNT
+        , CASE 
+        WHEN A.SUCCES_CNT != 0 THEN  CONVERT(DECIMAL(12,2), A.SUCCES_CNT / CONVERT(DECIMAL(12,2),A.REAL_EXC_CNT) * 100)
+        ELSE 0
+        END 'SUCCES_RATE'
+        , CASE 
+        WHEN A.EXPECT_EXC_CNT = 0 AND  A.REAL_EXC_CNT != 0 THEN 100
+        WHEN A.EXPECT_EXC_CNT = 0 AND  A.REAL_EXC_CNT = 0 THEN 0
+        WHEN CONVERT(DECIMAL(12,2),A.SUCCES_CNT / CONVERT(DECIMAL(12,2),A.EXPECT_EXC_CNT) * 100) <![CDATA[>]]> 100 THEN 100
+        ELSE  CONVERT(DECIMAL(12,2),A.SUCCES_CNT /  CONVERT(DECIMAL(12,2),A.EXPECT_EXC_CNT) * 100)
+        END 'ACHV_RATE'
+        , B.PROCESS_STTUS 'OPER_STTUS'
+        ,  CASE 
+        WHEN ( 
+        CASE 
+        WHEN A.EXPECT_EXC_CNT = 0 AND  A.REAL_EXC_CNT != 0 THEN 100
+        WHEN A.EXPECT_EXC_CNT = 0 AND  A.REAL_EXC_CNT = 0 THEN 0
+        WHEN CONVERT(DECIMAL(12,2),A.SUCCES_CNT / CONVERT(DECIMAL(12,2),A.EXPECT_EXC_CNT) * 100) <![CDATA[>]]> 100 THEN 100
+        ELSE  CONVERT(DECIMAL(12,2),A.SUCCES_CNT /  CONVERT(DECIMAL(12,2),A.EXPECT_EXC_CNT) * 100)
+        END) = 100 THEN 1
+        ELSE 0
+        END  'NORMAL_AT'
+        FROM TEMP_TABLE A 
+        INNER JOIN TB_TASK_DEVLOP_PROCESS B ON A.PROCESS_CD = B.PROCESS_CD AND A.CMPNY_CD = B.CMPNY_CD
+        ORDER BY A.PROCESS_CD
+    </insert>
+    
+    
+    <insert id="insertSavingTimeIssueMngResn" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="YYYYMM">
+        /* CronSchedulMapper.insertSavingTimeIssueMngResn */
+        DECLARE @dataCnt  INT
+		SET @dataCnt = #{cnt};
+		
+		insert into [rpa_potal].[dbo].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_RESN] ([YYYYMM]
+		      ,[CMPNY_CD]
+		      ,[PROCESS_CD]
+		      ,[NORMAL_AT]
+		      ,[REGISTER_ID]
+		      ,[REG_DT]
+		      ,[UPDUSR_ID]
+		      ,[UPD_DT]
+		      ,[RESN])
+		select TOP (@dataCnt) YYYYMM, CMPNY_CD, PROCESS_CD, NORMAL_AT, null 'REGISTER_ID', null 'REG_DT', null 'UPDUSR_ID', null 'UPD_DT', null 'RESN' 
+		from [rpa_potal].[dbo].[TB_TASK_DEVLOP_PROCESS_OPER_SUCCES_DATA] order by YYYYMM desc
+    </insert>
+    
+    <insert id="savingTimeIssueMngBatchResult" parameterType="java.util.Map">
+       /*CronSchedulMapper.savingTimeIssueMngBatchResult*/
+        INSERT INTO [RPA_POTAL].[DBO].[TB_BATCH_EXECUT_RESULT] 
+        SELECT MAX(SN), '절감시간이슈관리', 1 FROM [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_EXECUT_MTR]
+    </insert>
+    
+    
+    
+    
+    
+    
+    <delete id="deleteBatchResult" parameterType="java.util.Map">
+       /*CronSchedulMapper.deleteBatchResult*/
+       <![CDATA[ 
+       DECLARE @PIVOT_DATE  DATETIME
+	   SET @PIVOT_DATE  = CONVERT(DATETIME, CONVERT(VARCHAR(10), DATEADD(DAY, -7, GETDATE()), 23))
+	   -- 일주일 전 ~ 금일까지 수행된 배치 결과 이력들은 남겨두고, 그 전 기록들을 DELETE
+	   DELETE FROM [DBO].[TB_BATCH_EXECUT_RESULT] WHERE CAST(STUFF(STUFF(STUFF([SN], 9, 0, ' '), 12, 0, ':'), 15, 0, ':') AS DATETIME) < @PIVOT_DATE
+	   ]]>
+    </delete>
+    
+    
+    
+  
+    <update id="updateCmpnyCd" parameterType="java.util.Map">
+    /* CronSchedulMapper.updateCmpnyCd */
+      UPDATE  [RPA_POTAL].[DBO].[TB_USER_BAS] SET CMPNY_CD = 'T' WHERE USER_ID in('yozolady', 'rpa_t001')
+      UPDATE  [RPA_POTAL].[DBO].[TB_USER_BAS] SET CMPNY_CD = 'I' WHERE USER_ID in('tricker1129')
+      UPDATE  [RPA_POTAL].[DBO].[TB_USER_BAS] SET CMPNY_CD = 'E' WHERE USER_ID in('sjsong','mspark','ktw3232','jwnseo318','R000102','jhbyun')
+    </update>
+    
+    
+    
+	<update id="updateAfterdayRetryInfo" parameterType="java.util.Map">
+	/* CronSchedulMapper.updateAfterdayRetryInfo */
+	UPDATE TB_TASK_DEVLOP_PROCESS_OPER_EXECUT_HIST 
+	SET TRGET_AT = 0
+	WHERE CONVERT(VARCHAR,GETDATE(),120) &gt; CONVERT(VARCHAR,DATEADD(DD, 1 , END_DT),23) + ' 23:59:59'
+	AND TRGET_AT = 1
+	</update>
+	
+	<insert id="insertStsProc" parameterType="java.util.Map">
+        /* CronSchedulMapper.insertStsProc */
+        INSERT TB_STS_PROC
+			(
+        		YMD		,JOB_ID		,START_TIME		,END_DT		,TENANT_ID		
+        		,COMP_CD		,COMP_NM		,PROCESS_CD		,PROCESS_NM		,REDCN_TM		
+        		,JOB_TM			,STATE_CD		,STATUS_NM		,SUESS_CNT		,FAIL_CNT		
+        		,REG_ID			,REG_DT
+        	)
+		SELECT   YMD
+			   , T.ID
+		       , T.STARTTIME
+			   , T.END_TIME
+		       , T.TENANTID
+		       , CI.COMP_CD
+		       , CI.COMP_NM
+		       , T.PROCESS_CD
+		       , T.PROCESS_NM
+			   , T.REDCN_TM
+			   , T.JOB_TM
+		       , T.STATE
+		       , ST.STATUS_NM
+		       , CASE WHEN T.STATE = '5' THEN 1 ELSE 0 END AS SUESS_CNT
+		       , CASE WHEN T.STATE = '5' THEN 0 ELSE 1 END AS FAIL_CNT
+		       , 'GWTEST12'
+		       , GETDATE()
+		  FROM (
+		        SELECT   A.TENANTID
+		        	   , A.ID
+		               , CONVERT(CHAR(10), DATEADD(HH, 9, A.STARTTIME), 23)   AS YMD
+		               , DATEADD(HH, 9, A.STARTTIME) AS STARTTIME
+					   , DATEADD(HH, 9, A.EndTime) AS END_TIME
+		               , A.ENDTIME
+		               , A.STATE
+		               , ISNULL(B.PROCESS_CD,'NO_MAT') AS PROCESS_CD
+		               , ISNULL(C.PROCESS_NM,'NO_MAT') AS PROCESS_NM
+					   , C.REDCN_TM
+					   , C.DEVLOP_SN
+					   , D.JOB_TM
+		          FROM SY_JOBS A
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.RELEASEID = B.RELEASES_ID
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS C ON B.PROCESS_CD = C.PROCESS_CD
+					   INNER JOIN TB_TASK_DEVLOP D ON C.DEVLOP_SN = D.DEVLOP_SN
+		         WHERE 1 = 1
+		           AND DATEADD(HH, 9, A.STARTTIME)  &gt; (
+		                                                  SELECT ISNULL(MAX(A_1.END_DT), CONVERT(DATETIME, '2019-01-01'))
+		                                                    FROM TB_STS_PROC A_1
+		                                                 ) 
+		           AND A.EndTime IS NOT NULL
+		        ) T
+		        , (
+		           SELECT   A.CD AS TENNANT_CD
+		                  , A.CD_NM AS COMP_CD
+		                  , B.CD_NM AS COMP_NM
+		             FROM (
+		                   SELECT CD, CD_NM
+		                     FROM TB_CMMN_CD
+		                    WHERE CLS_CD = '0034'
+		                   ) A
+		                  ,(
+		                    SELECT CD, CD_NM
+		                      FROM TB_CMMN_CD
+		                     WHERE CLS_CD = '0024'
+		                   ) B
+		             WHERE B.CD = A.CD_NM
+		           ) CI
+		        , (
+		           SELECT CD AS STATUS_CD, CD_NM AS STATUS_NM
+		             FROM TB_CMMN_CD
+		            WHERE CLS_CD = '0011'
+		          ) ST
+		 WHERE 1 = 1
+		   AND T.TENANTID = CI.TENNANT_CD
+		   AND T.STATE = ST.STATUS_CD
+		 ORDER BY T.STARTTIME
+    </insert>
+    
+    <insert id="insertStsTask" parameterType="java.util.Map">
+        /* CronSchedulMapper.insertStsTask */
+		INSERT TB_STS_TASK
+			(
+        		YMD		,JOB_ID		,START_TIME		,END_DT		,TENANT_ID		
+        		,COMP_CD		,COMP_NM	,PROCESS_CD		,PROCESS_NM		,REDCN_TM		
+        		,JOB_TM			,STATE_CD		,STATUS_NM		,TASK_CD	,TASK_NM
+        		,SUESS_CNT		,FAIL_CNT		,REG_ID			,REG_DT
+        	)
+		SELECT   YMD
+			   , T.ID
+		       , T.STARTTIME
+			   , T.END_TIME
+		       , T.TENANTID
+		       , CI.COMP_CD
+		       , CI.COMP_NM
+		       , T.PROCESS_CD
+		       , T.PROCESS_NM
+			   , T.REDCN_TM
+			   , T.JOB_TM
+		       , T.STATE
+		       , ST.STATUS_NM
+			   , T.TASK_CD
+			   , T.TASK_NM
+		       , CASE WHEN T.STATE = '5' THEN 1 ELSE 0 END AS SUESS_CNT
+		       , CASE WHEN T.STATE = '5' THEN 0 ELSE 1 END AS FAIL_CNT
+		       , 'GWTEST12'
+		       , GETDATE()
+		  FROM (
+		        SELECT   A.TENANTID
+		        	   , A.ID
+		               , CONVERT(CHAR(10), DATEADD(HH, 9, A.STARTTIME), 23)   AS YMD
+		               , DATEADD(HH, 9, A.STARTTIME) AS STARTTIME
+					   , DATEADD(HH, 9, A.EndTime) AS END_TIME
+		               , A.ENDTIME
+		               , A.STATE
+		               , ISNULL(B.PROCESS_CD,'NO_MAT') AS PROCESS_CD
+		               , ISNULL(C.PROCESS_NM,'NO_MAT') AS PROCESS_NM
+					   , C.REDCN_TM
+					   , D.JOB_TM
+					   , D.TASK_CD
+					   , D.TASK_NM
+		          FROM SY_JOBS A
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.RELEASEID = B.RELEASES_ID
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS C ON B.PROCESS_CD = C.PROCESS_CD
+					   INNER JOIN TB_TASK_DEVLOP D ON C.DEVLOP_SN = D.DEVLOP_SN
+		         WHERE 1 = 1
+		           AND DATEADD(HH, 9, A.STARTTIME)  &gt; (
+		                                                  SELECT ISNULL(MAX(A_1.END_DT), CONVERT(DATETIME, '2019-01-01'))
+		                                                    FROM TB_STS_TASK A_1
+		                                                 )
+		           AND A.EndTime IS NOT NULL
+		        ) T
+		        , (
+		           SELECT   A.CD AS TENNANT_CD
+		                  , A.CD_NM AS COMP_CD
+		                  , B.CD_NM AS COMP_NM
+		             FROM (
+		                   SELECT CD, CD_NM
+		                     FROM TB_CMMN_CD
+		                    WHERE CLS_CD = '0034'
+		                   ) A
+		                  ,(
+		                    SELECT CD, CD_NM
+		                      FROM TB_CMMN_CD
+		                     WHERE CLS_CD = '0024'
+		                   ) B
+		             WHERE B.CD = A.CD_NM
+		           ) CI
+		        , (
+		           SELECT CD AS STATUS_CD, CD_NM AS STATUS_NM
+		             FROM TB_CMMN_CD
+		            WHERE CLS_CD = '0011'
+		          ) ST
+		 WHERE 1 = 1
+		   AND T.TENANTID = CI.TENNANT_CD
+		   AND T.STATE = ST.STATUS_CD
+		 ORDER BY T.STARTTIME
+    </insert>
+    
+    <insert id="insertStsBot" parameterType="java.util.Map">
+        /* CronSchedulMapper.insertStsBot */
+		INSERT TB_STS_BOT
+		(
+        	YMD		,JOB_ID		,START_TIME		,END_DT		,TENANT_ID		
+        	,COMP_CD		,COMP_NM		,PROCESS_CD		,PROCESS_NM		,REDCN_TM		
+        	,JOB_TM			,STATE_CD		,STATUS_NM		,ROBOT_ID		,BOT_NM		
+        	,SUESS_CNT		,FAIL_CNT		,REG_ID		,REG_DT
+        )
+		SELECT   YMD
+			   , T.ID
+		       , T.STARTTIME
+			   , T.END_TIME
+		       , T.TENANTID
+		       , CI.COMP_CD
+		       , CI.COMP_NM
+		       , T.PROCESS_CD
+		       , T.PROCESS_NM
+			   , T.REDCN_TM
+			   , T.JOB_TM
+		       , T.STATE
+		       , ST.STATUS_NM
+			   , CASE WHEN R.IsDeleted = 1 THEN 
+						(
+							SELECT MAX(R_1.ID) FROM SY_ROBOTS R_1
+							WHERE R_1.NAME = (SELECT R_2.NAME FROM SY_ROBOTS R_2 WHERE R_2.ID = T.ROBOTID)
+						)
+				 	ELSE
+						T.ROBOTID
+					END AS ROBOTID
+		       , ISNULL(R.NAME,'NO_NAME') AS BOT_NM
+		       , CASE WHEN T.STATE = '5' THEN 1 ELSE 0 END AS SUESS_CNT
+		       , CASE WHEN T.STATE = '5' THEN 0 ELSE 1 END AS FAIL_CNT
+		       , 'GWTEST12'
+		       , GETDATE()
+		  FROM (
+		        SELECT   A.TENANTID
+		        	   , A.ID
+		               , CONVERT(CHAR(10), DATEADD(HH, 9, A.STARTTIME), 23)   AS YMD
+		               , DATEADD(HH, 9, A.STARTTIME) AS STARTTIME
+					   , DATEADD(HH, 9, A.EndTime) AS END_TIME
+		               , A.ENDTIME
+		               , A.STATE
+		               , A.ROBOTID
+		               , ISNULL(B.PROCESS_CD,'NO_MAT') AS PROCESS_CD
+		               , ISNULL(C.PROCESS_NM,'NO_MAT') AS PROCESS_NM
+					   , C.REDCN_TM
+					   , D.JOB_TM
+					   , D.DEVLOP_SN
+					   , D.TASK_CD
+		          FROM SY_JOBS A
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.RELEASEID = B.RELEASES_ID
+		               INNER JOIN TB_TASK_DEVLOP_PROCESS C ON B.PROCESS_CD = C.PROCESS_CD
+					   INNER JOIN TB_TASK_DEVLOP D ON C.DEVLOP_SN = D.DEVLOP_SN
+		         WHERE 1 = 1
+		           AND DATEADD(HH, 9, A.STARTTIME)  &gt; (
+		                                                  SELECT ISNULL(MAX(A_1.END_DT), CONVERT(DATETIME, '2019-01-01'))
+		                                                    FROM TB_STS_BOT A_1
+		                                                 )
+		           AND A.EndTime IS NOT NULL
+		        ) T
+				INNER JOIN  SY_ROBOTS R ON T.ROBOTID = R.ID
+		        , (
+		           SELECT   A.CD AS TENNANT_CD
+		                  , A.CD_NM AS COMP_CD
+		                  , B.CD_NM AS COMP_NM
+		             FROM (
+		                   SELECT CD, CD_NM
+		                     FROM TB_CMMN_CD
+		                    WHERE CLS_CD = '0034'
+		                   ) A
+		                  ,(
+		                    SELECT CD, CD_NM
+		                      FROM TB_CMMN_CD
+		                     WHERE CLS_CD = '0024'
+		                   ) B
+		             WHERE B.CD = A.CD_NM
+		           ) CI
+		        , (
+		           SELECT CD AS STATUS_CD, CD_NM AS STATUS_NM
+		             FROM TB_CMMN_CD
+		            WHERE CLS_CD = '0011'
+		          ) ST
+		 WHERE 1 = 1
+		   AND T.TENANTID = CI.TENNANT_CD
+		   AND T.STATE = ST.STATUS_CD
+		   AND R.ISDELETED = 0
+		 ORDER BY T.STARTTIME
+    </insert>
+    
+    <select id="makeTriggerArSchedule" parameterType="java.util.Map" resultType="camelMap">
+        /* CronSchedulMapper.makeTriggerArSchedule */
+        <![CDATA[
+		DECLARE @NEXT_MONTH  DATETIME, @NEXT_MONTH_FIRST_DAY  DATETIME, @NEXT_MONTH_LAST_DAY  DATETIME
+
+		SET @NEXT_MONTH = DATEADD(MM, +1, GETDATE())
+		--SET @NEXT_MONTH = '2021-06-01'
+		SET @NEXT_MONTH_FIRST_DAY = CONVERT(VARCHAR(50), DATEADD(D, -DAY(@NEXT_MONTH) + 1, @NEXT_MONTH), 23)
+		SET @NEXT_MONTH_LAST_DAY = CONVERT(VARCHAR(10), DATEADD(MONTH, 1, @NEXT_MONTH) - DAY(@NEXT_MONTH), 23) + ' 23:59:59'
+		
+		--SELECT @NEXT_MONTH, @NEXT_MONTH_FIRST_DAY, @NEXT_MONTH_LAST_DAY;
+		
+		SELECT 
+		     [PROCESS_CD]
+		     ,[SCHDULE_NO]
+		     ,CASE WHEN @NEXT_MONTH_FIRST_DAY < [START_DE]
+		      THEN CONVERT(VARCHAR(10), [START_DE], 23) + ' 00:00:00'
+		      ELSE @NEXT_MONTH_FIRST_DAY
+		      END 'START_DE'
+		     ,CASE WHEN [END_DE] < @NEXT_MONTH_LAST_DAY
+		      THEN CONVERT(VARCHAR(10), [END_DE], 23) + ' 23:59:59'
+		      ELSE @NEXT_MONTH_LAST_DAY
+		      END 'END_DE'
+		     ,[START_DE] 'REAL_START_DE' -- 등록시 설정한 총 기간의 시작 날짜
+		     ,[END_DE] 'REAL_END_DE' -- 등록시 설정한 총 기간의 끝 날짜
+		     ,[SCHDULE_TYPE1]
+		     ,[SCHDULE_TYPE2]
+		     ,[EVERY_MINUTE]
+		     ,[EVERY_HOUR]
+		     ,[EVERY_HOUR_MINUTE]
+		     ,[EVERY_WEEK_MON_AT]
+		     ,[EVERY_WEEK_TUE_AT]
+		     ,[EVERY_WEEK_WED_AT]
+		     ,[EVERY_WEEK_THU_AT]
+		     ,[EVERY_WEEK_FRI_AT]
+		     ,[EVERY_WEEK_SAT_AT]
+		     ,[EVERY_WEEK_SUN_AT]
+		     ,[EVERY_MONTH_WEEK_ORDER]
+		     ,[EVERY_MONTH_DOW]
+		     ,[EXECUT_DAY]
+		     ,[EXECUT_HOUR]
+		     ,[EXECUT_MINUTE]
+		     ,[SCHDULE_CRONTAB]
+		     ,[SCHDULE_TEXT]
+		     ,[REGISTER_ID]
+		     ,[REG_DT]
+		     ,[UPDUSR_ID]
+		     ,[UPDT_DT]
+		     ,[CMPNY_CD]
+		     ,[BOT_TYPE]
+		     ,[INPUT_ARGUMENTS]
+		     ,[RELEASES_ID]
+		     ,[RELEASES_KEY]
+		     ,[RELEASES_NAME]
+		     ,[PROCESS_KEY]
+		     ,[BOT_NO]
+		     ,[DELETE_AT]
+		     ,[DISABLE_AT]
+		FROM [RPA_POTAL].[DBO].[TB_TASK_DEVLOP_PROCESS_SCHDULE]
+		WHERE 
+		CONVERT(VARCHAR(8), @NEXT_MONTH_FIRST_DAY, 112) 
+		BETWEEN CONVERT(VARCHAR(8), [START_DE], 112)  AND CONVERT(VARCHAR(8), [END_DE], 112)
+		AND SCHDULE_TYPE1 = 6
+		--AND DISABLE_AT = 0
+		]]>
+    </select>
+    
+        
+    <insert id="makeTriggerArScheduleBatchResult" parameterType="java.util.Map">
+       /*CronSchedulMapper.makeTriggerArScheduleBatchResult*/
+        INSERT INTO [RPA_POTAL].[DBO].[TB_BATCH_EXECUT_RESULT] values(#{sn}, #{batchName}, 1)
+    </insert>
+    
+    
+    <select id="selectJobsMngMaxJobId" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* CronSchedulMapper.selectJobsMngMaxJobId */
+        SELECT MAX(JOB_ID) FROM [RPA_POTAL].[DBO].[TB_JOB_MNG]
+    </select>
+    
+    <insert id="insertBatchForJobsMng" parameterType="java.util.Map">
+        /*CronSchedulMapper.insertBatchForJobsMng*/ 
+		<![CDATA[
+		DECLARE @START_DATE  DATETIME, @END_DATE  DATETIME, @NOW_DATE  DATETIME
+        
+        SET @NOW_DATE    = DATEADD(D, -5, GETDATE());
+        SET @START_DATE   = DATEADD(HOUR, -9, DATEADD(DAY, DATEDIFF(DAY, 0, @NOW_DATE), 0));
+        SET @END_DATE     = DATEADD(HH, -9, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE() , 23)))
+      
+        MERGE INTO [dbo].[TB_JOB_MNG] AS A
+        USING 
+        (
+            SELECT 
+            A.[ID] 'JOB_ID'
+            , CONVERT(VARCHAR, GETDATE(), 112) 'BATCH_DATE'
+            , A.[RELEASEID] 'RELEASE_ID'
+            , B.[PROCESS_CD] 'PROCESS_CD'
+            , B.[PROCESS_KEY] 'PROCESS_NM'
+            --, A.[TENANTID] 'TENANT_ID'
+            , D.[CMPNY_CD] 'CMPNY_CD'
+            --, (SELECT [CD_NM] FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE [CLS_CD] = '0024' AND [CD] = D.[CMPNY_CD]) 'CMPNY_NM'
+            , DATEADD(HH, 9, A.[STARTTIME]) 'START_TIME_ADD'
+            , DATEADD(HH, 9, A.[ENDTIME]) 'END_TIME_ADD'
+            , A.[STARTTIME] 'START_TIME'
+            , A.[ENDTIME] 'END_TIME' 
+            , A.[ROBOTID] 'ROBOT_ID'
+            --, (SELECT [NAME] FROM SY_ROBOTS WHERE [ID] = A.[ROBOTID]) 'ROBOT_NM'
+            , A.[SOURCE] 'SOURCE'
+            , A.[STATE] 'JOB_STATE'
+            --,(SELECT [CD_NM] FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE [CD] = A.[STATE] AND [CLS_CD] = '0011' AND [USE_AT] = 'Y') 'JOB_STATE_NM'
+            , CASE WHEN A.[STATE] = 5 THEN 1 ELSE 0 END 'SUCCESS_AT'
+            , '001' 'RESN'
+            , NULL 'UPDT_DT'
+            , NULL 'UPDUSR_ID'
+        
+            FROM SY_JOBS A
+            INNER JOIN TB_TASK_DEVLOP_PROCESS_MAPPER B ON A.[RELEASEID]  = B.[RELEASES_ID]
+            INNER JOIN TB_TASK_DEVLOP_PROCESS        C ON B.[PROCESS_CD] = C.[PROCESS_CD]
+            INNER JOIN TB_API_TKN                    D ON D.[TENANT_ID]  = A.[TENANTID]
+        
+            WHERE 
+            1 = 1
+            --AND A.[ISDELETED] = 0 
+            AND A.[STARTTIME] >= CONVERT(DATETIME, C.[BELONGING_DE])
+            AND A.[ENDTIME] IS NOT NULL
+            AND A.[ROBOTID] IS NOT NULL
+            AND C.[PROCESS_STTUS] IN ('D4', 'O1')                 -- 개발완료 OR 운영중
+            AND A.[STARTTIME] >= CONVERT(DATETIME, @START_DATE)
+            AND A.[STARTTIME] <  CONVERT(DATETIME, @END_DATE)
+        ) AS B 
+        ON (A.JOB_ID = B.JOB_ID)
+        WHEN NOT MATCHED THEN
+            INSERT ([JOB_ID], [BATCH_DATE], [RELEASE_ID], [PROCESS_CD], [PROCESS_NM], [CMPNY_CD], [START_TIME_ADD], [END_TIME_ADD], [START_TIME], [END_TIME]
+                    , [ROBOT_ID], [SOURCE], [JOB_STATE], [SUCCESS_AT], [RESN], [UPDT_DT], [UPDUSR_ID])
+            VALUES (B.[JOB_ID], B.[BATCH_DATE], B.[RELEASE_ID], B.[PROCESS_CD], B.[PROCESS_NM], B.[CMPNY_CD], B.[START_TIME_ADD], B.[END_TIME_ADD], B.[START_TIME], B.[END_TIME]
+                    , B.[ROBOT_ID], B.[SOURCE], B.[JOB_STATE], B.[SUCCESS_AT], '001', NULL, NULL);
+		]]>
+    </insert>
+    
+</mapper>

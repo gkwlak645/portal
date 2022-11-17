@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="BbsMngMapper">
+    <select id="getProperty" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.getProperty*/  
+             SELECT   BOARD_CD
+                    , BOARD_NO
+                    , BOARD_NM
+                    , BOARD_TY
+                    , USE_AT
+                    , BOARD_DC
+                    , BOARD_TY
+                    , BOARD_URL
+                    , BOARD_CD 
+               FROM   TB_BOARD_MNG
+              WHERE   BOARD_NO = #{boardNo} 
+    </select>
+    
+    <select id="selectBoardTypeProperty" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.selectBoardTypeProperty*/
+        SELECT BOARD_URL
+              ,BOARD_TY 
+          FROM TB_BOARD_TY
+         WHERE BOARD_CD = #{boardCd}
+    </select>
+    
+    <select id="selectTotalMngCount" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" resultType="int">
+        /*BbsMngMapper.selectTotalMngCount*/
+        SELECT COUNT(*) FROM TB_BOARD_MNG
+	        <choose>
+	            <when test='boardCd != null'>         
+	                WHERE BOARD_CD = #{boardCd}  
+	            </when>
+	            <when test='boardTy != null'>         
+	                WHERE BOARD_TY like '%'+ #{boardTy} +'%'   
+	            </when>
+	        </choose>
+    </select> 
+
+    <select id="selectTotalMngCountSearch" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" resultType="int">
+        /*BbsMngMapper.selectTotalMngCountSearch*/
+        SELECT COUNT(*)
+          FROM TB_BOARD_MNG
+         WHERE BOARD_CD = #{boardCd}
+    </select> 
+    
+
+    <select id="selectBoardManageList" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.selectBoardManageList*/
+        SELECT    BOARD_CD
+                , BOARD_NO
+                , BOARD_NM
+                , BOARD_TY
+                , REGISTER_ID
+                , REG_DT
+          FROM    TB_BOARD_MNG
+         WHERE    BOARD_TY like '%'+ #{boardTy} +'%' 
+      ORDER BY    BOARD_NO DESC
+        OFFSET    #{pageInfo.firstRecordIndex} ROWS
+    FETCH NEXT    #{pageInfo.recordCountPerPage} ROWS ONLY;                                          
+    </select>
+    
+    <select id="selectBoardType" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.selectBoardType*/
+          SELECT   BOARD_NO
+                 , BOARD_NM
+                 , BOARD_TY
+                 , REGISTER_ID
+                 , REG_DT
+                 , BOARD_CD
+            FROM   TB_BOARD_MNG
+           WHERE   BOARD_CD = #{boardCd}
+        ORDER BY   BOARD_NO DESC
+          OFFSET   #{pageInfo.firstRecordIndex} ROWS
+      FETCH NEXT   #{pageInfo.recordCountPerPage} ROWS ONLY;
+    </select>
+    
+    <!-- <select id="selectBoardManageDetail" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" resultType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.selectBoardManageDetail*/
+        SELECT   BOARD_CD
+               , BOARD_NO
+               , BOARD_NAME
+               , BOARD_TY
+               , USE_AT
+          FROM   TB_BOARD_MANAGE
+         WHERE   BOARD_NO = #{boardNo}
+    </select> -->
+    
+
+    <insert id="insertBoardManage" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.insertBoardManage*/
+        INSERT INTO TB_BOARD_MNG (  BOARD_NO
+                                  , BOARD_NM                                    
+                                  , BOARD_CD
+                                  , BOARD_TY
+                                  , REGISTER_ID
+                                  , REG_DT
+                                  , UPDUSR_ID
+                                  , UPDT_DT
+                                  , USE_AT
+                                  , BOARD_DC
+                                  , BOARD_URL
+                                 )
+                          VALUES (  #{boardNo}
+				                  , #{boardNm}
+				                  , #{boardCd}
+				                  , #{boardTy}
+				                  , #{txUserId}
+				                  , GETDATE()
+				                  , #{txUserId}
+				                  , GETDATE()
+				                  , #{useAt}
+				                  , #{boardDc}
+				                  , #{boardUrl}
+                                 )
+    </insert>
+    
+    <delete id="deleteBoardManage" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.deleteBoardManage*/
+        DELETE FROM TB_BOARD_MNG
+              WHERE BOARD_NO = #{boardNo}
+    </delete>
+    
+    <!-- <select id="selectBoardUrl" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" resultType="String">
+        /*BbsMngMapper.selectBoardUrl*/
+        SELECT BOARD_URL
+          FROM TB_BOARD_TY
+         WHERE BOARD_TY = #{boardTy}
+    </select> -->
+    
+    <update id="updateBoardManage"  parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.updateBoardManage*/
+        UPDATE   TB_BOARD_MNG
+           SET   BOARD_NM = #{boardNm}
+               , UPDUSR_ID = #{txUserId}
+               , UPDT_DT = GETDATE()
+               , USE_AT = #{useAt}
+               , BOARD_DC = #{boardDc}
+         WHERE   BOARD_NO = #{boardNo}       
+    </update>
+    
+    
+    <select id="selectCountBoardNo" resultType="int">
+     /*BbsMngMapper.selectCountBoardNo*/
+     SELECT ISNULL(MAX(BOARD_NO),0)+1 FROM TB_BOARD_MNG
+    </select>
+    
+    
+    <select id="selectBoardMenuCd" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO" resultType="String">
+        /*BbsMngMapper.selectBoardMenuCd*/
+        SELECT B.MENU_CD
+          FROM TB_BOARD_MNG A
+          JOIN TB_MENU B 
+            ON A.BOARD_URL = B.MENU_URL
+         WHERE A.BOARD_NO = #{boardNo}
+    </select>
+    
+</mapper>
+
+   <!--  <insert id="insertBoardManage" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.insertBoardManage*/
+        INSERT
+          INTO TB_BOARD_MANAGE (
+                                    BOARD_CD
+                                  , BOARD_NAME
+                                  , BOARD_TY
+                                  , REGISTER_ID
+                                  , REG_DT
+                                  , UPDUSR_ID
+                                  , UPDT_DT
+                                  , USE_AT
+                               )
+        VALUES (
+                    #{boardCd}
+                  , #{boardName}
+                  , #{boardTy}
+                  , #{txUserId}
+                  , GETDATE()
+                  , #{txUserId}
+                  , GETDATE()
+                  , #{useAt}
+               )
+    </insert>
+ -->
+ 
+    <!-- <delete id="deleteBoardManage" parameterType="kr.co.rpaplatform.dongwon.cmmnty.vo.BbsMngVO">
+        /*BbsMngMapper.deleteBoardManage*/
+        DELETE
+          FROM TB_BOARD_MANAGE
+         WHERE BOARD_CD = #{boardCd}
+    </delete> -->
+ 

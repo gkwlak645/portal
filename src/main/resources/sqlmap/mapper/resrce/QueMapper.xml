@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="QueMapper">
+
+        <select id="selectQueList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* QueMapper.selectQueList */
+	          SELECT A.Id
+	            , dbo.UFN_GET_CMPNY_CD(A.TenantId) AS cmpnyCd
+			    , CASE 
+			            WHEN ISNULL(dbo.UFN_GET_CMPNY_NM(A.TenantId),'') = ''   THEN 'Default'
+			       ELSE dbo.UFN_GET_CMPNY_NM(A.TenantId) END  AS CmpnyName
+			      ,A.Name
+			      ,A.Description
+			      ,A.ReleaseId AS ReleaseId
+			      ,C.Name AS ReleaseName
+			FROM SY_QUEUEDEFINITIONS A
+			LEFT  JOIN SY_RELEASES C
+			ON A.ReleaseId = C.Id AND C.IsDeleted = 0
+		  WHERE A.IsDeleted = 0 
+			  <if test='cmpny != null and cmpny != ""'>
+	            AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpny})
+	          </if>
+	          <if test='name != null and name != ""'>
+	            AND   A.Name LIKE '%' + #{name} + '%'
+	          </if>
+          ORDER BY   A.Name ASC
+                     OFFSET #{paginationInfo.firstRecordIndex} ROWS
+                     FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+        </select>
+        
+        <select id="selectQueCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+        /* QueMapper.selectQueCount */
+           SELECT COUNT(A.Id) AS cnt
+            FROM SY_QUEUEDEFINITIONS A
+            LEFT  JOIN SY_RELEASES C
+            ON A.ReleaseId = C.Id AND C.IsDeleted = 0
+            WHERE A.IsDeleted = 0 
+             <if test='cmpny != null and cmpny != ""'>
+               AND   A.TenantId = dbo.UFN_GET_TENANT_ID(#{cmpny})
+             </if>
+             <if test='Name != null and Name != ""'>
+               AND   A.Name LIKE '%' + #{name} + '%'
+             </if>
+        </select>
+        
+        
+        
+        <select id="selectQue" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* QueMapper.selectQue */
+              SELECT 
+                    A.Id
+                  , A.TenantId
+                  , A.Name
+                  , A.Description
+                  , A.ReleaseId AS ReleaseId
+                  , C.Name AS ReleaseName
+                  , D.CD AS cmpny
+            FROM SY_QUEUEDEFINITIONS A
+            LEFT  JOIN SY_RELEASES C
+            ON A.ReleaseId = C.Id AND C.IsDeleted = 0
+            LEFT JOIN   TB_CMMN_CD D
+            ON   (
+                     A.TenantId = D.CD
+                     AND  D.CLS_CD = '0034'
+                     AND  D.USE_AT = 'Y'
+                 )
+          WHERE A.IsDeleted = 0 
+              <if test='id != null and id != ""'>
+                AND   A.Id = #{id}
+              </if>
+              <if test='Name != null and Name != ""'>
+                AND   A.Name = #{Name}
+              </if>
+        </select>
+        
+        
+        <select id="selectQueCmpny" parameterType="java.util.Map" resultType="String">
+        /* QueMapper.selectQueCmpny */
+            SELECT 
+                  D.CD_NM AS cmpnyCd
+            FROM SY_QUEUEDEFINITIONS A
+            JOIN   TB_CMMN_CD D
+            ON   (
+                     A.TenantId = D.CD
+                     AND  D.CLS_CD = '0034'
+                     AND  D.USE_AT = 'Y'
+                 )
+          WHERE A.IsDeleted = 0 
+              <if test='Id != null and Id != ""'>
+                AND   A.Id = #{Id}
+              </if>
+        </select>
+        
+        
+        
+        <select id="selectRlseList" parameterType="java.util.Map" resultType="pascalToCamelMap">
+        /* QueMapper.selectRlseList */
+           SELECT  Id
+		      , TenantId
+		      , Name
+		  FROM SY_RELEASES A
+		  JOIN TB_PROCESS B
+		  ON A.ID = B.PROCESS_CD
+		  WHERE IsDeleted = 0
+        </select>
+        
+        
+
+</mapper>

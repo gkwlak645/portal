@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="LoginListMapper">
+
+    <!-- 접속가능명단 리스트(메인) 개수 -->
+    <select id="searchPortalLoginListCount" parameterType="java.util.Map" resultType="Integer">
+        /*LoginListMapper.searchPortalLoginListCount*/
+          SELECT 
+		    COUNT(*)
+		FROM [RPA_POTAL].[DBO].[TB_USER_BAS] A
+		INNER JOIN [DBO].[TB_USER_ROLE] B ON A.USER_ID = B.USER_ID
+		INNER JOIN [DBO].[TB_USER_DETAIL] C ON B.USER_ID = C.EMP_NO
+        <where>
+              USE_AT = 'Y'
+              AND A.USER_ID NOT LIKE '%GWTEST%' 
+              <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+               AND A.[CMPNY_CD] = #{searchCmpnyCd}
+              </if>
+              <if test='searchId != null and searchId != ""'>
+               AND A.[USER_ID] = #{searchId}
+              </if>
+              <if test='searchName != null and searchName != ""'>
+               AND C.[EMP_NM] LIKE CONCAT('%', #{searchName}, '%')
+              </if>
+              <if test='searchRoleCd != null and searchRoleCd != "" and searchRoleCd != "전체"'>
+               AND B.[ROLE_CD] = #{searchRoleCd}
+              </if>         
+        </where> 
+    </select>
+  
+    <!-- 접속가능명단 리스트(메인) -->
+    <select id="searchPortalLoginList" parameterType="java.util.Map" resultType="camelMap">
+		/*LoginListMapper.searchPortalLoginList*/
+		SELECT 
+		    (SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0024' AND CD = A.CMPNY_CD) 'CMP_NM'
+		    , C.EMP_NM 'NAME'
+		    , A.[USER_ID] 'ID'
+		    , (SELECT ROLE_NM FROM [RPA_POTAL].[DBO].[TB_ROLE] WHERE ROLE_CD = B.ROLE_CD) 'ROLE_NM'
+		FROM [RPA_POTAL].[DBO].[TB_USER_BAS] A
+		INNER JOIN [DBO].[TB_USER_ROLE] B ON A.USER_ID = B.USER_ID
+		INNER JOIN [DBO].[TB_USER_DETAIL] C ON B.USER_ID = C.EMP_NO
+		<where>
+              USE_AT = 'Y'
+              AND A.USER_ID NOT LIKE '%GWTEST%' 
+              <if test='searchCmpnyCd != null and searchCmpnyCd != ""'>
+               AND A.[CMPNY_CD] = #{searchCmpnyCd}
+              </if>
+              <if test='searchId != null and searchId != ""'>
+               AND A.[USER_ID] = #{searchId}
+              </if>
+              <if test='searchName != null and searchName != ""'>
+               AND C.[EMP_NM] LIKE CONCAT('%', #{searchName}, '%')
+              </if>
+              <if test='searchRoleCd != null and searchRoleCd != "" and searchRoleCd != "전체"'>
+               AND B.[ROLE_CD] = #{searchRoleCd}
+              </if>
+        </where> 
+        ORDER BY A.CMPNY_CD, C.EMP_NM
+
+        <if test='excelDownload != "Y"'> 
+           OFFSET #{paginationInfo.firstRecordIndex} ROWS
+           FETCH NEXT #{paginationInfo.recordCountPerPage} ROWS ONLY
+      </if>
+    </select>
+    
+
+    <!-- 회사별 인원수 -->
+    <select id="loginCountPerCmpList" parameterType="java.util.Map" resultType="camelMap">
+        /*LoginListMapper.loginCountPerCmpList*/
+        SELECT  
+           CASE GROUPING(D.CD_NM) WHEN 1 THEN '총 인원 수' ELSE D.CD_NM END AS CMP_NM
+         , COUNT(A.[USER_ID]) 'CMP_COUNT'
+        FROM [RPA_POTAL].[DBO].[TB_USER_BAS] A
+        INNER JOIN [DBO].[TB_USER_ROLE] B ON A.USER_ID = B.USER_ID
+        INNER JOIN [DBO].[TB_USER_DETAIL] C ON B.USER_ID = C.EMP_NO
+        INNER JOIN [DBO].[TB_CMMN_CD] D ON D.CD = A.CMPNY_CD
+        <where>
+              A.USE_AT = 'Y'
+              AND A.USER_ID NOT LIKE '%GWTEST%' 
+              AND D.CLS_CD = '0024'
+        </where>
+        GROUP BY ROLLUP(D.CD_NM)
+        ORDER BY [CMP_COUNT]
+    </select>
+    
+    <!-- 역할별 인원수 -->
+    <select id="loginCountPerRoleList" parameterType="java.util.Map" resultType="camelMap">
+        /*LoginListMapper.loginCountPerRoleList*/
+          SELECT 
+		        CASE GROUPING(D.ROLE_NM) WHEN 1 THEN '총 인원 수' ELSE D.ROLE_NM END AS ROLE_NM
+              , COUNT(*) 'ROLE_COUNT'
+		  FROM [RPA_POTAL].[DBO].[TB_USER_BAS] A
+		  INNER JOIN [DBO].[TB_USER_ROLE] B ON A.USER_ID = B.USER_ID
+		  INNER JOIN [DBO].[TB_USER_DETAIL] C ON B.USER_ID = C.EMP_NO
+		  INNER JOIN [DBO].[TB_ROLE] D ON D.ROLE_CD = B.ROLE_CD
+		  <where>
+		              A.USE_AT = 'Y'
+		              AND D.USE_AT = 'Y'
+		              AND A.USER_ID NOT LIKE '%GWTEST%' 
+		  </where>  
+          GROUP BY ROLLUP(D.ROLE_NM)
+		  ORDER BY 'ROLE_COUNT';
+    </select>
+
+    <!-- 역할 리스트 -->
+    <select id="searchRoleList" parameterType="java.util.Map" resultType="camelMap">
+        /*LoginListMapper.searchRoleList*/
+          SELECT ROLE_CD, ROLE_NM FROM [DBO].[TB_ROLE] 
+          <where>
+              USE_AT = 'Y'
+          </where>
+    </select>
+</mapper>

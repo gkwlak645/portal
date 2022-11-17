@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="BotMntrngMapper">
+
+    <!-- 등록된 회사인지 -->
+    <select id="selectCountLoginCmpny" parameterType="java.util.Map" resultType="Integer">
+        /*BotMntrngMapper.selectCountLoginCmpny*/
+          SELECT COUNT(CD) FROM [RPA_POTAL].[DBO].[TB_CMMN_CD]         
+          <where>
+              CLS_CD = '0024' 
+	          <if test='cmpnycd != null and cmpnycd != ""'>
+	           AND [CD] = #{cmpnycd}
+	          </if>
+          </where> 
+    </select>
+  
+    <!-- BOT별 동작현황 리스트 조회 -->
+    <select id="selectBotMntrngList" parameterType="java.util.Map" resultType="camelMap">
+		/*BotMntrngMapper.selectBotMntrngList*/
+		DECLARE @SEARCH_DATE DATETIME 
+        SET @SEARCH_DATE = #{searchDate}
+		
+		SELECT
+		       [SN]
+		      ,[JOB_KEY]
+		      ,[JOBS_ID]
+		      
+		      , CASE 
+              WHEN CONVERT(VARCHAR(8), START_DT, 112) <![CDATA[<]]> @SEARCH_DATE THEN 0 
+              ELSE [START_LC] END 'START_LC'
+		                
+              , CASE 
+              WHEN CONVERT(VARCHAR(8), END_DT, 112) <![CDATA[>]]> @SEARCH_DATE THEN 48 
+              ELSE [END_LC] END 'END_LC'
+              
+		      ,[TENANT_ID]
+		      ,[CMPNY_CD]
+		      ,[CMPNY_NM]
+		      ,[PROCESS_CD]
+		      ,[PROCESS_NM]		      
+		      ,(SELECT SJT.INFO FROM SY_JOBS SJT WHERE ID = A.JOBS_ID) 'INFO'		      
+		      ,[BOT_ID]
+		      ,[BOT_NM]
+		      ,[ENVRN_ID]
+		      ,[ENVRN_NM]
+		      ,[STTUS]
+		      ,[ORC_STATE]
+		      ,(SELECT CD_NM FROM [RPA_POTAL].[DBO].[TB_CMMN_CD] WHERE CLS_CD = '0011' AND CD = [ORC_STATE]) 'ORC_STATE_NM'
+		      ,CONVERT(CHAR(19), [START_DT], 21) 'START_DT'
+		      ,CONVERT(CHAR(19), [END_DT], 21) 'END_DT'
+		      ,[EXECUT_TM]		      
+		FROM [rpa_potal].[dbo].[TB_TASK_DEVLOP_PROCESS_EXECUT_MTR] A
+
+		<where>
+	      (     
+	       (CONVERT(VARCHAR(8), START_DT, 112) <![CDATA[<=]]> @SEARCH_DATE AND @SEARCH_DATE <![CDATA[<=]]> CONVERT(VARCHAR(8), END_DT, 112))
+	        OR
+	        END_DT IS NULL
+	      )   
+		  <if test='cmpnycd != null and cmpnycd != ""'>
+            AND TENANT_ID = (SELECT TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] WHERE CMPNY_CD = #{cmpnycd})
+          </if> 				   
+		</where>		
+		ORDER BY [BOT_ID], [STTUS], [START_LC], [END_LC]
+    </select>
+    
+    <!-- 현재 로봇과 로봇 현황 List -->
+    <select id="selectBotList" parameterType="java.util.Map" resultType="camelMap">
+        /*BotMntrngMapper.selectBotList*/
+        SELECT
+		      (SELECT b.CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] b WHERE b.[TENANT_ID] = A.[TENANTID]) 'CMPNY_CD'
+		      , B.[NAME]
+		      , A.[STATE]
+		      , A.[ROBOTID] 'ROBOT_ID'
+		      , CASE 
+		            WHEN A.[STATE] = 0  AND A.[ISUNRESPONSIVE] = 0 THEN 0 -- Available
+		            WHEN A.[STATE] = 1  AND A.[ISUNRESPONSIVE] = 0 THEN 1 -- Busy
+		            WHEN A.[STATE] = 2  AND A.[ISUNRESPONSIVE] = 0 THEN 2 -- Disconnected
+		            WHEN A.[STATE] != 2 AND A.[ISUNRESPONSIVE] = 1 THEN 3 -- Unresponsive
+		        END 'ROBOT_STATE'
+		      --, C.EnvironmentId 'ENVRN_ID'
+		FROM [RPA_POTAL]. [DBO].[SY_SESSIONS] A
+		INNER JOIN [RPA_POTAL].[DBO].[SY_ROBOTS] B ON A.ROBOTID = B.ID
+		--RIGHT OUTER JOIN SY_ROBOTSXENVIRONMENTS C ON A.RobotId = C.RobotId
+		
+		<where>
+		  A.ISDELETED = 0 AND B.ISDELETED = 0
+          <if test='cmpnycd != null and cmpnycd != ""'>
+             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnycd})
+          </if>                    
+        </where>
+		
+		ORDER BY CMPNY_CD, NAME
+    </select>
+    
+    <!-- Trigger AR 예정 스케줄 List -->
+    <select id="selectTriggerArScheduleList" parameterType="java.util.Map" resultType="camelMap">
+        /*BotMntrngMapper.selectTriggerArScheduleList*/
+		SELECT 
+		      [RESV_NO]
+		      ,[DATE_YMD]
+		      , CONVERT(CHAR(19), [DATE_YMSHM], 21) 'START_DT'
+		      , [DATE_YMSHM]
+		      , CASE WHEN DATEPART(MINUTE, [DATE_YMSHM]) >=  30 
+		       THEN DATEPART(HOUR, [DATE_YMSHM]) * 2 + 2
+		       ELSE DATEPART(HOUR, [DATE_YMSHM]) * 2 + 1 
+		       END 'START_LC'
+		      ,CASE WHEN DATEPART(MINUTE, [DATE_YMSHM]) >=  30 
+               THEN DATEPART(HOUR, [DATE_YMSHM]) * 2 + 2
+               ELSE DATEPART(HOUR, [DATE_YMSHM]) * 2 + 1 
+               END 'END_LC'
+		      ,[BOT_NO] 'BOT_ID'
+		      ,[TIME_NO]
+		      ,[PROCESS_CD]
+		      ,[REGISTER_ID]
+		      ,[REG_DT]
+		      ,[REG_GBN]
+		      ,[SEND_YN]
+		      ,[CMPNY_CD]
+		      ,[BOT_TYPE]
+		      ,[INPUTARGUMENTS]
+		      ,[RELEASES_ID]
+		      ,[RELEASES_KEY]
+		      ,[RELEASES_NAME]
+		      ,[PROCESS_KEY] 'PROCESS_NM'
+		      ,[SCHDULE_NO]
+		      ,[DELETE_AT]
+		      ,[UPDUSR_ID]
+		      ,[UPDT_DT]
+		  FROM [RPA_POTAL].[DBO].[TB_TEMP_RESRVE_BOT]
+		  
+		<where>
+		  1 = 1
+		  AND DATE_YMD = #{searchDate}
+		  AND DATE_YMSHM <![CDATA[>=]]> GETDATE() --CONVERT(VARCHAR, GETDATE(), 112) 
+		  AND DELETE_AT = 0
+		  AND DISABLE_AT = 0
+          <if test='cmpnycd != null and cmpnycd != ""'>
+             AND CMPNY_CD = #{cmpnycd}
+          </if>                    
+        </where>
+        
+        ORDER BY RESV_NO DESC;
+
+    </select>
+    
+    <!-- Trigger UR 스케줄 List -->
+    <select id="selectTriggerUrScheduleList" parameterType="java.util.Map" resultType="camelMap">
+        /*BotMntrngMapper.selectTriggerUrScheduleList*/
+		SELECT 
+		    A.[RELEASEID] 'PROCESS_ID'
+		    , B.[PROCESSKEY] 'PROCESS_NM'
+		    , A.[STARTPROCESSCRON] 'CRON_EXPRESSION'
+		    , B.[ENVIRONMENTID] 'ENVRN_ID'
+		    , (SELECT MAX(RobotId) FROM SY_ROBOTSXENVIRONMENTS C where B.[ENVIRONMENTID] = C.EnvironmentId) 'BOT_ID'
+		    , CASE WHEN CONVERT(VARCHAR, GETDATE(), 112) <![CDATA[=]]> #{searchDate}
+				THEN  CONVERT(CHAR(23), GETDATE(), 21)
+				ELSE #{searchYMD}
+				END 'START_DT'
+		    , (SELECT CMPNY_CD FROM [RPA_POTAL].[DBO].[TB_API_TKN] WHERE TENANT_ID = A.TENANTID) 'CMPNY_CD'
+		  FROM [SY_PROCESSSCHEDULES] A
+		  INNER JOIN [SY_RELEASES] B
+		  ON A.RELEASEID = B.ID
+		  <where>
+			  1 = 1
+			  AND A.ISDELETED = 0 
+			  AND B.ISDELETED = 0
+			  AND A.ENABLED = 1
+			  AND A.QUEUEDEFINITIONID IS NULL
+			  <if test='cmpnycd != null and cmpnycd != ""'>
+	             AND A.TENANTID = (SELECT a.TENANT_ID FROM [rpa_potal].[dbo].[TB_API_TKN] a WHERE a.CMPNY_CD = #{cmpnycd})
+	          </if>
+	          AND CONVERT(VARCHAR, GETDATE(), 112) <![CDATA[<=]]> #{searchDate}
+		  </where>  
+		  ORDER BY B.PROCESSKEY
+    </select>
+    
+</mapper>
